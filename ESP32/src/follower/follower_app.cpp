@@ -1,4 +1,5 @@
 #include "follower_app.h"
+#include "follower_presence_service.h"
 
 #include <Arduino.h>
 
@@ -16,6 +17,7 @@ namespace soarm {
 FollowerApp::FollowerApp()
     : statusLedService_(STATUS_LED_PIN, STATUS_LED_COUNT),
       wifiOta_(WIFI_SSID, WIFI_PASS, "soarm-follower"),
+  presenceService_(std::unique_ptr<IFollowerPresenceService>(new FollowerPresenceService())),
       localInputs_{false, false, false, false} {}
 
 void FollowerApp::begin() {
@@ -38,7 +40,7 @@ void FollowerApp::begin() {
   cb.onOtaError         = [](uint32_t code)  { Serial.printf("[OTA] error %u\n", code); };
   wifiOta_.begin(cb);
 
-  const bool espNowReady = espNowPresence_.begin(EspNowPresenceService::Role::Follower);
+  const bool espNowReady = presenceService_->begin();
   if (!espNowReady) {
     Serial.println("[WARN] ESP-NOW init failed on follower");
   }
@@ -46,7 +48,7 @@ void FollowerApp::begin() {
 
 void FollowerApp::tick() {
   wifiOta_.tick();
-  espNowPresence_.tick(wifiOta_.ipAddress());
+  presenceService_->tick(wifiOta_.ipAddress());
 
   const uint32_t uptimeMs = millis();
 

@@ -136,3 +136,43 @@ pio test -e native
 
 Validates pure shared logic (state machine) without hardware peripherals.
 
+---
+
+## ESP-NOW Pairing Security
+
+Leader and follower now perform first-contact pairing and store peer MAC addresses
+in NVS. After pairing:
+
+1. Leader accepts presence frames only from the paired follower MAC.
+2. Follower sends telemetry/presence only to the paired leader MAC.
+3. Nearby ESP-NOW devices are ignored unless pairing is reset.
+
+Pairing keys are stored under namespace `soarm-pair` in NVS (`leader_mac`,
+`follower_mac`).
+
+---
+
+## External Telemetry Dashboard (Python)
+
+The ESP exposes a binary command and telemetry socket on leader port `9090`.
+
+Launch the local dashboard:
+
+```powershell
+.\tools\telemetry_dashboard\start_dashboard.ps1 -LeaderHost soarm-leader.local
+```
+
+This starts:
+
+1. A TCP client to `soarm-leader.local:9090`.
+2. A local web UI at `http://127.0.0.1:8080` with static files:
+	- `tools/telemetry_dashboard/static/index.html`
+	- `tools/telemetry_dashboard/static/app.js`
+	- `tools/telemetry_dashboard/static/styles.css`
+
+Stream behavior:
+
+1. Python sends `StartStream` command to ESP.
+2. ESP streams binary telemetry frames while client is connected.
+3. On disconnect, stream stops automatically.
+

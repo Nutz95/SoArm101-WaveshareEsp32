@@ -1,14 +1,17 @@
 #pragma once
 
 #include "../common/app_state_machine.h"
-#include "../common/nvs_calibration_store.h"
+#include "../common/interfaces/i_leader_presence_service.h"
 #include "../common/status_led_service.h"
 #include "../common/wifi_ota_service.h"
-#include "../common/espnow_presence_service.h"
+#include "../common/nvs_calibration_store.h"
 #include "oled_presenter.h"
 #include "oled_display_config.h"
-#include "leader_web_telemetry.h"
+#include "leader_telemetry_state.h"
+#include "leader_telemetry_stream_server.h"
+
 #include <cstdint>
+#include <memory>
 
 namespace soarm {
 
@@ -23,10 +26,11 @@ private:
   NvsCalibrationStore calibrationStore_;
   StatusLedService    statusLedService_;
   WifiOtaService      wifiOta_;
-  EspNowPresenceService espNowPresence_;
+  std::unique_ptr<ILeaderPresenceService> presenceService_;
   OledDisplayConfig   oledConfig_;
   OledPresenter       oled_;
-  LeaderWebTelemetry  webTelemetry_;
+  LeaderTelemetryState telemetryState_;
+  LeaderTelemetryStreamServer telemetryStreamServer_;
   ArmStateInputs      localInputs_;
   ArmRuntimeState     followerState_;
   OperationMode       mode_;

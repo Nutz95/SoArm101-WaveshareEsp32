@@ -1,4 +1,5 @@
 #include "leader_app.h"
+#include "leader_presence_service.h"
 
 #include <Arduino.h>
 #include <cstring>
@@ -21,8 +22,11 @@ namespace soarm {
 LeaderApp::LeaderApp()
     : statusLedService_(STATUS_LED_PIN, STATUS_LED_COUNT),
       wifiOta_(WIFI_SSID, WIFI_PASS, "soarm-leader"),
+  presenceService_(std::unique_ptr<ILeaderPresenceService>(new LeaderPresenceService())),
       oledConfig_{128, 32, 0x3C, 300, false, OledTextStyle::Small},
       oled_(oledConfig_),
+  telemetryState_(),
+  telemetryStreamServer_(telemetryState_),
       localInputs_{true, false, false, false},
       followerState_(ArmRuntimeState::WaitingEspNow),
       mode_(OperationMode::Idle),
@@ -61,30 +65,30 @@ void LeaderApp::begin() {
   cb.onOtaError         = [](uint32_t code) { Serial.printf("[OTA] error %u\n", code); };
   wifiOta_.begin(cb);
 
-  const bool espNowReady = espNowPresence_.begin(EspNowPresenceService::Role::Leader);
+  const bool espNowReady = presenceService_->begin();
   if (!espNowReady) {
     Serial.println("[WARN] ESP-NOW init failed on leader");
   }
 
-  if (!webTelemetry_.begin(8080)) {
-    Serial.println("[WARN] Web telemetry init failed");
+  if (!telemetryStreamServer_.begin(9090)) {
+    Serial.println("[WARN] Telemetry stream init failed");
   } else {
-    Serial.println("[INFO] Web telemetry on :8080");
+    Serial.println("[INFO] Telemetry stream on :9090");
   }
 }
 
 void LeaderApp::tick() {
   wifiOta_.tick();
-  espNowPresence_.tick(wifiOta_.ipAddress());
-  webTelemetry_.tick();
+  presenceService_->tick();
+  telemetryStreamServer_.tick();
 
   const uint32_t uptimeMs = millis();
 
   localInputs_.joystickPaired  = uptimeMs > 3000U;
   localInputs_.calibrationDone = uptimeMs > 6000U;
-  localInputs_.espNowLinked    = espNowPresence_.isFollowerLinked();
+  localInputs_.espNowLinked    = presenceService_->isFollowerLinked();
 
-  const bool followerIpValid = espNowPresence_.hasValidFollowerIp();
+  const bool followerIpValid = presenceService_->hasValidFollowerIp();
 
   ArmRuntimeState localState = stateMachine_.computeState(localInputs_);
 
@@ -96,7 +100,7 @@ void LeaderApp::tick() {
     strncpy(statusLine_, "calibration", sizeof(statusLine_) - 1);
   } else if (!localInputs_.espNowLinked) {
     mode_ = OperationMode::Idle;
-    if (espNowPresence_.followerIp()[0] != '\0' && !followerIpValid) {
+    if (presenceService_->followerIp()[0] != '\0' && !followerIpValid) {
       strncpy(statusLine_, "follower wifi down", sizeof(statusLine_) - 1);
     } else {
       strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
@@ -109,7 +113,7 @@ void LeaderApp::tick() {
 
   if (localInputs_.espNowLinked) {
     followerState_ = ArmRuntimeState::Ready;
-    strncpy(followerIpHint_, espNowPresence_.followerIp(), sizeof(followerIpHint_) - 1);
+    strncpy(followerIpHint_, presenceService_->followerIp(), sizeof(followerIpHint_) - 1);
     followerIpHint_[sizeof(followerIpHint_) - 1] = '\0';
   } else {
     followerState_ = ArmRuntimeState::WaitingEspNow;
@@ -125,6 +129,12 @@ void LeaderApp::tick() {
   }
 
   LeaderTelemetrySnapshot snapshot{};
+  snapshot.uptimeMs = uptimeMs;
+  // Runtime stats hooks can be plugged here to compute per-core load.
+  snapshot.cpu0LoadPct = 0;
+  snapshot.cpu1LoadPct = 0;
+  snapshot.reserved0 = 0;
+  snapshot.reserved1 = 0;
   strncpy(snapshot.leaderIp, wifiOta_.ipAddress(), sizeof(snapshot.leaderIp) - 1);
   snapshot.leaderIp[sizeof(snapshot.leaderIp) - 1] = '\0';
   strncpy(snapshot.followerIp, followerIpHint_, sizeof(snapshot.followerIp) - 1);
@@ -137,8 +147,7 @@ void LeaderApp::tick() {
   snapshot.joystickPaired = localInputs_.joystickPaired;
   snapshot.calibrationDone = localInputs_.calibrationDone;
   snapshot.espNowLinked = localInputs_.espNowLinked;
-  snapshot.uptimeMs = uptimeMs;
-  webTelemetry_.updateSnapshot(snapshot);
+  telemetryState_.update(snapshot);
 
   // Refresh OLED at 5 Hz to improve readability and reduce visual noise.
   if ((uptimeMs - lastOledRefreshMs_) >= oledConfig_.refreshPeriodMs) {
