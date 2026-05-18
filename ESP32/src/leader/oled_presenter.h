@@ -1,0 +1,43 @@
+#pragma once
+
+#include "../common/types/operation_mode.h"
+#include "oled_display_config.h"
+
+#include <cstdint>
+
+class Adafruit_SSD1306;
+
+namespace soarm {
+
+// Renders board state onto the leader's SSD1306 OLED display.
+// Layout (128x64):
+//   Line 0: hostname / role
+//   Line 1: WiFi IP or "WiFi connecting..."
+//   Line 2: State machine state
+//   Line 3: Error code (hidden when no error)
+class OledPresenter {
+public:
+    explicit OledPresenter(const OledDisplayConfig &config);
+    ~OledPresenter();
+
+    // Returns false if the display hardware is not found.
+    bool begin();
+
+    void showConnecting(const char *followerIpHint);
+    void showDashboard(const char *leaderIp,
+                                         const char *followerIp,
+                                         OperationMode mode,
+                                         const char *status,
+                                         uint32_t nowMs);
+    void showOtaProgress(uint8_t progressPercent);
+    void showError(uint32_t errorCode, const char *message);
+
+private:
+    OledDisplayConfig config_;
+    Adafruit_SSD1306 *display_;
+
+    void applyTextStyle();
+    void print4Lines(const char *line1, const char *line2, const char *line3, const char *line4);
+};
+
+} // namespace soarm
