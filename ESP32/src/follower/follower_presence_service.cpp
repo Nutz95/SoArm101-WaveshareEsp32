@@ -3,11 +3,11 @@
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
+#include "../common/servo/servo_control_opcode.h"
 
 #include <Arduino.h>
 #include <esp_now.h>
 #include <WiFi.h>
-#include <cstdio>
 #include <cstring>
 
 namespace soarm {
@@ -23,7 +23,7 @@ bool FollowerPresenceService::begin() {
 
   hasPairedLeaderMac_ = pairingStore_.load(pairedLeaderMac_);
   if (hasPairedLeaderMac_) {
-    formatMac(pairedLeaderMac_, pairedLeaderMacText_);
+    formatMacAddress(pairedLeaderMac_, pairedLeaderMacText_);
   } else {
     strncpy(pairedLeaderMacText_, "unpaired", sizeof(pairedLeaderMacText_) - 1);
     pairedLeaderMacText_[sizeof(pairedLeaderMacText_) - 1] = '\0';
@@ -33,11 +33,11 @@ bool FollowerPresenceService::begin() {
   strncpy(localMacText_, localMac.c_str(), sizeof(localMacText_) - 1);
   localMacText_[sizeof(localMacText_) - 1] = '\0';
 
-  if (!hasPairedLeaderMac_) {
-    if (!addBroadcastPeer()) {
-      return false;
-    }
-  } else {
+  if (!addBroadcastPeer()) {
+    return false;
+  }
+
+  if (hasPairedLeaderMac_) {
     if (!addPeer(pairedLeaderMac_)) {
       return false;
     }
@@ -87,6 +87,42 @@ bool FollowerPresenceService::resetPairing() {
   return true;
 }
 
+bool FollowerPresenceService::consumeServoScanRequested() {
+  const bool requested = servoScanRequested_;
+  servoScanRequested_ = false;
+  return requested;
+}
+
+bool FollowerPresenceService::consumeServoControl(uint8_t &op, uint32_t &value) {
+  const bool requested = servoControlRequested_;
+  if (!requested) {
+    return false;
+  }
+
+  op = pendingServoControlOp_;
+  value = pendingServoControlValue_;
+  servoControlRequested_ = false;
+  return true;
+}
+
+void FollowerPresenceService::updateServoTelemetry(
+    const char *servoIds,
+    const char *servoTelemetry,
+    uint8_t servoCount,
+    bool debugManual) {
+  servoCount_ = servoCount;
+  servoDebugManual_ = debugManual;
+
+  if (servoIds != nullptr) {
+    strncpy(servoIdsText_, servoIds, sizeof(servoIdsText_) - 1);
+    servoIdsText_[sizeof(servoIdsText_) - 1] = '\0';
+  }
+  if (servoTelemetry != nullptr) {
+    strncpy(servoTelemetryText_, servoTelemetry, sizeof(servoTelemetryText_) - 1);
+    servoTelemetryText_[sizeof(servoTelemetryText_) - 1] = '\0';
+  }
+}
+
 void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) {
   if (len != static_cast<int>(sizeof(PresencePacket))) {
     return;
@@ -100,6 +136,27 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
   }
 
   const PresenceMessageType msgType = static_cast<PresenceMessageType>(packet.messageType);
+  if (msgType == PresenceMessageType::PairReset) {
+    resetPairing();
+    return;
+  }
+
+  if (msgType == PresenceMessageType::ServoScan) {
+    servoScanRequested_ = true;
+    return;
+  }
+
+  if (msgType == PresenceMessageType::ServoControl) {
+    if (packet.controlOp == static_cast<uint8_t>(ServoControlOpcode::Scan)) {
+      servoScanRequested_ = true;
+    } else {
+      pendingServoControlOp_ = packet.controlOp;
+      pendingServoControlValue_ = packet.controlValue;
+      servoControlRequested_ = true;
+    }
+    return;
+  }
+
   if (msgType != PresenceMessageType::PairAck) {
     return;
   }
@@ -108,7 +165,7 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
     memcpy(pairedLeaderMac_, mac, sizeof(pairedLeaderMac_));
     hasPairedLeaderMac_ = pairingStore_.save(pairedLeaderMac_);
     if (hasPairedLeaderMac_) {
-      formatMac(pairedLeaderMac_, pairedLeaderMacText_);
+      formatMacAddress(pairedLeaderMac_, pairedLeaderMacText_);
       addPeer(pairedLeaderMac_);
     }
   }
@@ -159,20 +216,14 @@ void FollowerPresenceService::sendPresence(const char *localIp) {
     packet.ip[sizeof(packet.ip) - 1] = '\0';
   }
 
-  esp_now_send(pairedLeaderMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
-}
+  packet.servoCount = servoCount_;
+  packet.controlOp = servoDebugManual_ ? 1U : 0U;
+  strncpy(packet.servoIds, servoIdsText_, sizeof(packet.servoIds) - 1);
+  packet.servoIds[sizeof(packet.servoIds) - 1] = '\0';
+  strncpy(packet.servoTelemetry, servoTelemetryText_, sizeof(packet.servoTelemetry) - 1);
+  packet.servoTelemetry[sizeof(packet.servoTelemetry) - 1] = '\0';
 
-void FollowerPresenceService::formatMac(const uint8_t mac[6], char out[18]) const {
-  snprintf(
-      out,
-      18,
-      "%02X:%02X:%02X:%02X:%02X:%02X",
-      mac[0],
-      mac[1],
-      mac[2],
-      mac[3],
-      mac[4],
-      mac[5]);
+  esp_now_send(pairedLeaderMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
 }
 
 } // namespace soarm

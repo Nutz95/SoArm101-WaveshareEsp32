@@ -69,3 +69,4 @@ Testing/
 .cache/
 resources/
 ESP32/.pio/
+**__pycache__/

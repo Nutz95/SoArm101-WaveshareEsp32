@@ -6,6 +6,7 @@
 #include "../common/wifi_ota_service.h"
 #include "../common/nvs_calibration_store.h"
 #include "../common/cpu_load_service.h"
+#include "../common/servo/servo_bus_service.h"
 #include "oled_presenter.h"
 #include "oled_display_config.h"
 #include "leader_telemetry_state.h"
@@ -28,6 +29,8 @@ private:
   StatusLedService    statusLedService_;
   WifiOtaService      wifiOta_;
   CpuLoadService      cpuLoadService_;
+  ServoBusService     servoBusService_;
+  bool                servoDebugManual_{false};
   std::unique_ptr<ILeaderPresenceService> presenceService_;
   OledDisplayConfig   oledConfig_;
   OledPresenter       oled_;

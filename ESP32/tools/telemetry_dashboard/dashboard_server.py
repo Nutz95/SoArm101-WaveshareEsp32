@@ -1,5 +1,8 @@
 import json
+import mimetypes
 import os
+from pathlib import Path
+from urllib.parse import urlparse, unquote
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Callable, Dict
 
@@ -9,6 +12,8 @@ from dashboard_protocol import (
     ESP_CMD_SERVO_DEBUG_DISABLE,
     ESP_CMD_SERVO_DEBUG_ENABLE,
     ESP_CMD_SERVO_MOVE,
+    ESP_CMD_SERVO_SET_ID,
+    ESP_CMD_SERVO_SET_MODE,
     ESP_CMD_SERVO_SCAN,
     ESP_CMD_START_STREAM,
     ESP_CMD_STOP_STREAM,
@@ -23,7 +28,7 @@ def build_dashboard_server(
     command_sender: Callable[[int, int], bool],
 ) -> HTTPServer:
     class DashboardHandler(BaseHTTPRequestHandler):
-        static_dir = os.path.join(os.path.dirname(__file__), "static")
+        static_dir = Path(os.path.join(os.path.dirname(__file__), "static")).resolve()
 
         command_map: Dict[str, int] = {
             "start_stream": ESP_CMD_START_STREAM,
@@ -34,32 +39,28 @@ def build_dashboard_server(
             "servo_debug_enable": ESP_CMD_SERVO_DEBUG_ENABLE,
             "servo_debug_disable": ESP_CMD_SERVO_DEBUG_DISABLE,
             "servo_move": ESP_CMD_SERVO_MOVE,
+            "servo_set_id": ESP_CMD_SERVO_SET_ID,
+            "servo_set_mode": ESP_CMD_SERVO_SET_MODE,
         }
 
         def do_GET(self):
-            if self.path == "/api/latest":
+            parsed = urlparse(self.path)
+            request_path = parsed.path
+
+            if request_path == "/api/latest":
                 payload = json.dumps(state.snapshot()).encode("utf-8")
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(payload)))
-                self.end_headers()
-                self.wfile.write(payload)
+                self._send_bytes(200, "application/json", payload)
                 return
 
-            if self.path == "/" or self.path == "/index.html":
-                return self._send_static("index.html", "text/html")
-            if self.path == "/app.js":
-                return self._send_static("app.js", "application/javascript")
-            if self.path == "/styles.css":
-                return self._send_static("styles.css", "text/css")
-            if self.path == "/ChainsawDynamics.png":
-                return self._send_static("ChainsawDynamics.png", "image/png")
+            if request_path == "/":
+                request_path = "/index.html"
 
-            self.send_response(404)
-            self.end_headers()
+            self._send_static(request_path)
+            return
 
         def do_POST(self):
-            if self.path != "/api/command":
+            parsed = urlparse(self.path)
+            if parsed.path != "/api/command":
                 self.send_response(404)
                 self.end_headers()
                 return
@@ -88,26 +89,39 @@ def build_dashboard_server(
 
         def _send_json(self, status: int, payload: Dict[str, object]) -> None:
             data = json.dumps(payload).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
+            self._send_bytes(status, "application/json", data)
 
-        def _send_static(self, filename: str, content_type: str):
-            file_path = os.path.join(self.static_dir, filename)
-            if not os.path.isfile(file_path):
+        def _send_bytes(self, status: int, content_type: str, data: bytes) -> None:
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                # Browser canceled request while leader/dashboard state changed.
+                return
+
+        def _send_static(self, request_path: str) -> None:
+            normalized = unquote(request_path.lstrip("/"))
+            if normalized == "":
+                normalized = "index.html"
+
+            requested = (self.static_dir / normalized).resolve()
+            if not str(requested).startswith(str(self.static_dir)):
+                self.send_response(403)
+                self.end_headers()
+                return
+
+            if not requested.is_file():
                 self.send_response(404)
                 self.end_headers()
                 return
 
-            with open(file_path, "rb") as file_handle:
+            with requested.open("rb") as file_handle:
                 data = file_handle.read()
 
-            self.send_response(200)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
+            content_type = mimetypes.guess_type(str(requested))[0] or "application/octet-stream"
+            self._send_bytes(200, content_type, data)
 
     return HTTPServer((bind_host, port), DashboardHandler)

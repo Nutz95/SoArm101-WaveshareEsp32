@@ -65,6 +65,18 @@ Skip rebuild (upload existing binary):
 .\build_upload_follower.ps1 -NoBuild
 ```
 
+Follower recovery for "never paired" state (erase pairing/NVS and reflash via USB):
+
+```powershell
+.\build_upload_follower.ps1 -FactoryResetPairing
+```
+
+Notes:
+
+1. `-FactoryResetPairing` is USB-only (do not combine with `-Ota`).
+2. It runs `pio run -e follower -t erase` before upload.
+3. Use it when follower pairing appears stuck or mismatched with the leader.
+
 > **Tip:** If upload fails with `Wrong boot mode detected (0x13)`:
 > 1. Hold `BOOT` on the board.
 > 2. Press and release `EN` (reset) while holding `BOOT`.
@@ -157,6 +169,10 @@ Important first pairing warning:
 2. The first valid `PairRequest` will lock the follower MAC on leader side.
 3. Use dashboard `Reset Pairing` when you intentionally change robots.
 
+CPU load telemetry uses FreeRTOS runtime stats. The project enables this through
+`ESP32/sdkconfig.defaults` and `ESP32/platformio.ini` so the framework is built
+with the required trace/runtime options.
+
 ---
 
 ## External Telemetry Dashboard (Python)
@@ -176,6 +192,10 @@ Behavior:
 2. `-LeaderHost` overrides DNS/mDNS resolution for fixed-IP or custom host names.
 3. UI `Pairing Control` panel displays leader MAC, paired follower MAC, pairing lock status,
 	and provides `Reset Pairing` + `Servo Scan` command buttons.
+4. UI `Servo Buses` panel shows leader/follower columns with detected ID chips,
+	servo count, debug/manual flags, and telemetry text from each board.
+5. UI `Servo Manual Commands` panel exposes debug enable/disable, move, set-id,
+	and set-mode controls forwarded through leader command channel.
 
 This starts:
 

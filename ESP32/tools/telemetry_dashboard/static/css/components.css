@@ -1,0 +1,124 @@
+.logo {
+  width: 84px;
+  height: 84px;
+  border-radius: 14px;
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.card {
+  background: rgba(12, 25, 45, 0.85);
+  border: 1px solid rgba(130, 180, 246, 0.17);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  padding: 12px;
+}
+
+.card span {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.card strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 18px;
+  color: var(--text-main);
+}
+
+.servo-column {
+  border: 1px solid rgba(130, 180, 246, 0.17);
+  background: rgba(12, 25, 45, 0.45);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.servo-column h3 {
+  margin: 0 0 10px;
+}
+
+.servo-subtitle {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 178, 255, 0.35);
+  background: rgba(89, 181, 255, 0.12);
+  font-size: 12px;
+}
+
+.chip.empty {
+  opacity: 0.7;
+}
+
+.telemetry-text {
+  margin: 0;
+  min-height: 72px;
+  white-space: pre-wrap;
+  border: 1px solid rgba(120, 178, 255, 0.18);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(6, 12, 25, 0.7);
+  color: var(--text-main);
+}
+
+.command-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.command-grid input {
+  border: 1px solid var(--surface-border);
+  background: rgba(10, 20, 38, 0.9);
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.command-grid button {
+  align-self: end;
+}
+
+button {
+  border: 1px solid var(--surface-border);
+  background: linear-gradient(180deg, #1f4673, #163558);
+  color: var(--text-main);
+  padding: 9px 14px;
+  border-radius: 9px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+#commandStatus {
+  margin-top: 10px;
+  color: var(--warn);
+}
+
+#pairingLocked.locked {
+  color: var(--ok);
+}

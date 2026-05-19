@@ -1,68 +1,53 @@
 #include "cpu_load_service.h"
 
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/idf_additions.h>
 #include <freertos/task.h>
-#include <cstring>
 
 namespace soarm {
 
 void CpuLoadService::sample(uint8_t &cpu0LoadPct, uint8_t &cpu1LoadPct) {
-#if (configUSE_TRACE_FACILITY == 1)
-  constexpr UBaseType_t kMaxTasks = 64;
-  TaskStatus_t taskStatus[kMaxTasks];
-  uint32_t totalRuntime = 0;
-  const UBaseType_t taskCount = uxTaskGetSystemState(taskStatus, kMaxTasks, &totalRuntime);
+#if (configGENERATE_RUN_TIME_STATS == 1) && (INCLUDE_xTaskGetIdleTaskHandle == 1)
+  const uint32_t idle0Now = static_cast<uint32_t>(ulTaskGetIdleRunTimeCounterForCore(0));
+  const uint32_t idle1Now = static_cast<uint32_t>(ulTaskGetIdleRunTimeCounterForCore(1));
+  const uint64_t nowUs = static_cast<uint64_t>(esp_timer_get_time());
 
-  if (taskCount == 0 || totalRuntime == 0) {
-    cpu0LoadPct = 0;
-    cpu1LoadPct = 0;
+  if (!initialized_) {
+    initialized_ = true;
+    lastSampleUs_ = nowUs;
+    lastIdleCounter0_ = idle0Now;
+    lastIdleCounter1_ = idle1Now;
+    cpu0LoadPct = 0U;
+    cpu1LoadPct = 0U;
     return;
   }
 
-  uint32_t cpu0Total = 0;
-  uint32_t cpu1Total = 0;
-  uint32_t cpu0Idle = 0;
-  uint32_t cpu1Idle = 0;
+  const uint64_t deltaUs = nowUs - lastSampleUs_;
+  const uint32_t idle0Delta = idle0Now - lastIdleCounter0_;
+  const uint32_t idle1Delta = idle1Now - lastIdleCounter1_;
 
-  for (UBaseType_t i = 0; i < taskCount; ++i) {
-    const TaskStatus_t &entry = taskStatus[i];
-    const uint32_t runtime = entry.ulRunTimeCounter;
-#if defined(CONFIG_FREERTOS_UNICORE)
-    cpu0Total += runtime;
-    if (entry.pcTaskName != nullptr && strcmp(entry.pcTaskName, "IDLE") == 0) {
-      cpu0Idle += runtime;
-    }
-#else
-    const BaseType_t coreId = entry.xCoreID;
-    if (coreId == 0) {
-      cpu0Total += runtime;
-      if (entry.pcTaskName != nullptr && strcmp(entry.pcTaskName, "IDLE0") == 0) {
-        cpu0Idle += runtime;
-      }
-    } else if (coreId == 1) {
-      cpu1Total += runtime;
-      if (entry.pcTaskName != nullptr && strcmp(entry.pcTaskName, "IDLE1") == 0) {
-        cpu1Idle += runtime;
-      }
-    }
-#endif
+  lastSampleUs_ = nowUs;
+  lastIdleCounter0_ = idle0Now;
+  lastIdleCounter1_ = idle1Now;
+
+  if (deltaUs == 0U) {
+    cpu0LoadPct = 0U;
+    cpu1LoadPct = 0U;
+    return;
   }
 
-  if (cpu0Total > 0) {
-    cpu0LoadPct = static_cast<uint8_t>(100U - ((cpu0Idle * 100U) / cpu0Total));
-  } else {
-    cpu0LoadPct = 0;
+  uint32_t idle0Pct = static_cast<uint32_t>((static_cast<uint64_t>(idle0Delta) * 100ULL) / deltaUs);
+  uint32_t idle1Pct = static_cast<uint32_t>((static_cast<uint64_t>(idle1Delta) * 100ULL) / deltaUs);
+  if (idle0Pct > 100U) {
+    idle0Pct = 100U;
+  }
+  if (idle1Pct > 100U) {
+    idle1Pct = 100U;
   }
 
-#if defined(CONFIG_FREERTOS_UNICORE)
-  cpu1LoadPct = 0;
-#else
-  if (cpu1Total > 0) {
-    cpu1LoadPct = static_cast<uint8_t>(100U - ((cpu1Idle * 100U) / cpu1Total));
-  } else {
-    cpu1LoadPct = 0;
-  }
-#endif
+  cpu0LoadPct = static_cast<uint8_t>(100U - idle0Pct);
+  cpu1LoadPct = static_cast<uint8_t>(100U - idle1Pct);
 #else
   cpu0LoadPct = 0;
   cpu1LoadPct = 0;

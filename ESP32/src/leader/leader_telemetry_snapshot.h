@@ -20,10 +20,18 @@ struct LeaderTelemetrySnapshot {
   bool calibrationDone;
   bool espNowLinked;
   bool pairingLocked;
+  bool leaderServoDebugManual;
+  bool followerServoDebugManual;
+  uint8_t leaderServoCount;
+  uint8_t followerServoCount;
   char leaderIp[16];
   char followerIp[16];
   char leaderMac[18];
   char followerMac[18];
+  char leaderServoIds[48];
+  char followerServoIds[48];
+  char leaderServoTelemetry[96];
+  char followerServoTelemetry[96];
   char status[24];
 } __attribute__((packed));
 

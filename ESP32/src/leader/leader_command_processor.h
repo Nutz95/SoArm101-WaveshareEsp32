@@ -15,7 +15,9 @@ enum class LeaderCommandAction : uint8_t {
   ServoScan,
   ServoDebugEnable,
   ServoDebugDisable,
-  ServoMove
+  ServoMove,
+  ServoSetId,
+  ServoSetMode
 };
 
 class LeaderCommandProcessor {

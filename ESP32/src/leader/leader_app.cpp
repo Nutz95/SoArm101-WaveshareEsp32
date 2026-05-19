@@ -1,7 +1,9 @@
 #include "leader_app.h"
 #include "leader_presence_service.h"
+#include "../common/servo/servo_control_opcode.h"
 
 #include <Arduino.h>
+#include <cstdio>
 #include <cstring>
 
 // WiFi credentials injected from environment variables at build time.
@@ -15,6 +17,16 @@
 
 #ifndef FOLLOWER_OTA_IP_HINT
 #define FOLLOWER_OTA_IP_HINT ""
+#endif
+
+#ifndef LEADER_SERVO_BUS_RX_PIN
+#define LEADER_SERVO_BUS_RX_PIN 18
+#endif
+#ifndef LEADER_SERVO_BUS_TX_PIN
+#define LEADER_SERVO_BUS_TX_PIN 19
+#endif
+#ifndef LEADER_SERVO_BUS_BAUD
+#define LEADER_SERVO_BUS_BAUD 1000000U
 #endif
 
 namespace soarm {
@@ -70,6 +82,17 @@ void LeaderApp::begin() {
     Serial.println("[WARN] ESP-NOW init failed on leader");
   }
 
+  ServoBusConfig servoBusConfig{};
+  servoBusConfig.serial = &Serial2;
+  servoBusConfig.rxPin = LEADER_SERVO_BUS_RX_PIN;
+  servoBusConfig.txPin = LEADER_SERVO_BUS_TX_PIN;
+  servoBusConfig.baudRate = LEADER_SERVO_BUS_BAUD;
+  servoBusConfig.firstId = 1U;
+  servoBusConfig.lastId = 32U;
+  if (!servoBusService_.begin(servoBusConfig)) {
+    Serial.println("[WARN] Servo bus init failed on leader");
+  }
+
   if (!telemetryStreamServer_.begin(9090)) {
     Serial.println("[WARN] Telemetry stream init failed");
   } else {
@@ -82,6 +105,8 @@ void LeaderApp::tick() {
   presenceService_->tick();
   telemetryStreamServer_.tick();
 
+  bool commandStatusLocked = false;
+
   if (telemetryStreamServer_.consumeResetPairingRequested()) {
     const bool resetOk = presenceService_->resetPairing();
     if (resetOk) {
@@ -90,6 +115,86 @@ void LeaderApp::tick() {
       strncpy(statusLine_, "pair reset failed", sizeof(statusLine_) - 1);
     }
     statusLine_[sizeof(statusLine_) - 1] = '\0';
+    commandStatusLocked = true;
+  }
+
+  if (telemetryStreamServer_.consumeServoScanRequested()) {
+    const uint8_t localCount = servoBusService_.scan();
+    if (presenceService_->requestServoScan()) {
+      snprintf(statusLine_, sizeof(statusLine_), "scan L:%u sent", localCount);
+    } else {
+      strncpy(statusLine_, "servo scan failed", sizeof(statusLine_) - 1);
+    }
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+    commandStatusLocked = true;
+  }
+
+  if (telemetryStreamServer_.consumeServoDebugEnableRequested()) {
+    servoDebugManual_ = true;
+    servoBusService_.setDebugManual(true);
+    presenceService_->requestServoControl(static_cast<uint8_t>(ServoControlOpcode::DebugEnable), 0U);
+    strncpy(statusLine_, "servo debug manual", sizeof(statusLine_) - 1);
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+    commandStatusLocked = true;
+  }
+
+  if (telemetryStreamServer_.consumeServoDebugDisableRequested()) {
+    servoDebugManual_ = false;
+    servoBusService_.setDebugManual(false);
+    presenceService_->requestServoControl(static_cast<uint8_t>(ServoControlOpcode::DebugDisable), 0U);
+    strncpy(statusLine_, "servo debug off", sizeof(statusLine_) - 1);
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+    commandStatusLocked = true;
+  }
+
+  uint32_t servoMoveValue = 0U;
+  if (telemetryStreamServer_.consumeServoMoveRequested(servoMoveValue)) {
+    const uint8_t id = static_cast<uint8_t>(servoMoveValue & 0xFFU);
+    const int16_t position = static_cast<int16_t>((servoMoveValue >> 8U) & 0xFFFFU);
+    const uint8_t speedPct = static_cast<uint8_t>((servoMoveValue >> 24U) & 0xFFU);
+    const uint16_t speed = static_cast<uint16_t>(speedPct) * 10U;
+    bool ok = false;
+    if (servoDebugManual_) {
+      ok = servoBusService_.moveTo(id, position, speed, 0U);
+      presenceService_->requestServoControl(
+          static_cast<uint8_t>(ServoControlOpcode::Move),
+          servoMoveValue);
+    }
+    strncpy(statusLine_, ok ? "servo move sent" : "servo move blocked", sizeof(statusLine_) - 1);
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+    commandStatusLocked = true;
+  }
+
+  uint32_t servoSetIdValue = 0U;
+  if (telemetryStreamServer_.consumeServoSetIdRequested(servoSetIdValue)) {
+    const uint8_t oldId = static_cast<uint8_t>(servoSetIdValue & 0xFFU);
+    const uint8_t newId = static_cast<uint8_t>((servoSetIdValue >> 8U) & 0xFFU);
+    bool ok = false;
+    if (servoDebugManual_) {
+      ok = servoBusService_.setServoId(oldId, newId);
+      presenceService_->requestServoControl(
+          static_cast<uint8_t>(ServoControlOpcode::SetId),
+          servoSetIdValue);
+    }
+    strncpy(statusLine_, ok ? "servo id updated" : "servo id blocked", sizeof(statusLine_) - 1);
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+    commandStatusLocked = true;
+  }
+
+  uint32_t servoSetModeValue = 0U;
+  if (telemetryStreamServer_.consumeServoSetModeRequested(servoSetModeValue)) {
+    const uint8_t id = static_cast<uint8_t>(servoSetModeValue & 0xFFU);
+    const uint8_t mode = static_cast<uint8_t>((servoSetModeValue >> 8U) & 0xFFU);
+    bool ok = false;
+    if (servoDebugManual_) {
+      ok = servoBusService_.setServoMode(id, mode);
+      presenceService_->requestServoControl(
+          static_cast<uint8_t>(ServoControlOpcode::SetMode),
+          servoSetModeValue);
+    }
+    strncpy(statusLine_, ok ? "servo mode updated" : "servo mode blocked", sizeof(statusLine_) - 1);
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+    commandStatusLocked = true;
   }
 
   const uint32_t uptimeMs = millis();
@@ -102,22 +207,24 @@ void LeaderApp::tick() {
 
   ArmRuntimeState localState = stateMachine_.computeState(localInputs_);
 
-  if (!localInputs_.joystickPaired) {
-    mode_ = OperationMode::Idle;
-    strncpy(statusLine_, "pair joystick", sizeof(statusLine_) - 1);
-  } else if (!localInputs_.calibrationDone) {
-    mode_ = OperationMode::CalibrationLeader;
-    strncpy(statusLine_, "calibration", sizeof(statusLine_) - 1);
-  } else if (!localInputs_.espNowLinked) {
-    mode_ = OperationMode::Idle;
-    if (presenceService_->followerIp()[0] != '\0' && !followerIpValid) {
-      strncpy(statusLine_, "follower wifi down", sizeof(statusLine_) - 1);
+  if (!commandStatusLocked) {
+    if (!localInputs_.joystickPaired) {
+      mode_ = OperationMode::Idle;
+      strncpy(statusLine_, "pair joystick", sizeof(statusLine_) - 1);
+    } else if (!localInputs_.calibrationDone) {
+      mode_ = OperationMode::CalibrationLeader;
+      strncpy(statusLine_, "calibration", sizeof(statusLine_) - 1);
+    } else if (!localInputs_.espNowLinked) {
+      mode_ = OperationMode::Idle;
+      if (presenceService_->followerIp()[0] != '\0' && !followerIpValid) {
+        strncpy(statusLine_, "follower wifi down", sizeof(statusLine_) - 1);
+      } else {
+        strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
+      }
     } else {
-      strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
+      mode_ = OperationMode::Teleoperation;
+      strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
     }
-  } else {
-    mode_ = OperationMode::Teleoperation;
-    strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
   }
   statusLine_[sizeof(statusLine_) - 1] = '\0';
 
@@ -156,10 +263,28 @@ void LeaderApp::tick() {
   snapshot.calibrationDone = localInputs_.calibrationDone;
   snapshot.espNowLinked = localInputs_.espNowLinked;
   snapshot.pairingLocked = presenceService_->isPaired();
+    snapshot.leaderServoDebugManual = servoBusService_.isDebugManual();
+    snapshot.followerServoDebugManual = presenceService_->followerServoDebugManual();
+    snapshot.leaderServoCount = servoBusService_.lastScanCount();
+    snapshot.followerServoCount = presenceService_->followerServoCount();
   strncpy(snapshot.leaderMac, presenceService_->localMac(), sizeof(snapshot.leaderMac) - 1);
   snapshot.leaderMac[sizeof(snapshot.leaderMac) - 1] = '\0';
   strncpy(snapshot.followerMac, presenceService_->pairedPeerMac(), sizeof(snapshot.followerMac) - 1);
   snapshot.followerMac[sizeof(snapshot.followerMac) - 1] = '\0';
+    strncpy(snapshot.leaderServoIds, servoBusService_.lastIdsText(), sizeof(snapshot.leaderServoIds) - 1);
+    snapshot.leaderServoIds[sizeof(snapshot.leaderServoIds) - 1] = '\0';
+    strncpy(snapshot.followerServoIds, presenceService_->followerServoIds(), sizeof(snapshot.followerServoIds) - 1);
+    snapshot.followerServoIds[sizeof(snapshot.followerServoIds) - 1] = '\0';
+    strncpy(
+      snapshot.leaderServoTelemetry,
+      servoBusService_.lastTelemetryText(),
+      sizeof(snapshot.leaderServoTelemetry) - 1);
+    snapshot.leaderServoTelemetry[sizeof(snapshot.leaderServoTelemetry) - 1] = '\0';
+    strncpy(
+      snapshot.followerServoTelemetry,
+      presenceService_->followerServoTelemetry(),
+      sizeof(snapshot.followerServoTelemetry) - 1);
+    snapshot.followerServoTelemetry[sizeof(snapshot.followerServoTelemetry) - 1] = '\0';
   telemetryState_.update(snapshot);
 
   // Refresh OLED at 5 Hz to improve readability and reduce visual noise.

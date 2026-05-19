@@ -27,7 +27,7 @@
         <div class="card"><span>Follower MAC</span><strong id="followerMac">-</strong></div>
       </div>
       <div class="actions">
-        <button id="resetPairingBtn" type="button">Reset Pairing</button>
+        <button id="resetPairingBtn" type="button">Reset Pairing + Relaunch</button>
         <button id="servoScanBtn" type="button">Servo Scan</button>
       </div>
       <p id="commandStatus">No command sent.</p>
@@ -35,20 +35,97 @@
 
     <section class="panel">
       <h2>Runtime</h2>
-    <div class="grid">
-      <div class="card"><span>Connected</span><strong id="connected">no</strong></div>
-      <div class="card"><span>Leader IP</span><strong id="leaderIp">-</strong></div>
-      <div class="card"><span>Follower IP</span><strong id="followerIp">-</strong></div>
-      <div class="card"><span>Mode</span><strong id="mode">-</strong></div>
-      <div class="card"><span>Leader State</span><strong id="leaderState">-</strong></div>
-      <div class="card"><span>Follower State</span><strong id="followerState">-</strong></div>
-      <div class="card"><span>Status</span><strong id="status">-</strong></div>
-      <div class="card"><span>CPU0 Load</span><strong id="cpu0">0%</strong></div>
-      <div class="card"><span>CPU1 Load</span><strong id="cpu1">0%</strong></div>
-      <div class="card"><span>Uptime</span><strong id="uptime">0 ms</strong></div>
-    </div>
+      <div class="grid">
+        <div class="card"><span>Connected</span><strong id="connected">no</strong></div>
+        <div class="card"><span>Leader IP</span><strong id="leaderIp">-</strong></div>
+        <div class="card"><span>Follower IP</span><strong id="followerIp">-</strong></div>
+        <div class="card"><span>Mode</span><strong id="mode">-</strong></div>
+        <div class="card"><span>Leader State</span><strong id="leaderState">-</strong></div>
+        <div class="card"><span>Follower State</span><strong id="followerState">-</strong></div>
+        <div class="card"><span>Status</span><strong id="status">-</strong></div>
+        <div class="card"><span>CPU0 Load</span><strong id="cpu0">0%</strong></div>
+        <div class="card"><span>CPU1 Load</span><strong id="cpu1">0%</strong></div>
+        <div class="card"><span>Uptime</span><strong id="uptime">0 ms</strong></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Servo Buses</h2>
+      <div class="servo-columns">
+        <article class="servo-column">
+          <h3>Leader</h3>
+          <div class="servo-metrics">
+            <div class="card"><span>Count</span><strong id="leaderServoCount">0</strong></div>
+            <div class="card"><span>Debug Manual</span><strong id="leaderServoDebug">off</strong></div>
+          </div>
+          <p class="servo-subtitle">Detected IDs</p>
+          <div id="leaderServoIds" class="chips"></div>
+          <p class="servo-subtitle">Telemetry</p>
+          <pre id="leaderServoTelemetry" class="telemetry-text">-</pre>
+        </article>
+
+        <article class="servo-column">
+          <h3>Follower</h3>
+          <div class="servo-metrics">
+            <div class="card"><span>Count</span><strong id="followerServoCount">0</strong></div>
+            <div class="card"><span>Debug Manual</span><strong id="followerServoDebug">off</strong></div>
+          </div>
+          <p class="servo-subtitle">Detected IDs</p>
+          <div id="followerServoIds" class="chips"></div>
+          <p class="servo-subtitle">Telemetry</p>
+          <pre id="followerServoTelemetry" class="telemetry-text">-</pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Servo Manual Commands</h2>
+      <div class="actions">
+        <button id="servoDebugEnableBtn" type="button">Enable Debug Manual</button>
+        <button id="servoDebugDisableBtn" type="button">Disable Debug Manual</button>
+      </div>
+
+      <div class="command-grid">
+        <label>
+          Servo ID
+          <input id="servoIdInput" type="number" min="0" max="255" value="1" />
+        </label>
+        <label>
+          Position
+          <input id="servoPositionInput" type="number" min="-32768" max="32767" value="0" />
+        </label>
+        <label>
+          Speed %
+          <input id="servoSpeedInput" type="number" min="0" max="100" value="50" />
+        </label>
+        <button id="servoMoveBtn" type="button">Move</button>
+      </div>
+
+      <div class="command-grid">
+        <label>
+          Old ID
+          <input id="servoOldIdInput" type="number" min="0" max="255" value="1" />
+        </label>
+        <label>
+          New ID
+          <input id="servoNewIdInput" type="number" min="0" max="255" value="2" />
+        </label>
+        <button id="servoSetIdBtn" type="button">Set ID</button>
+      </div>
+
+      <div class="command-grid">
+        <label>
+          Servo ID
+          <input id="servoModeIdInput" type="number" min="0" max="255" value="1" />
+        </label>
+        <label>
+          Mode
+          <input id="servoModeInput" type="number" min="0" max="255" value="0" />
+        </label>
+        <button id="servoSetModeBtn" type="button">Set Mode</button>
+      </div>
     </section>
   </main>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

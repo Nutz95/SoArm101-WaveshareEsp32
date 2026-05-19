@@ -26,6 +26,51 @@ bool LeaderTelemetryStreamServer::consumeServoScanRequested() {
   return pending;
 }
 
+bool LeaderTelemetryStreamServer::consumeServoDebugEnableRequested() {
+  const bool pending = servoDebugEnableRequested_;
+  servoDebugEnableRequested_ = false;
+  return pending;
+}
+
+bool LeaderTelemetryStreamServer::consumeServoDebugDisableRequested() {
+  const bool pending = servoDebugDisableRequested_;
+  servoDebugDisableRequested_ = false;
+  return pending;
+}
+
+bool LeaderTelemetryStreamServer::consumeServoMoveRequested(uint32_t &value) {
+  const bool pending = servoMoveRequested_;
+  if (!pending) {
+    return false;
+  }
+
+  value = servoMoveValue_;
+  servoMoveRequested_ = false;
+  return true;
+}
+
+bool LeaderTelemetryStreamServer::consumeServoSetIdRequested(uint32_t &value) {
+  const bool pending = servoSetIdRequested_;
+  if (!pending) {
+    return false;
+  }
+
+  value = servoSetIdValue_;
+  servoSetIdRequested_ = false;
+  return true;
+}
+
+bool LeaderTelemetryStreamServer::consumeServoSetModeRequested(uint32_t &value) {
+  const bool pending = servoSetModeRequested_;
+  if (!pending) {
+    return false;
+  }
+
+  value = servoSetModeValue_;
+  servoSetModeRequested_ = false;
+  return true;
+}
+
 void LeaderTelemetryStreamServer::tick() {
   if (!started_) {
     return;
@@ -68,11 +113,11 @@ void LeaderTelemetryStreamServer::handleIncomingCommands() {
     }
 
     const LeaderCommandAction action = commandProcessor_.process(frame);
-    handleAction(action);
+    handleAction(action, frame.value);
   }
 }
 
-void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action) {
+void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action, uint32_t value) {
   switch (action) {
   case LeaderCommandAction::StartStream:
     streamEnabled_ = true;
@@ -90,8 +135,23 @@ void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action) {
     servoScanRequested_ = true;
     break;
   case LeaderCommandAction::ServoDebugEnable:
+    servoDebugEnableRequested_ = true;
+    break;
   case LeaderCommandAction::ServoDebugDisable:
+    servoDebugDisableRequested_ = true;
+    break;
   case LeaderCommandAction::ServoMove:
+    servoMoveValue_ = value;
+    servoMoveRequested_ = true;
+    break;
+  case LeaderCommandAction::ServoSetId:
+    servoSetIdValue_ = value;
+    servoSetIdRequested_ = true;
+    break;
+  case LeaderCommandAction::ServoSetMode:
+    servoSetModeValue_ = value;
+    servoSetModeRequested_ = true;
+    break;
   case LeaderCommandAction::None:
   default:
     break;
