@@ -1,32 +1,37 @@
 #include "follower_presence_service.h"
 
-#include "../common/presence_protocol.h"
+#include "../common/presence/presence_constants.h"
+#include "../common/presence/presence_message_type.h"
+#include "../common/presence/presence_packet.h"
 
 #include <Arduino.h>
 #include <esp_now.h>
+#include <WiFi.h>
+#include <cstdio>
 #include <cstring>
 
 namespace soarm {
-
-namespace {
-
-FollowerPresenceService *gInstance = nullptr;
-
-} // namespace
 
 FollowerPresenceService::FollowerPresenceService()
     : pairingStore_("soarm-pair", "leader_mac") {
 }
 
 bool FollowerPresenceService::begin() {
-  if (esp_now_init() != ESP_OK) {
+  if (!initEspNow()) {
     return false;
   }
 
   hasPairedLeaderMac_ = pairingStore_.load(pairedLeaderMac_);
+  if (hasPairedLeaderMac_) {
+    formatMac(pairedLeaderMac_, pairedLeaderMacText_);
+  } else {
+    strncpy(pairedLeaderMacText_, "unpaired", sizeof(pairedLeaderMacText_) - 1);
+    pairedLeaderMacText_[sizeof(pairedLeaderMacText_) - 1] = '\0';
+  }
 
-  gInstance = this;
-  esp_now_register_recv_cb(onDataRecvStatic);
+  const String localMac = WiFi.macAddress();
+  strncpy(localMacText_, localMac.c_str(), sizeof(localMacText_) - 1);
+  localMacText_[sizeof(localMacText_) - 1] = '\0';
 
   if (!hasPairedLeaderMac_) {
     if (!addBroadcastPeer()) {
@@ -60,13 +65,29 @@ void FollowerPresenceService::tick(const char *localIp) {
   }
 }
 
-void FollowerPresenceService::onDataRecvStatic(const uint8_t *mac, const uint8_t *data, int len) {
-  if (gInstance != nullptr) {
-    gInstance->onDataRecv(mac, data, len);
-  }
+bool FollowerPresenceService::isPaired() const {
+  return hasPairedLeaderMac_;
 }
 
-void FollowerPresenceService::onDataRecv(const uint8_t *mac, const uint8_t *data, int len) {
+const char *FollowerPresenceService::pairedPeerMac() const {
+  return pairedLeaderMacText_;
+}
+
+const char *FollowerPresenceService::localMac() const {
+  return localMacText_;
+}
+
+bool FollowerPresenceService::resetPairing() {
+  hasPairedLeaderMac_ = false;
+  memset(pairedLeaderMac_, 0, sizeof(pairedLeaderMac_));
+  strncpy(pairedLeaderMacText_, "unpaired", sizeof(pairedLeaderMacText_) - 1);
+  pairedLeaderMacText_[sizeof(pairedLeaderMacText_) - 1] = '\0';
+  pairingStore_.clear();
+  addBroadcastPeer();
+  return true;
+}
+
+void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) {
   if (len != static_cast<int>(sizeof(PresencePacket))) {
     return;
   }
@@ -87,6 +108,7 @@ void FollowerPresenceService::onDataRecv(const uint8_t *mac, const uint8_t *data
     memcpy(pairedLeaderMac_, mac, sizeof(pairedLeaderMac_));
     hasPairedLeaderMac_ = pairingStore_.save(pairedLeaderMac_);
     if (hasPairedLeaderMac_) {
+      formatMac(pairedLeaderMac_, pairedLeaderMacText_);
       addPeer(pairedLeaderMac_);
     }
   }
@@ -99,15 +121,7 @@ bool FollowerPresenceService::addBroadcastPeer() {
 }
 
 bool FollowerPresenceService::addPeer(const uint8_t mac[6]) {
-  if (esp_now_is_peer_exist(mac)) {
-    return true;
-  }
-
-  esp_now_peer_info_t peer{};
-  memcpy(peer.peer_addr, mac, ESP_NOW_ETH_ALEN);
-  peer.channel = 0;
-  peer.encrypt = false;
-  return esp_now_add_peer(&peer) == ESP_OK;
+  return EspNowPresenceBase::addPeer(mac);
 }
 
 bool FollowerPresenceService::hasPairedLeader() const {
@@ -146,6 +160,19 @@ void FollowerPresenceService::sendPresence(const char *localIp) {
   }
 
   esp_now_send(pairedLeaderMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+}
+
+void FollowerPresenceService::formatMac(const uint8_t mac[6], char out[18]) const {
+  snprintf(
+      out,
+      18,
+      "%02X:%02X:%02X:%02X:%02X:%02X",
+      mac[0],
+      mac[1],
+      mac[2],
+      mac[3],
+      mac[4],
+      mac[5]);
 }
 
 } // namespace soarm

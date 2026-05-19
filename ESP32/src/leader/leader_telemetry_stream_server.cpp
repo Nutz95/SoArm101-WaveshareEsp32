@@ -14,6 +14,18 @@ bool LeaderTelemetryStreamServer::begin(uint16_t port) {
   return true;
 }
 
+bool LeaderTelemetryStreamServer::consumeResetPairingRequested() {
+  const bool pending = resetPairingRequested_;
+  resetPairingRequested_ = false;
+  return pending;
+}
+
+bool LeaderTelemetryStreamServer::consumeServoScanRequested() {
+  const bool pending = servoScanRequested_;
+  servoScanRequested_ = false;
+  return pending;
+}
+
 void LeaderTelemetryStreamServer::tick() {
   if (!started_) {
     return;
@@ -71,6 +83,15 @@ void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action) {
   case LeaderCommandAction::Ping:
     client_.write("PONG", 4);
     break;
+  case LeaderCommandAction::ResetPairing:
+    resetPairingRequested_ = true;
+    break;
+  case LeaderCommandAction::ServoScan:
+    servoScanRequested_ = true;
+    break;
+  case LeaderCommandAction::ServoDebugEnable:
+  case LeaderCommandAction::ServoDebugDisable:
+  case LeaderCommandAction::ServoMove:
   case LeaderCommandAction::None:
   default:
     break;

@@ -1,0 +1,25 @@
+import struct
+
+ESP_CMD_MAGIC = 0x5343
+ESP_CMD_VERSION = 1
+
+ESP_CMD_START_STREAM = 1
+ESP_CMD_STOP_STREAM = 2
+ESP_CMD_PING = 3
+ESP_CMD_RESET_PAIRING = 4
+ESP_CMD_SERVO_SCAN = 5
+ESP_CMD_SERVO_DEBUG_ENABLE = 6
+ESP_CMD_SERVO_DEBUG_DISABLE = 7
+ESP_CMD_SERVO_MOVE = 8
+
+ESP_TLM_MAGIC = 0x5341
+ESP_TLM_VERSION = 1
+ESP_TLM_TYPE = 1
+
+CMD_STRUCT = struct.Struct("<HBBI")
+TLM_HEADER_STRUCT = struct.Struct("<HBB")
+SNAPSHOT_STRUCT = struct.Struct("<I7B4?16s16s18s18s24s")
+
+
+def decode_cstr(raw: bytes) -> str:
+    return raw.split(b"\x00", 1)[0].decode("ascii", errors="ignore")

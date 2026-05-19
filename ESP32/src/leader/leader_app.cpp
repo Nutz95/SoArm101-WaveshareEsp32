@@ -82,6 +82,16 @@ void LeaderApp::tick() {
   presenceService_->tick();
   telemetryStreamServer_.tick();
 
+  if (telemetryStreamServer_.consumeResetPairingRequested()) {
+    const bool resetOk = presenceService_->resetPairing();
+    if (resetOk) {
+      strncpy(statusLine_, "pairing reset", sizeof(statusLine_) - 1);
+    } else {
+      strncpy(statusLine_, "pair reset failed", sizeof(statusLine_) - 1);
+    }
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+  }
+
   const uint32_t uptimeMs = millis();
 
   localInputs_.joystickPaired  = uptimeMs > 3000U;
@@ -130,9 +140,7 @@ void LeaderApp::tick() {
 
   LeaderTelemetrySnapshot snapshot{};
   snapshot.uptimeMs = uptimeMs;
-  // Runtime stats hooks can be plugged here to compute per-core load.
-  snapshot.cpu0LoadPct = 0;
-  snapshot.cpu1LoadPct = 0;
+  cpuLoadService_.sample(snapshot.cpu0LoadPct, snapshot.cpu1LoadPct);
   snapshot.reserved0 = 0;
   snapshot.reserved1 = 0;
   strncpy(snapshot.leaderIp, wifiOta_.ipAddress(), sizeof(snapshot.leaderIp) - 1);
@@ -147,6 +155,11 @@ void LeaderApp::tick() {
   snapshot.joystickPaired = localInputs_.joystickPaired;
   snapshot.calibrationDone = localInputs_.calibrationDone;
   snapshot.espNowLinked = localInputs_.espNowLinked;
+  snapshot.pairingLocked = presenceService_->isPaired();
+  strncpy(snapshot.leaderMac, presenceService_->localMac(), sizeof(snapshot.leaderMac) - 1);
+  snapshot.leaderMac[sizeof(snapshot.leaderMac) - 1] = '\0';
+  strncpy(snapshot.followerMac, presenceService_->pairedPeerMac(), sizeof(snapshot.followerMac) - 1);
+  snapshot.followerMac[sizeof(snapshot.followerMac) - 1] = '\0';
   telemetryState_.update(snapshot);
 
   // Refresh OLED at 5 Hz to improve readability and reduce visual noise.
@@ -157,7 +170,13 @@ void LeaderApp::tick() {
       statusLine_[sizeof(statusLine_) - 1] = '\0';
       oled_.showOtaProgress(50);
     } else {
-      oled_.showDashboard(wifiOta_.ipAddress(), followerIpHint_, mode_, statusLine_, uptimeMs);
+      oled_.showDashboard(
+          wifiOta_.ipAddress(),
+          followerIpHint_,
+          mode_,
+          statusLine_,
+          presenceService_->isPaired() ? "P:locked" : "P:open",
+          uptimeMs);
     }
   }
 

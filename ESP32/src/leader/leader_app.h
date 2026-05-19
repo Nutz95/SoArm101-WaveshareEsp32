@@ -5,6 +5,7 @@
 #include "../common/status_led_service.h"
 #include "../common/wifi_ota_service.h"
 #include "../common/nvs_calibration_store.h"
+#include "../common/cpu_load_service.h"
 #include "oled_presenter.h"
 #include "oled_display_config.h"
 #include "leader_telemetry_state.h"
@@ -26,6 +27,7 @@ private:
   NvsCalibrationStore calibrationStore_;
   StatusLedService    statusLedService_;
   WifiOtaService      wifiOta_;
+  CpuLoadService      cpuLoadService_;
   std::unique_ptr<ILeaderPresenceService> presenceService_;
   OledDisplayConfig   oledConfig_;
   OledPresenter       oled_;

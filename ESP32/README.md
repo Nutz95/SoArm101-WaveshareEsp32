@@ -150,6 +150,13 @@ in NVS. After pairing:
 Pairing keys are stored under namespace `soarm-pair` in NVS (`leader_mac`,
 `follower_mac`).
 
+Important first pairing warning:
+
+1. Power on leader and follower in an isolated environment for the first pairing
+	(no other active ESP-NOW robots nearby).
+2. The first valid `PairRequest` will lock the follower MAC on leader side.
+3. Use dashboard `Reset Pairing` when you intentionally change robots.
+
 ---
 
 ## External Telemetry Dashboard (Python)
@@ -159,8 +166,16 @@ The ESP exposes a binary command and telemetry socket on leader port `9090`.
 Launch the local dashboard:
 
 ```powershell
+.\tools\telemetry_dashboard\start_dashboard.ps1
 .\tools\telemetry_dashboard\start_dashboard.ps1 -LeaderHost soarm-leader.local
 ```
+
+Behavior:
+
+1. `start_dashboard.ps1` uses `soarm-leader.local` by default.
+2. `-LeaderHost` overrides DNS/mDNS resolution for fixed-IP or custom host names.
+3. UI `Pairing Control` panel displays leader MAC, paired follower MAC, pairing lock status,
+	and provides `Reset Pairing` + `Servo Scan` command buttons.
 
 This starts:
 
@@ -175,4 +190,10 @@ Stream behavior:
 1. Python sends `StartStream` command to ESP.
 2. ESP streams binary telemetry frames while client is connected.
 3. On disconnect, stream stops automatically.
+
+Legacy explicit launch (same result):
+
+```powershell
+.\tools\telemetry_dashboard\start_dashboard.ps1 -LeaderHost soarm-leader.local
+```
 

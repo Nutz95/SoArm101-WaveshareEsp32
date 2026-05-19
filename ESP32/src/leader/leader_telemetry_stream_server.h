@@ -14,6 +14,8 @@ public:
 
   bool begin(uint16_t port);
   void tick();
+  bool consumeResetPairingRequested();
+  bool consumeServoScanRequested();
 
 private:
   void handleIncomingCommands();
@@ -27,6 +29,8 @@ private:
   LeaderCommandProcessor commandProcessor_;
   bool started_{false};
   bool streamEnabled_{false};
+  bool resetPairingRequested_{false};
+  bool servoScanRequested_{false};
   uint32_t lastStreamMs_{0};
 };
 

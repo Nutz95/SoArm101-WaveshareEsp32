@@ -1,0 +1,40 @@
+import threading
+import time
+from typing import Dict, Any
+
+
+class DashboardState:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._latest: Dict[str, Any] = {
+            "uptime_ms": 0,
+            "cpu0_load_pct": 0,
+            "cpu1_load_pct": 0,
+            "leader_state": 0,
+            "follower_state": 0,
+            "mode": 0,
+            "joystick_paired": False,
+            "calibration_done": False,
+            "espnow_linked": False,
+            "pairing_locked": False,
+            "leader_ip": "",
+            "follower_ip": "",
+            "leader_mac": "",
+            "follower_mac": "",
+            "status": "",
+            "connected": False,
+            "last_frame_ts": 0.0,
+        }
+
+    def snapshot(self) -> Dict[str, Any]:
+        with self._lock:
+            return dict(self._latest)
+
+    def set_connected(self, value: bool) -> None:
+        with self._lock:
+            self._latest["connected"] = value
+
+    def update(self, updates: Dict[str, Any]) -> None:
+        with self._lock:
+            self._latest.update(updates)
+            self._latest["last_frame_ts"] = time.time()

@@ -28,6 +28,7 @@ public:
                                          const char *followerIp,
                                          OperationMode mode,
                                          const char *status,
+                                         const char *extraLine,
                                          uint32_t nowMs);
     void showOtaProgress(uint8_t progressPercent);
     void showError(uint32_t errorCode, const char *message);
@@ -37,7 +38,12 @@ private:
     Adafruit_SSD1306 *display_;
 
     void applyTextStyle();
-    void print4Lines(const char *line1, const char *line2, const char *line3, const char *line4);
+    void printLines(
+        const char *line1,
+        const char *line2,
+        const char *line3,
+        const char *line4,
+        const char *line5);
 };
 
 } // namespace soarm

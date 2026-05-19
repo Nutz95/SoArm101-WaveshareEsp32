@@ -90,13 +90,14 @@ void OledPresenter::showConnecting(const char *followerIpHint) {
         snprintf(l2, sizeof(l2), "F:%s", followerIpHint);
     }
 
-    print4Lines("L:connecting", l2, "M:IDLE", "S:WiFi connecting");
+    printLines("L:connecting", l2, "M:IDLE", "S:WiFi connecting", nullptr);
 }
 
 void OledPresenter::showDashboard(const char *leaderIp,
                                                                     const char *followerIp,
                                                                     OperationMode mode,
                                                                     const char *status,
+                                                                    const char *extraLine,
                                                                     uint32_t nowMs) {
     if (display_ == nullptr) {
         return;
@@ -127,7 +128,7 @@ void OledPresenter::showDashboard(const char *leaderIp,
         }
     }
 
-    print4Lines(l1, l2, l3, l4);
+    printLines(l1, l2, l3, l4, extraLine);
 }
 
 void OledPresenter::showOtaProgress(uint8_t progressPercent) {
@@ -205,10 +206,11 @@ void OledPresenter::applyTextStyle() {
     }
 }
 
-void OledPresenter::print4Lines(const char *line1,
+void OledPresenter::printLines(const char *line1,
                                                                 const char *line2,
                                                                 const char *line3,
-                                                                const char *line4) {
+                                                                const char *line4,
+                                                                const char *line5) {
     if (display_ == nullptr) {
         return;
     }
@@ -235,6 +237,17 @@ void OledPresenter::print4Lines(const char *line1,
         }
     }
 
+    const bool hasFiveLines =
+        line5 != nullptr && line5[0] != '\0' && config_.textStyle == OledTextStyle::Small
+        && config_.screenHeight >= 40U;
+
+    if (hasFiveLines) {
+        y0 = 0;
+        y1 = 8;
+        y2 = 16;
+        y3 = 24;
+    }
+
     display_->setCursor(0, y0);
     display_->println(line1);
     display_->setCursor(0, y1);
@@ -243,6 +256,11 @@ void OledPresenter::print4Lines(const char *line1,
     display_->println(line3);
     display_->setCursor(0, y3);
     display_->println(line4);
+
+    if (hasFiveLines) {
+        display_->setCursor(0, 32);
+        display_->println(line5);
+    }
     display_->display();
 }
 

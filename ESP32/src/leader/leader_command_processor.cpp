@@ -23,6 +23,21 @@ LeaderCommandAction LeaderCommandProcessor::process(const CommandFrame &frame) {
     case 3:
       action = LeaderCommandAction::Ping;
       break;
+    case 4:
+      action = LeaderCommandAction::ResetPairing;
+      break;
+    case 5:
+      action = LeaderCommandAction::ServoScan;
+      break;
+    case 6:
+      action = LeaderCommandAction::ServoDebugEnable;
+      break;
+    case 7:
+      action = LeaderCommandAction::ServoDebugDisable;
+      break;
+    case 8:
+      action = LeaderCommandAction::ServoMove;
+      break;
     default:
       action = LeaderCommandAction::None;
       break;

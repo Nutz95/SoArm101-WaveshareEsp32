@@ -4,11 +4,37 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SoArm Telemetry Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main>
-    <h1>SoArm Telemetry</h1>
+    <header class="hero">
+      <img src="ChainsawDynamics.png" alt="Chainsaw Dynamics" class="logo" />
+      <div>
+        <h1>SoArm Telemetry</h1>
+        <p>Live monitor and command bridge for Leader firmware.</p>
+      </div>
+    </header>
+
+    <section class="panel">
+      <h2>Pairing Control</h2>
+      <div class="grid pairing-grid">
+        <div class="card"><span>Pairing State</span><strong id="pairingLocked">open</strong></div>
+        <div class="card"><span>Leader MAC</span><strong id="leaderMac">-</strong></div>
+        <div class="card"><span>Follower MAC</span><strong id="followerMac">-</strong></div>
+      </div>
+      <div class="actions">
+        <button id="resetPairingBtn" type="button">Reset Pairing</button>
+        <button id="servoScanBtn" type="button">Servo Scan</button>
+      </div>
+      <p id="commandStatus">No command sent.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Runtime</h2>
     <div class="grid">
       <div class="card"><span>Connected</span><strong id="connected">no</strong></div>
       <div class="card"><span>Leader IP</span><strong id="leaderIp">-</strong></div>
@@ -21,6 +47,7 @@
       <div class="card"><span>CPU1 Load</span><strong id="cpu1">0%</strong></div>
       <div class="card"><span>Uptime</span><strong id="uptime">0 ms</strong></div>
     </div>
+    </section>
   </main>
   <script src="app.js"></script>
 </body>

@@ -10,7 +10,12 @@ enum class LeaderCommandAction : uint8_t {
   None = 0,
   StartStream,
   StopStream,
-  Ping
+  Ping,
+  ResetPairing,
+  ServoScan,
+  ServoDebugEnable,
+  ServoDebugDisable,
+  ServoMove
 };
 
 class LeaderCommandProcessor {
