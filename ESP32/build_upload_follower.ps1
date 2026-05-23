@@ -55,8 +55,9 @@ if ($Ota -and $OtaIp -ne "") { Write-Host "OTA IP      : $OtaIp" }
 if ($FactoryResetPairing) { Write-Host "Recovery    : erase flash before upload" -ForegroundColor Yellow }
 Write-Host ""
 
-# Override upload port for USB mode when user specifies a custom port.
-if (-not $Ota -and $Port -ne "COM8") {
+# Always force USB upload port in USB mode.
+# This avoids stale terminal env values (for example a previous OTA IP) affecting USB upload.
+if (-not $Ota) {
     $env:PLATFORMIO_UPLOAD_PORT = $Port
 }
 if ($Ota -and $OtaIp -ne "") {
@@ -71,6 +72,8 @@ if ($FactoryResetPairing) {
         exit $LASTEXITCODE
     }
     Write-Host "Erase OK" -ForegroundColor Green
+    Write-Host "Waiting 3 seconds for flash to settle..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 3
     Write-Host ""
 }
 
@@ -83,12 +86,19 @@ if (-not $NoBuild) {
         exit $LASTEXITCODE
     }
     Write-Host "Build OK" -ForegroundColor Green
+    Write-Host "Waiting 3 seconds for flash to settle..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 3
     Write-Host ""
 }
 
 # Upload step.
 Write-Host "--- Uploading ---" -ForegroundColor Yellow
-& $pio run -e $env_name -t nobuild -t upload
+if ($NoBuild) {
+    & $pio run -e $env_name -t nobuild -t upload
+} else {
+    # Match the proven manual flow: pio run -e follower -t upload.
+    & $pio run -e $env_name -t upload
+}
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "UPLOAD FAILED (exit $LASTEXITCODE)" -ForegroundColor Red

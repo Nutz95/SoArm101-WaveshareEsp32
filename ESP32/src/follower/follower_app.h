@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../common/app_state_machine.h"
+#include "../common/command/command_ack_status.h"
 #include "../common/interfaces/i_follower_presence_service.h"
 #include "../common/nvs_calibration_store.h"
 #include "../common/status_led_service.h"
@@ -18,6 +19,17 @@ public:
   void tick();
 
 private:
+  void processIncomingServoControl();
+  void processIncomingServoScan();
+  void publishServoTelemetry();
+  void updateStateAndLeds(uint32_t uptimeMs);
+  CommandAckStatus executeServoControl(uint8_t op, uint32_t value);
+  CommandAckStatus handleDebugEnable(uint32_t value);
+  CommandAckStatus handleDebugDisable(uint32_t value);
+  CommandAckStatus handleMove(uint32_t value);
+  CommandAckStatus handleSetId(uint32_t value);
+  CommandAckStatus handleSetMode(uint32_t value);
+
   ArmStateMachine     stateMachine_;
   NvsCalibrationStore calibrationStore_;
   StatusLedService    statusLedService_;

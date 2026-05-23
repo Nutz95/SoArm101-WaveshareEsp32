@@ -15,6 +15,7 @@ export function stateLabel(v) {
     case 2: return "WaitingCalibration";
     case 3: return "WaitingEspNow";
     case 4: return "Ready";
+    case 5: return "ServoFault";
     default: return "Unknown";
   }
 }

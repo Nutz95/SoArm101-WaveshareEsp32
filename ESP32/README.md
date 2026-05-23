@@ -4,6 +4,15 @@ This folder contains the dual-board firmware scaffold for:
 - Leader board (OLED + Bluetooth + dual status LED)
 - Follower board (servo mirror receiver)
 
+## Architecture
+
+The current message flow, board responsibilities, and telemetry path are documented in:
+
+- [docs/architecture/README.md](docs/architecture/README.md)
+- [docs/architecture/message-flow.svg](docs/architecture/message-flow.svg)
+
+If you are changing command routing, pairing, or dashboard integration, read that architecture note first.
+
 ## PlatformIO Initialization
 
 No extra initialization command is required because `platformio.ini` is already present.
@@ -37,6 +46,19 @@ $env:SOARM_FOLLOWER_OTA_IP = "192.168.1.73"
 ```
 
 This value is shown on the leader OLED as the follower IP hint.
+
+Servo inventory expectations are configured in:
+
+- `src/common/servo/servo_expectations.h`
+
+Default values:
+
+1. `EXPECTED_LEADER_SERVO_COUNT = 1`
+2. `EXPECTED_FOLLOWER_SERVO_COUNT = 1`
+
+At startup, both boards run a local servo scan. The leader also requests a follower startup scan
+once the ESP-NOW link is up. If a board count differs from expected, its status LED enters
+red blinking `ServoFault` state.
 
 ---
 

@@ -32,6 +32,10 @@ struct LeaderTelemetrySnapshot {
   char followerServoIds[48];
   char leaderServoTelemetry[96];
   char followerServoTelemetry[96];
+  uint16_t commandRequestId;
+  uint8_t commandCode;
+  uint8_t leaderCommandStatus;
+  uint8_t followerCommandStatus;
   char status[24];
 } __attribute__((packed));
 

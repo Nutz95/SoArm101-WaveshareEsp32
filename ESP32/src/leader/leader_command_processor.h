@@ -8,16 +8,20 @@ namespace soarm {
 
 enum class LeaderCommandAction : uint8_t {
   None = 0,
-  StartStream,
-  StopStream,
-  Ping,
-  ResetPairing,
-  ServoScan,
-  ServoDebugEnable,
-  ServoDebugDisable,
-  ServoMove,
-  ServoSetId,
-  ServoSetMode
+  StartStream = 1,
+  StopStream = 2,
+  Ping = 3,
+  ResetPairing = 4,
+  ServoScan = 5,
+  ServoDebugEnable = 6,
+  ServoDebugDisable = 7,
+  ServoMove = 8,
+  ServoSetId = 9,
+  ServoSetMode = 10,
+  ServoDebugEnableFollower = 11,
+  ServoDebugDisableFollower = 12,
+  ServoScanLeader = 13,
+  ServoScanFollower = 14
 };
 
 class LeaderCommandProcessor {
@@ -29,6 +33,7 @@ public:
     uint16_t magic;
     uint8_t version;
     uint8_t command;
+    uint16_t requestId;
     uint32_t value;
   } __attribute__((packed));
 

@@ -1,35 +1,19 @@
 import { fetchLatest, commandWithStatus } from "./js/api.js";
-import { modeLabel, stateLabel, uptimeLabel, boolLabel } from "./js/formatters.js";
-import { clampU8, renderServoChips } from "./js/servo_ui.js";
+import { clampU8 } from "./js/servo_ui.js";
+import { renderSnapshot } from "./js/dashboard_render.js";
+import {
+  hasPendingFollowerCommand,
+  registerPendingCommand,
+  syncPendingCommandStatus,
+} from "./js/pending_command.js";
+
+const REFRESH_INTERVAL_MS = 200;
 
 async function refresh() {
   try {
     const data = await fetchLatest();
-
-    document.getElementById("connected").textContent = data.connected ? "yes" : "no";
-    document.getElementById("leaderIp").textContent = data.leader_ip || "-";
-    document.getElementById("followerIp").textContent = data.follower_ip || "-";
-    document.getElementById("mode").textContent = modeLabel(data.mode);
-    document.getElementById("leaderState").textContent = stateLabel(data.leader_state);
-    document.getElementById("followerState").textContent = stateLabel(data.follower_state);
-    document.getElementById("status").textContent = data.status || "-";
-    document.getElementById("cpu0").textContent = `${data.cpu0_load_pct}%`;
-    document.getElementById("cpu1").textContent = `${data.cpu1_load_pct}%`;
-    document.getElementById("uptime").textContent = uptimeLabel(data.uptime_ms);
-    document.getElementById("pairingLocked").textContent = data.pairing_locked ? "locked" : "open";
-    document.getElementById("pairingLocked").className = data.pairing_locked ? "locked" : "";
-    document.getElementById("leaderMac").textContent = data.leader_mac || "-";
-    document.getElementById("followerMac").textContent = data.follower_mac || "-";
-
-    document.getElementById("leaderServoCount").textContent = `${data.leader_servo_count || 0}`;
-    document.getElementById("followerServoCount").textContent = `${data.follower_servo_count || 0}`;
-    document.getElementById("leaderServoDebug").textContent = boolLabel(!!data.leader_servo_debug_manual);
-    document.getElementById("followerServoDebug").textContent = boolLabel(!!data.follower_servo_debug_manual);
-    document.getElementById("leaderServoTelemetry").textContent = data.leader_servo_telemetry || "-";
-    document.getElementById("followerServoTelemetry").textContent = data.follower_servo_telemetry || "-";
-
-    renderServoChips("leaderServoIds", data.leader_servo_ids);
-    renderServoChips("followerServoIds", data.follower_servo_ids);
+    renderSnapshot(data);
+    syncPendingCommandStatus(data);
   } catch (_err) {
   }
 }
@@ -45,15 +29,42 @@ function setupButtons() {
   });
 
   document.getElementById("servoScanBtn").addEventListener("click", async () => {
-    await commandWithStatus("servo_scan", 0, "Servo scan command sent.", "Servo scan failed (not connected).");
+    await commandWithStatus("servo_scan", 0, "Servo scan (both) command sent.", "Servo scan failed (not connected).");
+  });
+
+  document.getElementById("servoScanLeaderBtn").addEventListener("click", async () => {
+    await commandWithStatus("servo_scan_leader", 0, "Leader scan command sent.", "Leader scan failed.");
+  });
+
+  document.getElementById("servoScanFollowerBtn").addEventListener("click", async () => {
+    await commandWithStatus("servo_scan_follower", 0, "Follower scan command sent.", "Follower scan failed.");
   });
 
   document.getElementById("servoDebugEnableBtn").addEventListener("click", async () => {
-    await commandWithStatus("servo_debug_enable", 0, "Servo debug/manual enabled.", "Enable debug failed.");
+    const result = await commandWithStatus("servo_debug_enable", 0, "Servo debug/manual enabled.", "Enable debug failed.");
+    registerPendingCommand(result, "leader", "leader debug enable");
   });
 
   document.getElementById("servoDebugDisableBtn").addEventListener("click", async () => {
-    await commandWithStatus("servo_debug_disable", 0, "Servo debug/manual disabled.", "Disable debug failed.");
+    const result = await commandWithStatus("servo_debug_disable", 0, "Servo debug/manual disabled.", "Disable debug failed.");
+    registerPendingCommand(result, "leader", "leader debug disable");
+  });
+
+  // Follower servo debug buttons (same commands, sent to leader which forwards via ESP-NOW)
+  document.getElementById("followerServoDebugEnableBtn").addEventListener("click", async () => {
+    if (hasPendingFollowerCommand()) {
+      return;
+    }
+    const result = await commandWithStatus("servo_debug_enable_follower", 0, "Follower servo debug/manual enabled.", "Enable follower debug failed.");
+    registerPendingCommand(result, "follower", "follower debug enable");
+  });
+
+  document.getElementById("followerServoDebugDisableBtn").addEventListener("click", async () => {
+    if (hasPendingFollowerCommand()) {
+      return;
+    }
+    const result = await commandWithStatus("servo_debug_disable_follower", 0, "Follower servo debug/manual disabled.", "Disable follower debug failed.");
+    registerPendingCommand(result, "follower", "follower debug disable");
   });
 
   document.getElementById("servoMoveBtn").addEventListener("click", async () => {
@@ -95,5 +106,5 @@ function setupButtons() {
 }
 
 setupButtons();
-setInterval(refresh, 200);
+setInterval(refresh, REFRESH_INTERVAL_MS);
 refresh();

@@ -28,10 +28,21 @@
       </div>
       <div class="actions">
         <button id="resetPairingBtn" type="button">Reset Pairing + Relaunch</button>
-        <button id="servoScanBtn" type="button">Servo Scan</button>
+        <button id="servoScanBtn" type="button">Servo Scan (Both)</button>
+        <button id="servoScanLeaderBtn" type="button">Servo Scan (Leader)</button>
+        <button id="servoScanFollowerBtn" type="button">Servo Scan (Follower)</button>
       </div>
       <p id="commandStatus">No command sent.</p>
     </section>
+      <section class="panel">
+        <h2>Command ACK</h2>
+        <div class="grid pairing-grid">
+          <div class="card"><span>Request ID</span><strong id="cmdRequestId">0</strong></div>
+          <div class="card"><span>Command</span><strong id="cmdCode">0</strong></div>
+          <div class="card"><span>Leader ACK</span><strong id="cmdLeaderAck">none</strong></div>
+          <div class="card"><span>Follower ACK</span><strong id="cmdFollowerAck">none</strong></div>
+        </div>
+      </section>
 
     <section class="panel">
       <h2>Runtime</h2>
@@ -81,8 +92,14 @@
     <section class="panel">
       <h2>Servo Manual Commands</h2>
       <div class="actions">
-        <button id="servoDebugEnableBtn" type="button">Enable Debug Manual</button>
-        <button id="servoDebugDisableBtn" type="button">Disable Debug Manual</button>
+        <button id="servoDebugEnableBtn" type="button">Enable Debug Manual (Leader)</button>
+        <button id="servoDebugDisableBtn" type="button">Disable Debug Manual (Leader)</button>
+      </div>
+
+      <h3>Follower Servo</h3>
+      <div class="btn-group">
+        <button id="followerServoDebugEnableBtn" type="button">Enable Debug Manual (Follower)</button>
+        <button id="followerServoDebugDisableBtn" type="button">Disable Debug Manual (Follower)</button>
       </div>
 
       <div class="command-grid">
@@ -91,11 +108,11 @@
           <input id="servoIdInput" type="number" min="0" max="255" value="1" />
         </label>
         <label>
-          Position
-          <input id="servoPositionInput" type="number" min="-32768" max="32767" value="0" />
+          Position (raw ticks, model dependent 0-4095)
+          <input id="servoPositionInput" type="number" min="0" max="4095" value="0" />
         </label>
         <label>
-          Speed %
+          Speed % (mapped to 0-7000 raw)
           <input id="servoSpeedInput" type="number" min="0" max="100" value="50" />
         </label>
         <button id="servoMoveBtn" type="button">Move</button>

@@ -38,6 +38,9 @@ void StatusLedService::render(uint16_t ledIndex, ArmRuntimeState state) {
   case ArmRuntimeState::Ready:
     color = makeColor(0, 60, 0);
     break;
+  case ArmRuntimeState::ServoFault:
+    color = blinkOn ? makeColor(70, 0, 0) : makeColor(0, 0, 0);
+    break;
   default:
     color = makeColor(0, 0, 0);
     break;

@@ -19,3 +19,12 @@ Coding rules (formatting, SOLID design guidance language policy and related guid
 Refer to: `CODING_RULES.md` for the authoritative, project-level coding rules. All contributors and assistants must follow the rules documented there when modifying code or OpenSpec files.
 
 If you make changes to coding rules, update `CODING_RULES.md`.
+
+## Architecture Context
+
+Before changing the firmware, command flow, telemetry, or dashboard UI, read the root README and the architecture documentation:
+
+- [README.md](README.md)
+- [ESP32/docs/architecture/README.md](ESP32/docs/architecture/README.md)
+
+Use the architecture README and diagram to understand how messages move between the dashboard, leader board, and follower board.

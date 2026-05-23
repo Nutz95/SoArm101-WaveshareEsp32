@@ -10,11 +10,15 @@ from dashboard_protocol import (
     ESP_CMD_PING,
     ESP_CMD_RESET_PAIRING,
     ESP_CMD_SERVO_DEBUG_DISABLE,
+    ESP_CMD_SERVO_DEBUG_DISABLE_FOLLOWER,
     ESP_CMD_SERVO_DEBUG_ENABLE,
+    ESP_CMD_SERVO_DEBUG_ENABLE_FOLLOWER,
     ESP_CMD_SERVO_MOVE,
     ESP_CMD_SERVO_SET_ID,
     ESP_CMD_SERVO_SET_MODE,
     ESP_CMD_SERVO_SCAN,
+    ESP_CMD_SERVO_SCAN_FOLLOWER,
+    ESP_CMD_SERVO_SCAN_LEADER,
     ESP_CMD_START_STREAM,
     ESP_CMD_STOP_STREAM,
 )
@@ -25,7 +29,7 @@ def build_dashboard_server(
     bind_host: str,
     port: int,
     state: DashboardState,
-    command_sender: Callable[[int, int], bool],
+    command_sender: Callable[[int, int, int], bool],
 ) -> HTTPServer:
     class DashboardHandler(BaseHTTPRequestHandler):
         static_dir = Path(os.path.join(os.path.dirname(__file__), "static")).resolve()
@@ -36,12 +40,17 @@ def build_dashboard_server(
             "ping": ESP_CMD_PING,
             "reset_pairing": ESP_CMD_RESET_PAIRING,
             "servo_scan": ESP_CMD_SERVO_SCAN,
+            "servo_scan_leader": ESP_CMD_SERVO_SCAN_LEADER,
+            "servo_scan_follower": ESP_CMD_SERVO_SCAN_FOLLOWER,
             "servo_debug_enable": ESP_CMD_SERVO_DEBUG_ENABLE,
             "servo_debug_disable": ESP_CMD_SERVO_DEBUG_DISABLE,
+            "servo_debug_enable_follower": ESP_CMD_SERVO_DEBUG_ENABLE_FOLLOWER,
+            "servo_debug_disable_follower": ESP_CMD_SERVO_DEBUG_DISABLE_FOLLOWER,
             "servo_move": ESP_CMD_SERVO_MOVE,
             "servo_set_id": ESP_CMD_SERVO_SET_ID,
             "servo_set_mode": ESP_CMD_SERVO_SET_MODE,
         }
+        next_request_id: int = 1
 
         def do_GET(self):
             parsed = urlparse(self.path)
@@ -81,8 +90,13 @@ def build_dashboard_server(
                 self._send_json(400, {"ok": False, "error": "unknown_command"})
                 return
 
-            sent = command_sender(command_id, value)
-            self._send_json(200, {"ok": sent, "command": command_name})
+            request_id = DashboardHandler.next_request_id
+            DashboardHandler.next_request_id = (DashboardHandler.next_request_id + 1) & 0xFFFF
+            if DashboardHandler.next_request_id == 0:
+                DashboardHandler.next_request_id = 1
+
+            sent = command_sender(command_id, value, request_id)
+            self._send_json(200, {"ok": sent, "command": command_name, "request_id": request_id})
 
         def log_message(self, format, *args):
             return

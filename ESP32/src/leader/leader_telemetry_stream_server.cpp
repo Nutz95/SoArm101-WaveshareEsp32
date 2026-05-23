@@ -14,59 +14,81 @@ bool LeaderTelemetryStreamServer::begin(uint16_t port) {
   return true;
 }
 
-bool LeaderTelemetryStreamServer::consumeResetPairingRequested() {
+bool LeaderTelemetryStreamServer::consumeResetPairingRequested(uint16_t &requestId) {
   const bool pending = resetPairingRequested_;
+  requestId = resetPairingRequestId_;
   resetPairingRequested_ = false;
   return pending;
 }
 
-bool LeaderTelemetryStreamServer::consumeServoScanRequested() {
+bool LeaderTelemetryStreamServer::consumeServoScanRequested(uint32_t &value, uint16_t &requestId) {
   const bool pending = servoScanRequested_;
+  value = servoScanValue_;
+  requestId = servoScanRequestId_;
   servoScanRequested_ = false;
   return pending;
 }
 
-bool LeaderTelemetryStreamServer::consumeServoDebugEnableRequested() {
+bool LeaderTelemetryStreamServer::consumeServoDebugEnableRequested(uint16_t &requestId) {
   const bool pending = servoDebugEnableRequested_;
+  requestId = servoDebugEnableRequestId_;
   servoDebugEnableRequested_ = false;
   return pending;
 }
 
-bool LeaderTelemetryStreamServer::consumeServoDebugDisableRequested() {
+bool LeaderTelemetryStreamServer::consumeServoDebugDisableRequested(uint16_t &requestId) {
   const bool pending = servoDebugDisableRequested_;
+  requestId = servoDebugDisableRequestId_;
   servoDebugDisableRequested_ = false;
   return pending;
 }
 
-bool LeaderTelemetryStreamServer::consumeServoMoveRequested(uint32_t &value) {
+bool LeaderTelemetryStreamServer::consumeServoDebugEnableFollowerRequested(uint16_t &requestId) {
+  const bool pending = servoDebugEnableFollowerRequested_;
+  requestId = servoDebugEnableFollowerRequestId_;
+  servoDebugEnableFollowerRequested_ = false;
+  return pending;
+}
+
+bool LeaderTelemetryStreamServer::consumeServoDebugDisableFollowerRequested(uint16_t &requestId) {
+  const bool pending = servoDebugDisableFollowerRequested_;
+  requestId = servoDebugDisableFollowerRequestId_;
+  servoDebugDisableFollowerRequested_ = false;
+  return pending;
+}
+
+bool LeaderTelemetryStreamServer::consumeServoMoveRequested(uint32_t &value, uint16_t &requestId) {
   const bool pending = servoMoveRequested_;
   if (!pending) {
     return false;
   }
 
   value = servoMoveValue_;
+  requestId = servoMoveRequestId_;
   servoMoveRequested_ = false;
   return true;
 }
 
-bool LeaderTelemetryStreamServer::consumeServoSetIdRequested(uint32_t &value) {
+bool LeaderTelemetryStreamServer::consumeServoSetIdRequested(uint32_t &value, uint16_t &requestId) {
   const bool pending = servoSetIdRequested_;
   if (!pending) {
     return false;
   }
 
   value = servoSetIdValue_;
+  requestId = servoSetIdRequestId_;
   servoSetIdRequested_ = false;
   return true;
 }
 
-bool LeaderTelemetryStreamServer::consumeServoSetModeRequested(uint32_t &value) {
+bool LeaderTelemetryStreamServer::consumeServoSetModeRequested(uint32_t &value, uint16_t &requestId) {
   const bool pending = servoSetModeRequested_;
   if (!pending) {
     return false;
   }
 
   value = servoSetModeValue_;
+  requestId = servoSetModeRequestId_;
   servoSetModeRequested_ = false;
   return true;
 }
@@ -113,48 +135,72 @@ void LeaderTelemetryStreamServer::handleIncomingCommands() {
     }
 
     const LeaderCommandAction action = commandProcessor_.process(frame);
-    handleAction(action, frame.value);
+    handleAction(action, frame.value, frame.requestId);
   }
 }
 
-void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action, uint32_t value) {
-  switch (action) {
-  case LeaderCommandAction::StartStream:
+void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action, uint32_t value, uint16_t requestId) {
+  struct FlagActionEntry {
+    LeaderCommandAction action;
+    bool LeaderTelemetryStreamServer::*flag;
+    uint16_t LeaderTelemetryStreamServer::*requestId;
+  };
+
+  static const FlagActionEntry kFlagActions[] = {
+      {LeaderCommandAction::ResetPairing, &LeaderTelemetryStreamServer::resetPairingRequested_, &LeaderTelemetryStreamServer::resetPairingRequestId_},
+      {LeaderCommandAction::ServoDebugEnable, &LeaderTelemetryStreamServer::servoDebugEnableRequested_, &LeaderTelemetryStreamServer::servoDebugEnableRequestId_},
+      {LeaderCommandAction::ServoDebugDisable, &LeaderTelemetryStreamServer::servoDebugDisableRequested_, &LeaderTelemetryStreamServer::servoDebugDisableRequestId_},
+      {LeaderCommandAction::ServoDebugEnableFollower, &LeaderTelemetryStreamServer::servoDebugEnableFollowerRequested_, &LeaderTelemetryStreamServer::servoDebugEnableFollowerRequestId_},
+      {LeaderCommandAction::ServoDebugDisableFollower, &LeaderTelemetryStreamServer::servoDebugDisableFollowerRequested_, &LeaderTelemetryStreamServer::servoDebugDisableFollowerRequestId_},
+  };
+
+  struct ValueActionEntry {
+    LeaderCommandAction action;
+    bool LeaderTelemetryStreamServer::*flag;
+    uint32_t LeaderTelemetryStreamServer::*value;
+    uint16_t LeaderTelemetryStreamServer::*requestId;
+    uint32_t fixedValue;
+    bool useFixedValue;
+  };
+
+  static const ValueActionEntry kValueActions[] = {
+      {LeaderCommandAction::ServoScan, &LeaderTelemetryStreamServer::servoScanRequested_, &LeaderTelemetryStreamServer::servoScanValue_, &LeaderTelemetryStreamServer::servoScanRequestId_, 0U, false},
+      {LeaderCommandAction::ServoScanLeader, &LeaderTelemetryStreamServer::servoScanRequested_, &LeaderTelemetryStreamServer::servoScanValue_, &LeaderTelemetryStreamServer::servoScanRequestId_, 1U, true},
+      {LeaderCommandAction::ServoScanFollower, &LeaderTelemetryStreamServer::servoScanRequested_, &LeaderTelemetryStreamServer::servoScanValue_, &LeaderTelemetryStreamServer::servoScanRequestId_, 2U, true},
+      {LeaderCommandAction::ServoMove, &LeaderTelemetryStreamServer::servoMoveRequested_, &LeaderTelemetryStreamServer::servoMoveValue_, &LeaderTelemetryStreamServer::servoMoveRequestId_, 0U, false},
+      {LeaderCommandAction::ServoSetId, &LeaderTelemetryStreamServer::servoSetIdRequested_, &LeaderTelemetryStreamServer::servoSetIdValue_, &LeaderTelemetryStreamServer::servoSetIdRequestId_, 0U, false},
+      {LeaderCommandAction::ServoSetMode, &LeaderTelemetryStreamServer::servoSetModeRequested_, &LeaderTelemetryStreamServer::servoSetModeValue_, &LeaderTelemetryStreamServer::servoSetModeRequestId_, 0U, false},
+  };
+
+  for (size_t i = 0; i < (sizeof(kFlagActions) / sizeof(kFlagActions[0])); ++i) {
+    if (kFlagActions[i].action == action) {
+      this->*(kFlagActions[i].flag) = true;
+      this->*(kFlagActions[i].requestId) = requestId;
+      return;
+    }
+  }
+
+  for (size_t i = 0; i < (sizeof(kValueActions) / sizeof(kValueActions[0])); ++i) {
+    if (kValueActions[i].action == action) {
+      this->*(kValueActions[i].flag) = true;
+      this->*(kValueActions[i].value) = kValueActions[i].useFixedValue ? kValueActions[i].fixedValue : value;
+      this->*(kValueActions[i].requestId) = requestId;
+      return;
+    }
+  }
+
+  if (action == LeaderCommandAction::StartStream) {
     streamEnabled_ = true;
-    break;
-  case LeaderCommandAction::StopStream:
+    return;
+  }
+
+  if (action == LeaderCommandAction::StopStream) {
     streamEnabled_ = false;
-    break;
-  case LeaderCommandAction::Ping:
+    return;
+  }
+
+  if (action == LeaderCommandAction::Ping) {
     client_.write("PONG", 4);
-    break;
-  case LeaderCommandAction::ResetPairing:
-    resetPairingRequested_ = true;
-    break;
-  case LeaderCommandAction::ServoScan:
-    servoScanRequested_ = true;
-    break;
-  case LeaderCommandAction::ServoDebugEnable:
-    servoDebugEnableRequested_ = true;
-    break;
-  case LeaderCommandAction::ServoDebugDisable:
-    servoDebugDisableRequested_ = true;
-    break;
-  case LeaderCommandAction::ServoMove:
-    servoMoveValue_ = value;
-    servoMoveRequested_ = true;
-    break;
-  case LeaderCommandAction::ServoSetId:
-    servoSetIdValue_ = value;
-    servoSetIdRequested_ = true;
-    break;
-  case LeaderCommandAction::ServoSetMode:
-    servoSetModeValue_ = value;
-    servoSetModeRequested_ = true;
-    break;
-  case LeaderCommandAction::None:
-  default:
-    break;
   }
 }
 

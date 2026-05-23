@@ -2,6 +2,32 @@
 
 #include <cstddef>
 
+namespace {
+
+struct CommandEntry {
+  uint8_t id;
+  soarm::LeaderCommandAction action;
+};
+
+constexpr CommandEntry kCommandEntries[] = {
+    {1U, soarm::LeaderCommandAction::StartStream},
+    {2U, soarm::LeaderCommandAction::StopStream},
+    {3U, soarm::LeaderCommandAction::Ping},
+    {4U, soarm::LeaderCommandAction::ResetPairing},
+    {5U, soarm::LeaderCommandAction::ServoScan},
+    {6U, soarm::LeaderCommandAction::ServoDebugEnable},
+    {7U, soarm::LeaderCommandAction::ServoDebugDisable},
+    {8U, soarm::LeaderCommandAction::ServoMove},
+    {9U, soarm::LeaderCommandAction::ServoSetId},
+    {10U, soarm::LeaderCommandAction::ServoSetMode},
+    {11U, soarm::LeaderCommandAction::ServoDebugEnableFollower},
+    {12U, soarm::LeaderCommandAction::ServoDebugDisableFollower},
+    {13U, soarm::LeaderCommandAction::ServoScanLeader},
+    {14U, soarm::LeaderCommandAction::ServoScanFollower},
+};
+
+} // namespace
+
 namespace soarm {
 
 LeaderCommandProcessor::LeaderCommandProcessor() {
@@ -15,23 +41,11 @@ LeaderCommandAction LeaderCommandProcessor::process(const CommandFrame &frame) {
   LeaderCommandAction action = LeaderCommandAction::None;
 
   if (frame.magic == kMagic && frame.version == kVersion) {
-    static const LeaderCommandAction kActions[] = {
-        LeaderCommandAction::None,
-        LeaderCommandAction::StartStream,
-        LeaderCommandAction::StopStream,
-        LeaderCommandAction::Ping,
-        LeaderCommandAction::ResetPairing,
-        LeaderCommandAction::ServoScan,
-        LeaderCommandAction::ServoDebugEnable,
-        LeaderCommandAction::ServoDebugDisable,
-        LeaderCommandAction::ServoMove,
-      LeaderCommandAction::ServoSetId,
-      LeaderCommandAction::ServoSetMode,
-    };
-
-    const size_t commandId = frame.command;
-    if (commandId < (sizeof(kActions) / sizeof(kActions[0]))) {
-      action = kActions[commandId];
+    for (size_t i = 0; i < (sizeof(kCommandEntries) / sizeof(kCommandEntries[0])); ++i) {
+      if (kCommandEntries[i].id == frame.command) {
+        action = kCommandEntries[i].action;
+        break;
+      }
     }
   }
 

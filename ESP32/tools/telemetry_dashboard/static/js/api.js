@@ -12,15 +12,39 @@ export async function sendCommand(command, value = 0) {
     body: JSON.stringify({ command, value }),
   });
 
-  return response.json();
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch (_err) {
+    payload = { ok: false, error: "invalid_response" };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      error: payload.error || `http_${response.status}`,
+      command,
+    };
+  }
+
+  return payload;
 }
 
 export async function commandWithStatus(command, value, okText, failText) {
   const statusNode = document.getElementById("commandStatus");
   try {
     const result = await sendCommand(command, value);
-    statusNode.textContent = result.ok ? okText : failText;
+    if (result.ok) {
+      const requestSuffix = result.request_id ? ` (req ${result.request_id})` : "";
+      statusNode.textContent = `${okText}${requestSuffix}`;
+      return result;
+    }
+
+    const errorText = result.error ? ` (${result.error})` : "";
+    statusNode.textContent = `${failText}${errorText}`;
+    return result;
   } catch (_err) {
     statusNode.textContent = failText;
+    return { ok: false, error: "network_error", command };
   }
 }

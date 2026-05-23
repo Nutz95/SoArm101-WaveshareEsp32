@@ -4,6 +4,8 @@
 #include "../common/interfaces/i_leader_presence_service.h"
 #include "../common/status_led_service.h"
 #include "../common/wifi_ota_service.h"
+#include "../common/command/command_ack_status.h"
+#include "../common/servo/servo_control_opcode.h"
 #include "../common/nvs_calibration_store.h"
 #include "../common/cpu_load_service.h"
 #include "../common/servo/servo_bus_service.h"
@@ -11,6 +13,7 @@
 #include "oled_display_config.h"
 #include "leader_telemetry_state.h"
 #include "leader_telemetry_stream_server.h"
+#include "leader_command_processor.h"
 
 #include <cstdint>
 #include <memory>
@@ -24,6 +27,52 @@ public:
   void tick();
 
 private:
+  // Command handling extracted from tick()
+  void handlePairingCommands();
+    void handleResetPairingCommand(uint16_t requestId);
+    void handleServoScanCommand(uint32_t scanTarget, uint16_t requestId);
+    uint8_t commandCodeForScanTarget(uint32_t scanTarget) const;
+    void buildScanStatusLine(bool runLeader, bool runFollower, bool followerSent, uint8_t localCount);
+  void handleServoCommands();
+  bool handleFollowerDebugCommands();
+  bool handleLeaderDebugCommands();
+  bool handleServoValueCommands();
+    bool handleFollowerDebugCommand(
+      uint16_t requestId,
+      ServoControlOpcode op,
+      LeaderCommandAction action,
+      const char *statusText);
+    bool handleLeaderDebugCommand(
+      uint16_t requestId,
+      bool enable,
+      LeaderCommandAction action,
+      const char *statusText);
+    bool handleServoMoveValueCommand();
+    bool handleServoSetIdValueCommand();
+    bool handleServoSetModeValueCommand();
+  void handleServoMoveCommand(uint32_t value, uint16_t requestId);
+  void handleServoSetIdCommand(uint32_t value, uint16_t requestId);
+  void handleServoSetModeCommand(uint32_t value, uint16_t requestId);
+  void setTransientStatus(const char *text, uint32_t holdMs);
+  void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
+  void setLeaderCommandStatus(CommandAckStatus status);
+  void setFollowerCommandStatus(CommandAckStatus status);
+  void awaitFollowerAck(uint16_t requestId, uint8_t op, uint32_t timeoutMs);
+  void setFollowerRetryPayload(uint8_t op, uint32_t value, uint8_t maxRetries);
+  void updateFollowerAckTracking(uint32_t nowMs);
+  void runStartupServoScans(uint32_t nowMs);
+  void updateServoHealthFlags();
+
+  // State computation extracted from tick()
+  void updateLocalInputs(uint32_t uptimeMs);
+  void computeModeAndStatus();
+  void updateFollowerState();
+  void renderStatusLeds();
+
+  // Telemetry / display extracted from tick()
+  void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
+  void refreshOled(uint32_t uptimeMs);
+
   ArmStateMachine     stateMachine_;
   NvsCalibrationStore calibrationStore_;
   StatusLedService    statusLedService_;
@@ -41,6 +90,28 @@ private:
   OperationMode       mode_;
   char                followerIpHint_[16];
   char                statusLine_[24];
+  uint32_t            commandStatusHoldUntilMs_{0U};
+  uint16_t            commandRequestId_{0U};
+  uint8_t             commandCode_{0U};
+  CommandAckStatus    leaderCommandStatus_{CommandAckStatus::None};
+  CommandAckStatus    followerCommandStatus_{CommandAckStatus::None};
+  bool                followerAckPending_{false};
+  uint16_t            followerAckRequestId_{0U};
+  uint8_t             followerAckCommandOp_{0U};
+  uint32_t            followerAckDeadlineMs_{0U};
+  bool                followerRetryEnabled_{false};
+  uint8_t             followerRetryOp_{0U};
+  uint32_t            followerRetryValue_{0U};
+  uint8_t             followerRetryRemaining_{0U};
+  uint32_t            followerNextRetryMs_{0U};
+  bool                leaderStartupScanDone_{false};
+  bool                followerStartupScanDone_{false};
+  bool                followerStartupScanPending_{false};
+  uint16_t            followerStartupScanRequestId_{60000U};
+  uint32_t            followerStartupScanDeadlineMs_{0U};
+  uint32_t            followerStartupScanRetryMs_{0U};
+  bool                leaderServoFault_{false};
+  bool                followerServoFault_{false};
   uint32_t            lastOledRefreshMs_;
 };
 

@@ -9,7 +9,8 @@ enum class ArmRuntimeState : uint8_t {
   Paired,
   WaitingCalibration,
   WaitingEspNow,
-  Ready
+  Ready,
+  ServoFault
 };
 
 } // namespace soarm

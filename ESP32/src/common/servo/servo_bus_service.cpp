@@ -9,6 +9,8 @@ namespace soarm {
 namespace {
 constexpr uint8_t kServoModePosition = 0U;
 constexpr uint8_t kServoModePwm = 1U;
+constexpr uint16_t kPositionMinRaw = 0U;
+constexpr uint16_t kPositionMaxRaw = 4095U;
 }
 
 ServoBusService::ServoBusService() {
@@ -47,6 +49,7 @@ uint8_t ServoBusService::scan() {
   }
 
   SCSCL driver;
+  driver.End = 0;
   driver.pSerial = serial_;
   driver.IOTimeOut = 20U;
 
@@ -122,6 +125,7 @@ bool ServoBusService::moveTo(uint8_t id, int16_t position, uint16_t speed, uint8
   }
 
   SCSCL driver;
+  driver.End = 0;
   driver.pSerial = serial_;
   driver.IOTimeOut = 20U;
 
@@ -142,6 +146,7 @@ bool ServoBusService::setServoId(uint8_t oldId, uint8_t newId) {
   }
 
   SCSCL driver;
+  driver.End = 0;
   driver.pSerial = serial_;
   driver.IOTimeOut = 20U;
 
@@ -169,14 +174,39 @@ bool ServoBusService::setServoMode(uint8_t id, uint8_t mode) {
   }
 
   SCSCL driver;
+  driver.End = 0;
   driver.pSerial = serial_;
   driver.IOTimeOut = 20U;
 
   int result = 0;
   if (mode == kServoModePwm) {
+    if (driver.unLockEprom(id) <= 0) {
+      setSummary("unlock failed");
+      return false;
+    }
     result = driver.PWMMode(id);
+    if (driver.LockEprom(id) <= 0) {
+      setSummary("lock failed");
+      return false;
+    }
   } else if (mode == kServoModePosition) {
-    result = driver.WritePosEx(id, driver.ReadPos(id), 0U, 0U);
+    if (driver.unLockEprom(id) <= 0) {
+      setSummary("unlock failed");
+      return false;
+    }
+    if (driver.writeWord(id, SCSCL_MIN_ANGLE_LIMIT_L, kPositionMinRaw) <= 0) {
+      setSummary("min limit failed");
+      return false;
+    }
+    if (driver.writeWord(id, SCSCL_MAX_ANGLE_LIMIT_L, kPositionMaxRaw) <= 0) {
+      setSummary("max limit failed");
+      return false;
+    }
+    if (driver.LockEprom(id) <= 0) {
+      setSummary("lock failed");
+      return false;
+    }
+    result = 1;
   } else {
     setSummary("invalid mode");
     return false;

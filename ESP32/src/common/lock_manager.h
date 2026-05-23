@@ -1,7 +1,7 @@
 #pragma once
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
+#include <cstdint>
+#include <memory>
 
 namespace soarm {
 
@@ -13,56 +13,20 @@ enum class LockDomain : uint8_t {
 
 class LockManager {
 public:
-  LockManager() {
-    telemetryMutex_ = xSemaphoreCreateMutex();
-    commandMutex_ = xSemaphoreCreateMutex();
-    stateMutex_ = xSemaphoreCreateMutex();
-  }
+  LockManager();
+  ~LockManager();
 
-  ~LockManager() {
-    if (telemetryMutex_ != nullptr) {
-      vSemaphoreDelete(telemetryMutex_);
-    }
-    if (commandMutex_ != nullptr) {
-      vSemaphoreDelete(commandMutex_);
-    }
-    if (stateMutex_ != nullptr) {
-      vSemaphoreDelete(stateMutex_);
-    }
-  }
+  LockManager(const LockManager &) = delete;
+  LockManager &operator=(const LockManager &) = delete;
+  LockManager(LockManager &&) noexcept;
+  LockManager &operator=(LockManager &&) noexcept;
 
-  bool lock(LockDomain domain, TickType_t timeoutTicks = pdMS_TO_TICKS(20)) {
-    SemaphoreHandle_t target = mutexFor(domain);
-    if (target == nullptr) {
-      return false;
-    }
-    return xSemaphoreTake(target, timeoutTicks) == pdTRUE;
-  }
-
-  void unlock(LockDomain domain) {
-    SemaphoreHandle_t target = mutexFor(domain);
-    if (target != nullptr) {
-      xSemaphoreGive(target);
-    }
-  }
+  bool lock(LockDomain domain, uint32_t timeoutMs = 20U);
+  void unlock(LockDomain domain);
 
 private:
-  SemaphoreHandle_t telemetryMutex_{nullptr};
-  SemaphoreHandle_t commandMutex_{nullptr};
-  SemaphoreHandle_t stateMutex_{nullptr};
-
-  SemaphoreHandle_t mutexFor(LockDomain domain) {
-    switch (domain) {
-    case LockDomain::Telemetry:
-      return telemetryMutex_;
-    case LockDomain::Command:
-      return commandMutex_;
-    case LockDomain::State:
-      return stateMutex_;
-    default:
-      return nullptr;
-    }
-  }
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 } // namespace soarm
