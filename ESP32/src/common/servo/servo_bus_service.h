@@ -23,6 +23,7 @@ public:
   uint8_t scan();
   bool moveTo(uint8_t id, int16_t position, uint16_t speed, uint8_t acceleration);
   bool setServoId(uint8_t oldId, uint8_t newId);
+  bool ping(uint8_t id);
   bool setServoMode(uint8_t id, uint8_t mode);
   void setDebugManual(bool enabled);
   bool isDebugManual() const;

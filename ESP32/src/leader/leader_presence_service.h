@@ -3,6 +3,7 @@
 #include "../common/interfaces/i_leader_presence_service.h"
 #include "../common/mac_address_utils.h"
 #include "../common/presence/espnow_presence_base.h"
+#include "../common/presence/presence_packet.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
 
@@ -37,6 +38,10 @@ public:
 private:
   void onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) override;
 
+  // Per-message-type handlers dispatched from onPresenceFrame.
+  void handlePairRequest(const uint8_t *mac, const PresencePacket &packet);
+  void handlePresenceData(const uint8_t *mac, const PresencePacket &packet);
+
   void sendPairAck(const uint8_t mac[6]);
   void sendPairResetTo(const uint8_t mac[6]);
   void sendPairResetBroadcast();
@@ -57,6 +62,9 @@ private:
   uint8_t followerLastAckCommandOp_{0U};
   uint8_t followerLastAckStatus_{0U};
   uint32_t followerLastAckMs_{0U};
+  // Scheduled PairReset broadcasts: sends remaining count one-per-tick at 100 ms intervals.
+  uint8_t pendingResetBroadcastCount_{0U};
+  uint32_t nextResetBroadcastMs_{0U};
   char followerIp_[16]{};
   char followerServoIdsText_[48]{};
   char followerServoTelemetryText_[96]{};

@@ -1,8 +1,9 @@
 #include "follower_app.h"
 #include "follower_presence_service.h"
+#include "../Config/common_runtime_config.h"
+#include "../Config/follower_runtime_config.h"
 #include "../common/command/command_ack_status.h"
 #include "../common/servo/servo_control_opcode.h"
-#include "../common/servo/servo_expectations.h"
 
 #include <Arduino.h>
 #include <cstddef>
@@ -25,16 +26,6 @@
 #ifndef SERVO_BUS_BAUD
 #define SERVO_BUS_BAUD 1000000U
 #endif
-
-namespace {
-
-constexpr uint32_t kFollowerTickDelayMs = 25U;
-constexpr uint32_t kFollowerCalibrationReadyMs = 5000U;
-constexpr uint32_t kFollowerEspNowLinkedMs = 8000U;
-constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
-
-} // namespace
-
 
 namespace soarm {
 
@@ -96,7 +87,7 @@ void FollowerApp::tick() {
 
   updateStateAndLeds(millis());
 
-  delay(kFollowerTickDelayMs);
+  delay(config::follower::kTickDelayMs);
 }
 
 void FollowerApp::processIncomingServoControl() {
@@ -139,11 +130,11 @@ void FollowerApp::publishServoTelemetry() {
 }
 
 void FollowerApp::updateStateAndLeds(uint32_t uptimeMs) {
-  localInputs_.calibrationDone = uptimeMs > kFollowerCalibrationReadyMs;
-  localInputs_.espNowLinked = uptimeMs > kFollowerEspNowLinkedMs;
+  localInputs_.calibrationDone = uptimeMs > config::follower::kCalibrationReadyMs;
+  localInputs_.espNowLinked = uptimeMs > config::follower::kEspNowLinkedReadyMs;
 
   ArmRuntimeState localState = stateMachine_.computeState(localInputs_);
-  if (servoBusService_.lastScanCount() != kExpectedFollowerServoCount) {
+  if (servoBusService_.lastScanCount() != config::common::kExpectedFollowerServoCount) {
     localState = ArmRuntimeState::ServoFault;
   }
   statusLedService_.render(0, localState);
@@ -191,7 +182,7 @@ CommandAckStatus FollowerApp::handleMove(uint32_t value) {
   const int16_t position = static_cast<int16_t>((value >> 8U) & 0xFFFFU);
   const uint8_t speedPct = static_cast<uint8_t>((value >> 24U) & 0xFFU);
   const uint16_t speed = static_cast<uint16_t>(
-      (static_cast<uint32_t>(speedPct) * kTeleopServoMaxSpeedRaw) / 100U);
+      (static_cast<uint32_t>(speedPct) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
 
   if (!servoBusService_.isDebugManual()) {
     return CommandAckStatus::Rejected;

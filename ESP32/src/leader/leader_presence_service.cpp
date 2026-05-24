@@ -4,6 +4,7 @@
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
 #include "../common/pairing/pairing_policy.h"
+#include "../Config/leader_runtime_config.h"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -42,12 +43,9 @@ bool LeaderPresenceService::begin() {
 }
 
 void LeaderPresenceService::tick() {
-  // Check for stale pairing: if we think we're paired but haven't heard
-  // from the follower in a while, expire the pairing so re-pairing can happen.
-  const uint32_t kPairingTimeoutMs = 15000U; // 15 seconds without contact -> expire
-  if (hasPairedMac_ && lastFollowerSeenMs_ > 0) {
+  if (hasPairedMac_ && lastFollowerSeenMs_ > 0U) {
     const uint32_t nowMs = millis();
-    if ((nowMs - lastFollowerSeenMs_) >= kPairingTimeoutMs) {
+    if ((nowMs - lastFollowerSeenMs_) >= config::leader::kPairingTimeoutMs) {
       Serial.printf("[PAIR] Timeout: no contact from follower for %lu ms, expiring pairing\n",
                     (unsigned long)(nowMs - lastFollowerSeenMs_));
       hasPairedMac_ = false;
@@ -56,6 +54,16 @@ void LeaderPresenceService::tick() {
       pairedFollowerMacText_[sizeof(pairedFollowerMacText_) - 1] = '\0';
       followerIp_[0] = '\0';
       pairingStore_.clear();
+    }
+  }
+
+  // Drain scheduled PairReset broadcasts one per tick to avoid blocking.
+  if (pendingResetBroadcastCount_ > 0U) {
+    const uint32_t nowMs = millis();
+    if (nowMs >= nextResetBroadcastMs_) {
+      sendPairResetBroadcast();
+      pendingResetBroadcastCount_ -= 1U;
+      nextResetBroadcastMs_ = nowMs + config::leader::kResetBroadcastIntervalMs;
     }
   }
 }
@@ -150,13 +158,11 @@ bool LeaderPresenceService::resetPairing() {
     sendPairResetTo(previousPairMac);
   }
 
-  // Broadcast PairReset multiple times for reliability.
+  // Broadcast PairReset: send first frame immediately, schedule 2 more via tick().
   sendPairResetBroadcast();
-  vTaskDelay(pdMS_TO_TICKS(100));
-  sendPairResetBroadcast();
-  vTaskDelay(pdMS_TO_TICKS(100));
-  sendPairResetBroadcast();
-  Serial.println("[PAIR] Broadcast PairReset sent (3x)");
+  pendingResetBroadcastCount_ = 2U;
+  nextResetBroadcastMs_ = millis() + config::leader::kResetBroadcastIntervalMs;
+  Serial.println("[PAIR] PairReset broadcast sent, 2 more scheduled");
 
   // Force re-accept of any PairRequest immediately by ensuring broadcast peer is present.
   addBroadcastPeer();
@@ -165,32 +171,16 @@ bool LeaderPresenceService::resetPairing() {
 
 bool LeaderPresenceService::requestServoScan(uint16_t requestId) {
   if (hasPairedMac_) {
-    bool sent = false;
-    for (uint8_t attempt = 0U; attempt < 3U; ++attempt) {
-      if (sendServoControl(pairedFollowerMac_, static_cast<uint8_t>(ServoControlOpcode::Scan), 0U, requestId)) {
-        sent = true;
-      }
-      delay(8);
-    }
-    return sent;
-  } else {
-    return sendServoControlBroadcast(static_cast<uint8_t>(ServoControlOpcode::Scan), 0U, requestId);
+    return sendServoControl(pairedFollowerMac_, static_cast<uint8_t>(ServoControlOpcode::Scan), 0U, requestId);
   }
+  return sendServoControlBroadcast(static_cast<uint8_t>(ServoControlOpcode::Scan), 0U, requestId);
 }
 
 bool LeaderPresenceService::requestServoControl(uint8_t op, uint32_t value, uint16_t requestId) {
   if (hasPairedMac_) {
-    bool sent = false;
-    for (uint8_t attempt = 0U; attempt < 3U; ++attempt) {
-      if (sendServoControl(pairedFollowerMac_, op, value, requestId)) {
-        sent = true;
-      }
-      delay(8);
-    }
-    return sent;
-  } else {
-    return sendServoControlBroadcast(op, value, requestId);
+    return sendServoControl(pairedFollowerMac_, op, value, requestId);
   }
+  return sendServoControlBroadcast(op, value, requestId);
 }
 
 void LeaderPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) {
@@ -209,55 +199,60 @@ void LeaderPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *d
     return;
   }
 
-  const PresenceMessageType msgType = static_cast<PresenceMessageType>(packet.messageType);
+  using FrameHandler = void (LeaderPresenceService::*)(const uint8_t *, const PresencePacket &);
+  struct DispatchEntry {
+    PresenceMessageType type;
+    FrameHandler handler;
+  };
+  static const DispatchEntry kDispatchTable[] = {
+      {PresenceMessageType::PairRequest, &LeaderPresenceService::handlePairRequest},
+      {PresenceMessageType::Presence,    &LeaderPresenceService::handlePresenceData},
+  };
 
-  if (msgType == PresenceMessageType::PairRequest) {
-    Serial.printf("[PAIR] RX PairRequest from %02X:%02X:%02X:%02X:%02X:%02X (paired=%d)\n",
+  const PresenceMessageType msgType = static_cast<PresenceMessageType>(packet.messageType);
+  for (const DispatchEntry &entry : kDispatchTable) {
+    if (entry.type == msgType) {
+      (this->*entry.handler)(mac, packet);
+      return;
+    }
+  }
+  // ServoScan and ServoControl frames addressed to leader are silently ignored.
+}
+
+void LeaderPresenceService::handlePairRequest(const uint8_t *mac, const PresencePacket &packet) {
+  (void)packet;
+  Serial.printf("[PAIR] RX PairRequest from %02X:%02X:%02X:%02X:%02X:%02X (paired=%d)\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+                static_cast<int>(hasPairedMac_));
+
+  if (!hasPairedMac_) {
+    memcpy(pairedFollowerMac_, mac, sizeof(pairedFollowerMac_));
+    hasPairedMac_ = pairingStore_.save(pairedFollowerMac_);
+    if (hasPairedMac_) {
+      formatMacAddress(pairedFollowerMac_, pairedFollowerMacText_);
+      Serial.printf("[PAIR] NEW pairing saved: %s\n", pairedFollowerMacText_);
+    }
+    addPeer(mac);
+    sendPairAck(mac);
+    Serial.printf("[PAIR] PairAck sent to %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return;
+  }
+
+  if (PairingPolicy::shouldAcceptLeaderPairRequest(hasPairedMac_, isPairedMac(mac))) {
+    addPeer(mac);
+    sendPairAck(mac);
+    Serial.printf("[PAIR] PairAck sent to paired peer %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  } else {
+    Serial.printf("[PAIR] Reject PairRequest from unknown peer %02X:%02X:%02X:%02X:%02X:%02X (paired=%d)\n",
                   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
                   static_cast<int>(hasPairedMac_));
-
-    if (!hasPairedMac_) {
-      memcpy(pairedFollowerMac_, mac, sizeof(pairedFollowerMac_));
-      hasPairedMac_ = pairingStore_.save(pairedFollowerMac_);
-      if (hasPairedMac_) {
-        formatMacAddress(pairedFollowerMac_, pairedFollowerMacText_);
-        Serial.printf("[PAIR] NEW pairing saved: %s\n", pairedFollowerMacText_);
-      }
-      addPeer(mac);
-      sendPairAck(mac);
-      Serial.printf("[PAIR] PairAck sent to %02X:%02X:%02X:%02X:%02X:%02X\n",
-                    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    } else {
-      // Always accept PairRequest from known peer.
-      // If already paired with this MAC, just acknowledge.
-      if (PairingPolicy::shouldAcceptLeaderPairRequest(hasPairedMac_, isPairedMac(mac))) {
-        addPeer(mac);
-        sendPairAck(mac);
-        Serial.printf("[PAIR] PairAck sent to paired peer %02X:%02X:%02X:%02X:%02X:%02X\n",
-                      mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-      } else {
-        // Security hardening: reject unknown peer while already paired.
-        Serial.printf("[PAIR] Reject PairRequest from unknown peer %02X:%02X:%02X:%02X:%02X:%02X (paired=%d)\n",
-                      mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-                      static_cast<int>(hasPairedMac_));
-        sendPairResetTo(mac);
-      }
-    }
-    return;
+    sendPairResetTo(mac);
   }
+}
 
-  if (msgType == PresenceMessageType::ServoScan) {
-    return;
-  }
-
-  if (msgType == PresenceMessageType::ServoControl) {
-    return;
-  }
-
-  if (msgType != PresenceMessageType::Presence) {
-    return;
-  }
-
+void LeaderPresenceService::handlePresenceData(const uint8_t *mac, const PresencePacket &packet) {
   if (!hasPairedMac_) {
     Serial.printf("[PAIR] RX Presence from stale peer while unpaired: %02X:%02X:%02X:%02X:%02X:%02X\n",
                   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -275,7 +270,8 @@ void LeaderPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *d
   strncpy(followerIp_, packet.ip, sizeof(followerIp_) - 1);
   followerIp_[sizeof(followerIp_) - 1] = '\0';
   followerServoCount_ = packet.servoCount;
-  followerServoDebugManual_ = packet.controlOp != 0U;
+  const bool debugBitInControlValue = ((packet.controlValue >> 8U) & 0x01U) != 0U;
+  followerServoDebugManual_ = debugBitInControlValue || (packet.controlOp != 0U);
   followerLastAckStatus_ = packet.reserved;
   followerLastAckRequestId_ = packet.reserved2;
   followerLastAckCommandOp_ = static_cast<uint8_t>(packet.controlValue & 0xFFU);
@@ -311,11 +307,10 @@ void LeaderPresenceService::sendPairResetTo(const uint8_t mac[6]) {
   Serial.printf("[PAIR] Sending PairReset to %02X:%02X:%02X:%02X:%02X:%02X\n",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-  // ESP-NOW is best effort. Retry to improve reception probability.
-  for (uint8_t attempt = 0U; attempt < 3U; ++attempt) {
-    esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
-    delay(12);
-  }
+  // esp_now_send is non-blocking. Sending 3 times improves delivery probability.
+  esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+  esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+  esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
 }
 
 void LeaderPresenceService::sendPairResetBroadcast() {
@@ -346,7 +341,14 @@ bool LeaderPresenceService::sendServoControl(const uint8_t mac[6], uint8_t op, u
   packet.controlValue = value;
   strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
   packet.ip[sizeof(packet.ip) - 1] = '\0';
-  return esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)) == ESP_OK;
+
+  bool sent = false;
+  for (uint8_t attempt = 0U; attempt < config::leader::kFollowerInitialSendBurstCount; ++attempt) {
+    if (esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)) == ESP_OK) {
+      sent = true;
+    }
+  }
+  return sent;
 }
 
 bool LeaderPresenceService::sendServoControlBroadcast(uint8_t op, uint32_t value, uint16_t requestId) {

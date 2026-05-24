@@ -312,6 +312,9 @@ void FollowerPresenceService::sendPresence(const char *localIp) {
   packet.reserved2 = lastAckRequestId_;
   packet.controlOp = servoDebugManual_ ? 1U : 0U;
   packet.controlValue = static_cast<uint32_t>(lastAckCommandOp_);
+  if (servoDebugManual_) {
+    packet.controlValue |= (1UL << 8U);
+  }
   strncpy(packet.servoIds, servoIdsText_, sizeof(packet.servoIds) - 1);
   packet.servoIds[sizeof(packet.servoIds) - 1] = '\0';
   strncpy(packet.servoTelemetry, servoTelemetryText_, sizeof(packet.servoTelemetry) - 1);

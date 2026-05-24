@@ -163,8 +163,41 @@ bool ServoBusService::setServoId(uint8_t oldId, uint8_t newId) {
     return false;
   }
 
+  // Verify that the new ID is actually reachable before reporting success.
+  // This avoids reporting a local-only success when the servo did not switch ID.
+  bool newIdResponds = false;
+  for (uint8_t attempt = 0U; attempt < 3U; ++attempt) {
+    if (driver.Ping(newId) >= 0) {
+      newIdResponds = true;
+      break;
+    }
+    delay(4);
+  }
+  if (!newIdResponds) {
+    setSummary("set id verify fail");
+    return false;
+  }
+
+  if (oldId != newId && driver.Ping(oldId) >= 0) {
+    setSummary("old id still active");
+    return false;
+  }
+
   setSummary("id updated");
   return true;
+}
+
+bool ServoBusService::ping(uint8_t id) {
+  if (!started_ || serial_ == nullptr) {
+    setSummary("not started");
+    return false;
+  }
+
+  SCSCL driver;
+  driver.End = 0;
+  driver.pSerial = serial_;
+  driver.IOTimeOut = 20U;
+  return driver.Ping(id) >= 0;
 }
 
 bool ServoBusService::setServoMode(uint8_t id, uint8_t mode) {

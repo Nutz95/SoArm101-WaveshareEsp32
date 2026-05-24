@@ -49,12 +49,18 @@ This value is shown on the leader OLED as the follower IP hint.
 
 Servo inventory expectations are configured in:
 
-- `src/common/servo/servo_expectations.h`
+- `src/Config/common_runtime_config.h`
 
 Default values:
 
 1. `EXPECTED_LEADER_SERVO_COUNT = 1`
 2. `EXPECTED_FOLLOWER_SERVO_COUNT = 1`
+
+Additional runtime tunables are grouped in:
+
+- `src/Config/leader_runtime_config.h`
+- `src/Config/follower_runtime_config.h`
+- `src/Config/controller_mapping_config.h`
 
 At startup, both boards run a local servo scan. The leader also requests a follower startup scan
 once the ESP-NOW link is up. If a board count differs from expected, its status LED enters

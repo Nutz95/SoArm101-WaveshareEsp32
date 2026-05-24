@@ -81,6 +81,20 @@ These clarifications aim to improve readability during reviews and reduce bugs c
 - When migrating APIs or configurations, prefer incremental changes with small commits/PRs and frequent builds.
 - Keep a temporary compatibility shim if necessary during migration, but remove it when migration is complete and all call-sites have been updated.
 
+Refactor constraints (mandatory):
+- Do not add compatibility shims, bridge wrappers, or duplicate transition interfaces when moving code.
+- Move code to the new location and update all broken includes/imports directly.
+- Fix call-sites explicitly; do not keep legacy aliases to avoid refactoring.
+
+Size and responsibility constraints:
+- A class should not exceed 600 lines in its implementation file. If it does, split responsibilities into focused collaborators.
+- Avoid nested class definitions unless there is a strong and documented reason.
+- When a file accumulates unrelated helper functions, extract a dedicated module.
+
+Enforcement guidance:
+- Add CI or local checks that fail when line-count thresholds are exceeded.
+- Prefer automated checks over manual review for structural limits.
+
 **9. Documentation**
 - Update `README.md` (or appropriate module README) when changes introduce new configuration locations, public APIs, or build steps.
 

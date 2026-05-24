@@ -1,6 +1,44 @@
 #include "status_led_service.h"
 
+#include "../Config/common_runtime_config.h"
+
 #include <Arduino.h>
+
+namespace {
+
+using soarm::ArmRuntimeState;
+
+struct LedStateStyle {
+  ArmRuntimeState state;
+  uint8_t red;
+  uint8_t green;
+  uint8_t blue;
+  bool blink;
+};
+
+// Each entry maps an ArmRuntimeState to an RGB colour and blink policy.
+// The state field is the source of truth: order does not matter.
+constexpr LedStateStyle kStateStyles[] = {
+    {ArmRuntimeState::PairingOrUnpaired,   0U,  0U, 40U, true },
+    {ArmRuntimeState::Paired,              0U,  0U, 60U, false},
+    {ArmRuntimeState::WaitingCalibration, 60U,  0U,  0U, true },
+    {ArmRuntimeState::WaitingEspNow,       0U, 40U,  0U, true },
+    {ArmRuntimeState::Ready,               0U, 60U,  0U, false},
+    {ArmRuntimeState::ServoFault,         70U,  0U,  0U, true },
+};
+
+constexpr LedStateStyle kFallbackStyle{ArmRuntimeState::PairingOrUnpaired, 0U, 0U, 0U, false};
+
+LedStateStyle styleForState(ArmRuntimeState state) {
+  for (const LedStateStyle &entry : kStateStyles) {
+    if (entry.state == state) {
+      return entry;
+    }
+  }
+  return kFallbackStyle;
+}
+
+} // namespace
 
 namespace soarm {
 
@@ -19,32 +57,10 @@ void StatusLedService::render(uint16_t ledIndex, ArmRuntimeState state) {
     return;
   }
 
-  uint32_t color = makeColor(0, 0, 0);
+  const LedStateStyle style = styleForState(state);
   const bool blinkOn = isBlinkOn();
-
-  switch (state) {
-  case ArmRuntimeState::PairingOrUnpaired:
-    color = blinkOn ? makeColor(0, 0, 40) : makeColor(0, 0, 0);
-    break;
-  case ArmRuntimeState::Paired:
-    color = makeColor(0, 0, 60);
-    break;
-  case ArmRuntimeState::WaitingCalibration:
-    color = blinkOn ? makeColor(60, 0, 0) : makeColor(0, 0, 0);
-    break;
-  case ArmRuntimeState::WaitingEspNow:
-    color = blinkOn ? makeColor(0, 40, 0) : makeColor(0, 0, 0);
-    break;
-  case ArmRuntimeState::Ready:
-    color = makeColor(0, 60, 0);
-    break;
-  case ArmRuntimeState::ServoFault:
-    color = blinkOn ? makeColor(70, 0, 0) : makeColor(0, 0, 0);
-    break;
-  default:
-    color = makeColor(0, 0, 0);
-    break;
-  }
+  const bool ledOn = !style.blink || blinkOn;
+  const uint32_t color = ledOn ? makeColor(style.red, style.green, style.blue) : makeColor(0U, 0U, 0U);
 
   pixels_.setPixelColor(ledIndex, color);
   pixels_.show();
@@ -55,7 +71,7 @@ uint32_t StatusLedService::makeColor(uint8_t red, uint8_t green, uint8_t blue) c
 }
 
 bool StatusLedService::isBlinkOn() const {
-  const uint32_t tick = millis() / 450;
+  const uint32_t tick = millis() / config::common::kStatusLedBlinkPeriodMs;
   return (tick % 2U) == 0U;
 }
 

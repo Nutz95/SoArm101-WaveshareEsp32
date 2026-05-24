@@ -1,6 +1,8 @@
 #include "leader_app.h"
 #include "leader_presence_service.h"
-#include "../common/servo/servo_expectations.h"
+#include "leader_servo_command_policy.h"
+#include "../Config/common_runtime_config.h"
+#include "../Config/leader_runtime_config.h"
 #include "../common/servo/servo_control_opcode.h"
 
 #include <Arduino.h>
@@ -29,18 +31,6 @@
 #ifndef LEADER_SERVO_BUS_BAUD
 #define LEADER_SERVO_BUS_BAUD 1000000U
 #endif
-
-namespace {
-
-constexpr uint32_t kLeaderTickDelayMs = 25U;
-constexpr uint32_t kJoystickPairReadyMs = 3000U;
-constexpr uint32_t kCalibrationReadyMs = 6000U;
-constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
-constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
-constexpr uint8_t kFollowerCommandMaxRetries = 3U;
-constexpr uint32_t kFollowerRetryIntervalMs = 450U;
-
-} // namespace
 
 namespace soarm {
 
@@ -108,11 +98,11 @@ void LeaderApp::begin() {
 
   const uint8_t localScanCount = servoBusService_.scan();
   leaderStartupScanDone_ = true;
-  leaderServoFault_ = localScanCount != kExpectedLeaderServoCount;
+    leaderServoFault_ = localScanCount != config::common::kExpectedLeaderServoCount;
   if (leaderServoFault_) {
     Serial.printf(
         "[SERVO] leader startup mismatch expected=%u actual=%u\n",
-        static_cast<unsigned>(kExpectedLeaderServoCount),
+      static_cast<unsigned>(config::common::kExpectedLeaderServoCount),
         static_cast<unsigned>(localScanCount));
   }
 
@@ -146,7 +136,7 @@ void LeaderApp::tick() {
 
   refreshOled(uptimeMs);
 
-  delay(kLeaderTickDelayMs);
+  delay(config::leader::kTickDelayMs);
 }
 
 void LeaderApp::handlePairingCommands() {
@@ -167,7 +157,7 @@ void LeaderApp::handleResetPairingCommand(uint16_t requestId) {
   const bool resetOk = presenceService_->resetPairing();
   setLeaderCommandStatus(resetOk ? CommandAckStatus::Applied : CommandAckStatus::Failed);
   setFollowerCommandStatus(resetOk ? CommandAckStatus::Accepted : CommandAckStatus::Failed);
-  setTransientStatus(resetOk ? "pairing reset" : "pair reset failed", 2500U);
+  setTransientStatus(resetOk ? "pairing reset" : "pair reset failed", config::leader::kResetPairingStatusHoldMs);
 }
 
 void LeaderApp::handleServoScanCommand(uint32_t scanTarget, uint16_t requestId) {
@@ -194,8 +184,8 @@ void LeaderApp::handleServoScanCommand(uint32_t scanTarget, uint16_t requestId) 
     followerSent = presenceService_->requestServoScan(requestId);
     if (followerSent) {
       setFollowerCommandStatus(CommandAckStatus::Accepted);
-      setFollowerRetryPayload(static_cast<uint8_t>(ServoControlOpcode::Scan), 0U, kFollowerCommandMaxRetries);
-      awaitFollowerAck(requestId, static_cast<uint8_t>(ServoControlOpcode::Scan), 1800U);
+      setFollowerRetryPayload(static_cast<uint8_t>(ServoControlOpcode::Scan), 0U, config::leader::kFollowerCommandMaxRetries);
+      awaitFollowerAck(requestId, static_cast<uint8_t>(ServoControlOpcode::Scan), config::leader::kFollowerScanAckTimeoutMs);
     } else {
       setFollowerCommandStatus(CommandAckStatus::Failed);
     }
@@ -204,7 +194,7 @@ void LeaderApp::handleServoScanCommand(uint32_t scanTarget, uint16_t requestId) 
   }
 
   buildScanStatusLine(runLeader, runFollower, followerSent, localCount);
-  setTransientStatus(statusLine_, 2200U);
+  setTransientStatus(statusLine_, config::leader::kScanStatusHoldMs);
 }
 
 uint8_t LeaderApp::commandCodeForScanTarget(uint32_t scanTarget) const {
@@ -303,12 +293,12 @@ bool LeaderApp::handleFollowerDebugCommand(
   setLeaderCommandStatus(CommandAckStatus::None);
   if (sent) {
     setFollowerCommandStatus(CommandAckStatus::Accepted);
-    setFollowerRetryPayload(static_cast<uint8_t>(op), 0U, kFollowerCommandMaxRetries);
-    awaitFollowerAck(requestId, static_cast<uint8_t>(op), 3500U);
+    setFollowerRetryPayload(static_cast<uint8_t>(op), 0U, config::leader::kFollowerCommandMaxRetries);
+    awaitFollowerAck(requestId, static_cast<uint8_t>(op), config::leader::kFollowerDebugAckTimeoutMs);
   } else {
     setFollowerCommandStatus(CommandAckStatus::Failed);
   }
-  setTransientStatus(statusText, 2000U);
+  setTransientStatus(statusText, config::leader::kDebugStatusHoldMs);
   return true;
 }
 
@@ -322,7 +312,7 @@ bool LeaderApp::handleLeaderDebugCommand(
   servoBusService_.setDebugManual(enable);
   setLeaderCommandStatus(CommandAckStatus::Applied);
   setFollowerCommandStatus(CommandAckStatus::None);
-  setTransientStatus(statusText, 2000U);
+  setTransientStatus(statusText, config::leader::kDebugStatusHoldMs);
   return true;
 }
 
@@ -367,7 +357,7 @@ void LeaderApp::handleServoMoveCommand(uint32_t value, uint16_t requestId) {
   const int16_t position = static_cast<int16_t>((value >> 8U) & 0xFFFFU);
   const uint8_t speedPct = static_cast<uint8_t>((value >> 24U) & 0xFFU);
   const uint16_t speed = static_cast<uint16_t>(
-      (static_cast<uint32_t>(speedPct) * kTeleopServoMaxSpeedRaw) / 100U);
+      (static_cast<uint32_t>(speedPct) * config::leader::kTeleopServoMaxSpeedRaw) / 100U);
   bool ok = false;
   if (servoDebugManual_) {
     ok = servoBusService_.moveTo(id, position, speed, 0U);
@@ -377,8 +367,8 @@ void LeaderApp::handleServoMoveCommand(uint32_t value, uint16_t requestId) {
         requestId);
     if (followerSent) {
       setFollowerCommandStatus(CommandAckStatus::Accepted);
-      setFollowerRetryPayload(static_cast<uint8_t>(ServoControlOpcode::Move), value, kFollowerCommandMaxRetries);
-      awaitFollowerAck(requestId, static_cast<uint8_t>(ServoControlOpcode::Move), 1500U);
+      setFollowerRetryPayload(static_cast<uint8_t>(ServoControlOpcode::Move), value, config::leader::kFollowerCommandMaxRetries);
+      awaitFollowerAck(requestId, static_cast<uint8_t>(ServoControlOpcode::Move), config::leader::kFollowerMoveAckTimeoutMs);
     } else {
       setFollowerCommandStatus(CommandAckStatus::Failed);
     }
@@ -386,35 +376,51 @@ void LeaderApp::handleServoMoveCommand(uint32_t value, uint16_t requestId) {
     setFollowerCommandStatus(CommandAckStatus::Rejected);
   }
   setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
-  setTransientStatus(ok ? "servo move sent" : "servo move blocked", 1800U);
+  setTransientStatus(ok ? "servo move sent" : "servo move blocked", config::leader::kMoveStatusHoldMs);
 }
 
 void LeaderApp::handleServoSetIdCommand(uint32_t value, uint16_t requestId) {
   const uint8_t oldId = static_cast<uint8_t>(value & 0xFFU);
   const uint8_t newId = static_cast<uint8_t>((value >> 8U) & 0xFFU);
+
+  const ServoSetIdRoutingDecision route = decideServoSetIdRouting(
+      servoDebugManual_,
+      presenceService_->followerServoDebugManual());
+
   bool ok = false;
-  if (servoDebugManual_) {
+  if (route.executeLeaderLocal) {
     ok = servoBusService_.setServoId(oldId, newId);
-    const bool followerSent = presenceService_->requestServoControl(
+    if (ok) {
+      // Refresh local servo inventory immediately after ID change.
+      servoBusService_.scan();
+    }
+  }
+
+  bool followerSent = false;
+  if (route.forwardFollower) {
+    followerSent = presenceService_->requestServoControl(
         static_cast<uint8_t>(ServoControlOpcode::SetId),
         value,
         requestId);
     if (followerSent) {
       setFollowerCommandStatus(CommandAckStatus::Accepted);
-      setFollowerRetryPayload(static_cast<uint8_t>(ServoControlOpcode::SetId), value, kFollowerCommandMaxRetries);
-      awaitFollowerAck(requestId, static_cast<uint8_t>(ServoControlOpcode::SetId), 2000U);
+      setFollowerRetryPayload(static_cast<uint8_t>(ServoControlOpcode::SetId), value, config::leader::kFollowerCommandMaxRetries);
+      awaitFollowerAck(requestId, static_cast<uint8_t>(ServoControlOpcode::SetId), config::leader::kFollowerSetIdAckTimeoutMs);
     } else {
       setFollowerCommandStatus(CommandAckStatus::Failed);
-    }
-    if (ok) {
-      // Refresh local servo inventory immediately after ID change.
-      servoBusService_.scan();
     }
   } else {
     setFollowerCommandStatus(CommandAckStatus::Rejected);
   }
+
   setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
-  setTransientStatus(ok ? "servo id updated" : "servo id blocked", 2200U);
+  if (ok) {
+    setTransientStatus("servo id updated", config::leader::kSetIdStatusHoldMs);
+  } else if (followerSent) {
+    setTransientStatus("follower servo id sent", config::leader::kSetIdStatusHoldMs);
+  } else {
+    setTransientStatus("servo id blocked", config::leader::kSetIdStatusHoldMs);
+  }
 }
 
 void LeaderApp::handleServoSetModeCommand(uint32_t value, uint16_t requestId) {
@@ -429,8 +435,8 @@ void LeaderApp::handleServoSetModeCommand(uint32_t value, uint16_t requestId) {
         requestId);
     if (followerSent) {
       setFollowerCommandStatus(CommandAckStatus::Accepted);
-      setFollowerRetryPayload(static_cast<uint8_t>(ServoControlOpcode::SetMode), value, kFollowerCommandMaxRetries);
-      awaitFollowerAck(requestId, static_cast<uint8_t>(ServoControlOpcode::SetMode), 1500U);
+      setFollowerRetryPayload(static_cast<uint8_t>(ServoControlOpcode::SetMode), value, config::leader::kFollowerCommandMaxRetries);
+      awaitFollowerAck(requestId, static_cast<uint8_t>(ServoControlOpcode::SetMode), config::leader::kFollowerSetModeAckTimeoutMs);
     } else {
       setFollowerCommandStatus(CommandAckStatus::Failed);
     }
@@ -438,7 +444,7 @@ void LeaderApp::handleServoSetModeCommand(uint32_t value, uint16_t requestId) {
     setFollowerCommandStatus(CommandAckStatus::Rejected);
   }
   setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
-  setTransientStatus(ok ? "servo mode updated" : "servo mode blocked", 1800U);
+  setTransientStatus(ok ? "servo mode updated" : "servo mode blocked", config::leader::kSetModeStatusHoldMs);
 }
 
 void LeaderApp::beginCommandTracking(uint16_t requestId, uint8_t commandCode) {
@@ -464,7 +470,7 @@ void LeaderApp::awaitFollowerAck(uint16_t requestId, uint8_t op, uint32_t timeou
   followerAckRequestId_ = requestId;
   followerAckCommandOp_ = op;
   followerAckDeadlineMs_ = millis() + timeoutMs;
-  followerNextRetryMs_ = millis() + kFollowerRetryIntervalMs;
+  followerNextRetryMs_ = millis() + config::leader::kFollowerRetryIntervalMs;
 }
 
 void LeaderApp::setFollowerRetryPayload(uint8_t op, uint32_t value, uint8_t maxRetries) {
@@ -494,7 +500,7 @@ void LeaderApp::updateFollowerAckTracking(uint32_t nowMs) {
         followerRetryValue_,
         followerAckRequestId_);
     followerRetryRemaining_ = static_cast<uint8_t>(followerRetryRemaining_ - 1U);
-    followerNextRetryMs_ = nowMs + kFollowerRetryIntervalMs;
+    followerNextRetryMs_ = nowMs + config::leader::kFollowerRetryIntervalMs;
     if (!resent && followerRetryRemaining_ == 0U) {
       followerCommandStatus_ = CommandAckStatus::Failed;
       followerAckPending_ = false;
@@ -514,7 +520,7 @@ void LeaderApp::runStartupServoScans(uint32_t nowMs) {
   if (!leaderStartupScanDone_) {
     const uint8_t localScanCount = servoBusService_.scan();
     leaderStartupScanDone_ = true;
-    leaderServoFault_ = localScanCount != kExpectedLeaderServoCount;
+    leaderServoFault_ = localScanCount != config::common::kExpectedLeaderServoCount;
   }
 
   if (!presenceService_->isFollowerLinked() || followerStartupScanDone_) {
@@ -544,23 +550,23 @@ void LeaderApp::runStartupServoScans(uint32_t nowMs) {
 
   followerStartupScanRequestId_ = static_cast<uint16_t>(followerStartupScanRequestId_ + 1U);
   const bool sent = presenceService_->requestServoScan(followerStartupScanRequestId_);
-  followerStartupScanRetryMs_ = nowMs + kFollowerScanRetryIntervalMs;
+  followerStartupScanRetryMs_ = nowMs + config::leader::kFollowerScanRetryIntervalMs;
   if (!sent) {
     return;
   }
   followerStartupScanPending_ = true;
-  followerStartupScanDeadlineMs_ = nowMs + kFollowerScanRetryIntervalMs;
+  followerStartupScanDeadlineMs_ = nowMs + config::leader::kFollowerScanRetryIntervalMs;
 }
 
 void LeaderApp::updateServoHealthFlags() {
-  leaderServoFault_ = servoBusService_.lastScanCount() != kExpectedLeaderServoCount;
+  leaderServoFault_ = servoBusService_.lastScanCount() != config::common::kExpectedLeaderServoCount;
 
   if (!presenceService_->isFollowerLinked()) {
     followerServoFault_ = false;
     return;
   }
 
-  followerServoFault_ = presenceService_->followerServoCount() != kExpectedFollowerServoCount;
+  followerServoFault_ = presenceService_->followerServoCount() != config::common::kExpectedFollowerServoCount;
 }
 
 void LeaderApp::setTransientStatus(const char *text, uint32_t holdMs) {
@@ -570,8 +576,8 @@ void LeaderApp::setTransientStatus(const char *text, uint32_t holdMs) {
 }
 
 void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
-  localInputs_.joystickPaired  = uptimeMs > kJoystickPairReadyMs;
-  localInputs_.calibrationDone = uptimeMs > kCalibrationReadyMs;
+  localInputs_.joystickPaired  = uptimeMs > config::leader::kJoystickPairReadyMs;
+  localInputs_.calibrationDone = uptimeMs > config::leader::kCalibrationReadyMs;
   localInputs_.espNowLinked    = presenceService_->isFollowerLinked();
 }
 
