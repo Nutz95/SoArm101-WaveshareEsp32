@@ -1,5 +1,7 @@
 #include "servo_bus_service.h"
 
+#include "../../Config/common_runtime_config.h"
+
 #include <Arduino.h>
 #include <SCServo.h>
 #include <cstring>
@@ -48,10 +50,10 @@ uint8_t ServoBusService::scan() {
     return 0U;
   }
 
-  SCSCL driver;
+  SMS_STS driver;
   driver.End = 0;
   driver.pSerial = serial_;
-  driver.IOTimeOut = 20U;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
 
   uint8_t foundCount = 0U;
   char summary[64];
@@ -124,10 +126,10 @@ bool ServoBusService::moveTo(uint8_t id, int16_t position, uint16_t speed, uint8
     return false;
   }
 
-  SCSCL driver;
+  SMS_STS driver;
   driver.End = 0;
   driver.pSerial = serial_;
-  driver.IOTimeOut = 20U;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
 
   const int result = driver.WritePosEx(id, static_cast<int16_t>(position), speed, acceleration);
   if (result < 0) {
@@ -145,16 +147,17 @@ bool ServoBusService::setServoId(uint8_t oldId, uint8_t newId) {
     return false;
   }
 
-  SCSCL driver;
+  SMS_STS driver;
   driver.End = 0;
   driver.pSerial = serial_;
-  driver.IOTimeOut = 20U;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
 
   if (driver.unLockEprom(oldId) <= 0) {
     setSummary("unlock failed");
     return false;
   }
-  if (driver.writeByte(oldId, SCSCL_ID, newId) <= 0) {
+  // Align with STS reference flow: unlock(old), write ID register, lock(new).
+  if (driver.writeByte(oldId, SMS_STS_ID, newId) <= 0) {
     setSummary("set id failed");
     return false;
   }
@@ -166,12 +169,12 @@ bool ServoBusService::setServoId(uint8_t oldId, uint8_t newId) {
   // Verify that the new ID is actually reachable before reporting success.
   // This avoids reporting a local-only success when the servo did not switch ID.
   bool newIdResponds = false;
-  for (uint8_t attempt = 0U; attempt < 3U; ++attempt) {
+  for (uint8_t attempt = 0U; attempt < config::common::kServoSetIdVerifyAttempts; ++attempt) {
     if (driver.Ping(newId) >= 0) {
       newIdResponds = true;
       break;
     }
-    delay(4);
+    delay(config::common::kServoSetIdVerifyRetryDelayMs);
   }
   if (!newIdResponds) {
     setSummary("set id verify fail");
@@ -193,10 +196,10 @@ bool ServoBusService::ping(uint8_t id) {
     return false;
   }
 
-  SCSCL driver;
+  SMS_STS driver;
   driver.End = 0;
   driver.pSerial = serial_;
-  driver.IOTimeOut = 20U;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
   return driver.Ping(id) >= 0;
 }
 
@@ -206,10 +209,10 @@ bool ServoBusService::setServoMode(uint8_t id, uint8_t mode) {
     return false;
   }
 
-  SCSCL driver;
+  SMS_STS driver;
   driver.End = 0;
   driver.pSerial = serial_;
-  driver.IOTimeOut = 20U;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
 
   int result = 0;
   if (mode == kServoModePwm) {
@@ -217,7 +220,7 @@ bool ServoBusService::setServoMode(uint8_t id, uint8_t mode) {
       setSummary("unlock failed");
       return false;
     }
-    result = driver.PWMMode(id);
+    result = driver.WheelMode(id);
     if (driver.LockEprom(id) <= 0) {
       setSummary("lock failed");
       return false;
@@ -227,12 +230,16 @@ bool ServoBusService::setServoMode(uint8_t id, uint8_t mode) {
       setSummary("unlock failed");
       return false;
     }
-    if (driver.writeWord(id, SCSCL_MIN_ANGLE_LIMIT_L, kPositionMinRaw) <= 0) {
+    if (driver.writeWord(id, SMS_STS_MIN_ANGLE_LIMIT_L, kPositionMinRaw) <= 0) {
       setSummary("min limit failed");
       return false;
     }
-    if (driver.writeWord(id, SCSCL_MAX_ANGLE_LIMIT_L, kPositionMaxRaw) <= 0) {
+    if (driver.writeWord(id, SMS_STS_MAX_ANGLE_LIMIT_L, kPositionMaxRaw) <= 0) {
       setSummary("max limit failed");
+      return false;
+    }
+    if (driver.writeByte(id, SMS_STS_MODE, 0U) <= 0) {
+      setSummary("position mode failed");
       return false;
     }
     if (driver.LockEprom(id) <= 0) {

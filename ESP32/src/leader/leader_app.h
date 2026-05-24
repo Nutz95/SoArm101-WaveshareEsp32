@@ -104,6 +104,10 @@ private:
   uint32_t            followerRetryValue_{0U};
   uint8_t             followerRetryRemaining_{0U};
   uint32_t            followerNextRetryMs_{0U};
+  uint32_t            followerAckSentAtMs_{0U};
+  uint8_t             followerAckRetriesUsed_{0U};
+  uint8_t             followerAckLastRttMs_{0U};
+  uint8_t             followerAckTimeoutCount_{0U};
   bool                leaderStartupScanDone_{false};
   bool                followerStartupScanDone_{false};
   bool                followerStartupScanPending_{false};

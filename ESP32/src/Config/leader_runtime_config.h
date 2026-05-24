@@ -6,21 +6,23 @@ namespace soarm {
 namespace config {
 namespace leader {
 
-constexpr uint32_t kTickDelayMs = 25U;
+constexpr uint32_t kTickDelayMs = 10U;
 constexpr uint32_t kJoystickPairReadyMs = 3000U;
 constexpr uint32_t kCalibrationReadyMs = 6000U;
 constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
 
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
-constexpr uint8_t kFollowerCommandMaxRetries = 3U;
+constexpr uint8_t kFollowerCommandMaxRetries = 6U;
 constexpr uint32_t kFollowerRetryIntervalMs = 450U;
-constexpr uint8_t kFollowerInitialSendBurstCount = 3U;
+constexpr uint8_t kFollowerInitialSendBurstCount = 6U;
+constexpr uint32_t kFollowerAckDeadlineSlackMs = 600U;
+constexpr uint8_t kFollowerAckRttClampMs = 250U;
 
 constexpr uint32_t kFollowerDebugAckTimeoutMs = 3500U;
 constexpr uint32_t kFollowerMoveAckTimeoutMs = 1500U;
 constexpr uint32_t kFollowerSetIdAckTimeoutMs = 2000U;
 constexpr uint32_t kFollowerSetModeAckTimeoutMs = 1500U;
-constexpr uint32_t kFollowerScanAckTimeoutMs = 1800U;
+constexpr uint32_t kFollowerScanAckTimeoutMs = 3000U;
 
 constexpr uint32_t kResetPairingStatusHoldMs = 2500U;
 constexpr uint32_t kScanStatusHoldMs = 2200U;

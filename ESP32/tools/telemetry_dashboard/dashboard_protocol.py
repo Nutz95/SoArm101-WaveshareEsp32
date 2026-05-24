@@ -24,7 +24,7 @@ ESP_TLM_TYPE = 1
 
 CMD_STRUCT = struct.Struct("<HBBHI")
 TLM_HEADER_STRUCT = struct.Struct("<HBB")
-SNAPSHOT_STRUCT = struct.Struct("<I7B6?2B16s16s18s18s48s48s96s96sHBBB24s")
+SNAPSHOT_STRUCT = struct.Struct("<I9B6?2B16s16s18s18s48s48s96s96sHBBB24s")
 
 
 def decode_cstr(raw: bytes) -> str:

@@ -98,6 +98,16 @@ Enforcement guidance:
 **9. Documentation**
 - Update `README.md` (or appropriate module README) when changes introduce new configuration locations, public APIs, or build steps.
 
+**10. Runtime constants and magic numbers**
+- Do not introduce magic numbers in production logic (timeouts, retries, periods, queue sizes, thresholds, protocol timing, etc.).
+- Put runtime constants in the appropriate `src/Config/*.h` file and reference them by descriptive names.
+- Numeric literals are allowed directly only for:
+  - protocol constants defined in dedicated protocol headers,
+  - compile-time bit masks/packing operations,
+  - trivial loop increments and array indexing,
+  - test-only code.
+- When refactoring code that already has hardcoded values, migrate them to config rather than duplicating or reusing unnamed literals.
+
 ---
 
 If you want, I can add a pre-commit hook or an editorconfig snippet to help enforce the indentation and newline rules automatically.

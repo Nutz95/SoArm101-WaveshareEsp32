@@ -41,6 +41,13 @@ export function renderSnapshot(data) {
   document.getElementById("cmdCode").textContent = `${data.command_code || 0}`;
   document.getElementById("cmdLeaderAck").textContent = commandAckLabel(data.leader_command_status);
   document.getElementById("cmdFollowerAck").textContent = commandAckLabel(data.follower_command_status);
+  document.getElementById("cmdFollowerRetries").textContent = `${data.follower_ack_retries_used || 0}`;
+  document.getElementById("cmdFollowerRtt").textContent = `${data.follower_ack_rtt_ms || 0} ms`;
+
+  document.getElementById("diagFollowerAckPending").textContent = data.follower_ack_pending ? "yes" : "no";
+  document.getElementById("diagFollowerTimeoutCount").textContent = `${data.follower_ack_timeout_count || 0}`;
+  document.getElementById("diagFollowerRtt").textContent = `${data.follower_ack_rtt_ms || 0} ms`;
+  document.getElementById("diagFollowerRetries").textContent = `${data.follower_ack_retries_used || 0}`;
 
   renderServoChips("leaderServoIds", data.leader_servo_ids);
   renderServoChips("followerServoIds", data.follower_servo_ids);

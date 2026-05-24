@@ -41,6 +41,7 @@ private:
   // Per-message-type handlers dispatched from onPresenceFrame.
   void handlePairRequest(const uint8_t *mac, const PresencePacket &packet);
   void handlePresenceData(const uint8_t *mac, const PresencePacket &packet);
+  void handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet);
 
   void sendPairAck(const uint8_t mac[6]);
   void sendPairResetTo(const uint8_t mac[6]);

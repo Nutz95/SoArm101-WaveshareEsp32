@@ -1,8 +1,10 @@
 #pragma once
 
 #include "../common/interfaces/i_follower_presence_service.h"
+#include "../Config/follower_runtime_config.h"
 #include "../common/mac_address_utils.h"
 #include "../common/presence/espnow_presence_base.h"
+#include "../common/presence/presence_packet.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
 
@@ -31,20 +33,44 @@ public:
       bool debugManual) override;
 
 private:
+  struct PendingServoControl {
+    uint8_t op;
+    uint32_t value;
+    uint16_t requestId;
+    uint8_t sequence;
+  };
+
   void onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) override;
+  void handlePairResetFrame();
+  void handleServoControlFrame(const PresencePacket &packet);
+  void handlePairAckFrame(const uint8_t *mac);
 
   bool addBroadcastPeer();
   bool addPeer(const uint8_t mac[6]);
   bool hasPairedLeader() const;
+  bool enqueueServoControl(uint8_t op, uint32_t value, uint16_t requestId, uint8_t sequence);
+  bool dequeueServoControl(uint8_t &op, uint32_t &value, uint16_t &requestId, uint8_t &sequence);
+  bool isDuplicateControlFrame(uint8_t op, uint32_t value, uint16_t requestId, uint8_t sequence) const;
+  void sendCommandAck(uint16_t requestId, uint8_t op, uint8_t status, uint8_t sequence);
   void sendPairRequest(const char *localIp);
   void sendPresence(const char *localIp);
 
   bool servoScanRequested_{false};
   uint16_t pendingServoScanRequestId_{0U};
-  bool servoControlRequested_{false};
-  uint8_t pendingServoControlOp_{0U};
-  uint32_t pendingServoControlValue_{0U};
-  uint16_t pendingServoControlRequestId_{0U};
+  uint8_t pendingServoScanSequence_{0U};
+  bool hasLastProcessedScan_{false};
+  uint16_t lastProcessedScanRequestId_{0U};
+  uint8_t lastProcessedScanSequence_{0U};
+  PendingServoControl controlQueue_[config::follower::kServoControlQueueCapacity]{};
+  uint8_t controlQueueHead_{0U};
+  uint8_t controlQueueTail_{0U};
+  uint8_t controlQueueCount_{0U};
+  uint8_t lastConsumedControlSequence_{0U};
+  bool hasLastProcessedControl_{false};
+  uint8_t lastProcessedOp_{0U};
+  uint32_t lastProcessedValue_{0U};
+  uint16_t lastProcessedRequestId_{0U};
+  uint8_t lastProcessedSequence_{0U};
   uint16_t lastAckRequestId_{0U};
   uint8_t lastAckCommandOp_{0U};
   uint8_t lastAckStatus_{0U};

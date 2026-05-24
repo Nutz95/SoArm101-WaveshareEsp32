@@ -207,6 +207,7 @@ void LeaderPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *d
   static const DispatchEntry kDispatchTable[] = {
       {PresenceMessageType::PairRequest, &LeaderPresenceService::handlePairRequest},
       {PresenceMessageType::Presence,    &LeaderPresenceService::handlePresenceData},
+      {PresenceMessageType::ServoCommandAck, &LeaderPresenceService::handleServoCommandAck},
   };
 
   const PresenceMessageType msgType = static_cast<PresenceMessageType>(packet.messageType);
@@ -283,6 +284,20 @@ void LeaderPresenceService::handlePresenceData(const uint8_t *mac, const Presenc
   lastFollowerSeenMs_ = millis();
 }
 
+void LeaderPresenceService::handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet) {
+  if (!hasPairedMac_ || !isPairedMac(mac)) {
+    return;
+  }
+
+  followerLastAckStatus_ = packet.reserved;
+  followerLastAckRequestId_ = packet.reserved2;
+  followerLastAckCommandOp_ = packet.controlOp;
+  const bool debugBitInControlValue = ((packet.controlValue >> 8U) & 0x01U) != 0U;
+  followerServoDebugManual_ = debugBitInControlValue;
+  followerLastAckMs_ = millis();
+  lastFollowerSeenMs_ = followerLastAckMs_;
+}
+
 void LeaderPresenceService::sendPairAck(const uint8_t mac[6]) {
   PresencePacket packet{};
   packet.magic = kPresenceMagic;
@@ -336,6 +351,7 @@ bool LeaderPresenceService::sendServoControl(const uint8_t mac[6], uint8_t op, u
   packet.magic = kPresenceMagic;
   packet.version = kPresenceVersion;
   packet.messageType = static_cast<uint8_t>(PresenceMessageType::ServoControl);
+  packet.reserved = static_cast<uint8_t>(requestId & 0xFFU);
   packet.controlOp = op;
   packet.reserved2 = requestId;
   packet.controlValue = value;

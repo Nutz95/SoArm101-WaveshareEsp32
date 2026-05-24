@@ -11,8 +11,10 @@ struct LeaderTelemetrySnapshot {
   uint32_t uptimeMs;
   uint8_t cpu0LoadPct;
   uint8_t cpu1LoadPct;
-  uint8_t reserved0;
-  uint8_t reserved1;
+  uint8_t followerAckRetriesUsed;
+  uint8_t followerAckRttMs;
+  uint8_t followerAckTimeoutCount;
+  uint8_t followerAckPending;
   ArmRuntimeState leaderState;
   ArmRuntimeState followerState;
   OperationMode mode;

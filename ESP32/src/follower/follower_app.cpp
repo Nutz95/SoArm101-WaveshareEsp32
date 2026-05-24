@@ -112,8 +112,13 @@ void FollowerApp::processIncomingServoScan() {
     return;
   }
 
+  const uint32_t scanStartMs = millis();
   const uint8_t foundCount = servoBusService_.scan();
-  Serial.printf("[SERVO] scan complete: %u servo(s) found (%s)\n", foundCount, servoBusService_.lastScanSummary());
+  const uint32_t scanDurationMs = millis() - scanStartMs;
+  Serial.printf("[SERVO] scan complete: %u servo(s) found in %lu ms (%s)\n",
+                foundCount,
+                static_cast<unsigned long>(scanDurationMs),
+                servoBusService_.lastScanSummary());
   presenceService_->updateLastCommandAck(
       servoScanRequestId,
       static_cast<uint8_t>(ServoControlOpcode::Scan),

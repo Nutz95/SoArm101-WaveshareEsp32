@@ -1,5 +1,6 @@
 #include "leader_app.h"
 #include "leader_presence_service.h"
+#include "leader_retry_policy.h"
 #include "leader_servo_command_policy.h"
 #include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
@@ -413,7 +414,11 @@ void LeaderApp::handleServoSetIdCommand(uint32_t value, uint16_t requestId) {
     setFollowerCommandStatus(CommandAckStatus::Rejected);
   }
 
-  setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
+  if (route.executeLeaderLocal) {
+    setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
+  } else {
+    setLeaderCommandStatus(CommandAckStatus::None);
+  }
   if (ok) {
     setTransientStatus("servo id updated", config::leader::kSetIdStatusHoldMs);
   } else if (followerSent) {
@@ -469,8 +474,18 @@ void LeaderApp::awaitFollowerAck(uint16_t requestId, uint8_t op, uint32_t timeou
   followerAckPending_ = true;
   followerAckRequestId_ = requestId;
   followerAckCommandOp_ = op;
-  followerAckDeadlineMs_ = millis() + timeoutMs;
-  followerNextRetryMs_ = millis() + config::leader::kFollowerRetryIntervalMs;
+  const uint32_t nowMs = millis();
+  const uint8_t retryCount = followerRetryEnabled_ ? followerRetryRemaining_ : 0U;
+  followerAckDeadlineMs_ = computeFollowerAckDeadlineMs(
+      nowMs,
+      timeoutMs,
+      retryCount,
+      config::leader::kFollowerRetryIntervalMs,
+      config::leader::kFollowerAckDeadlineSlackMs);
+  followerAckSentAtMs_ = nowMs;
+  followerAckRetriesUsed_ = 0U;
+  followerAckLastRttMs_ = 0U;
+  followerNextRetryMs_ = nowMs + config::leader::kFollowerRetryIntervalMs;
 }
 
 void LeaderApp::setFollowerRetryPayload(uint8_t op, uint32_t value, uint8_t maxRetries) {
@@ -489,6 +504,10 @@ void LeaderApp::updateFollowerAckTracking(uint32_t nowMs) {
   const bool opMatch = presenceService_->followerLastAckCommandOp() == followerAckCommandOp_;
   if (requestIdMatch && opMatch) {
     followerCommandStatus_ = static_cast<CommandAckStatus>(presenceService_->followerLastAckStatus());
+    const uint32_t rttMs = nowMs - followerAckSentAtMs_;
+    followerAckLastRttMs_ = static_cast<uint8_t>(rttMs > config::leader::kFollowerAckRttClampMs
+                                                     ? config::leader::kFollowerAckRttClampMs
+                                                     : rttMs);
     followerAckPending_ = false;
     followerRetryEnabled_ = false;
     return;
@@ -501,8 +520,12 @@ void LeaderApp::updateFollowerAckTracking(uint32_t nowMs) {
         followerAckRequestId_);
     followerRetryRemaining_ = static_cast<uint8_t>(followerRetryRemaining_ - 1U);
     followerNextRetryMs_ = nowMs + config::leader::kFollowerRetryIntervalMs;
+    if (resent) {
+      followerAckRetriesUsed_ = static_cast<uint8_t>(followerAckRetriesUsed_ + 1U);
+    }
     if (!resent && followerRetryRemaining_ == 0U) {
       followerCommandStatus_ = CommandAckStatus::Failed;
+      followerAckLastRttMs_ = 0U;
       followerAckPending_ = false;
       followerRetryEnabled_ = false;
       return;
@@ -511,6 +534,10 @@ void LeaderApp::updateFollowerAckTracking(uint32_t nowMs) {
 
   if (nowMs >= followerAckDeadlineMs_) {
     followerCommandStatus_ = CommandAckStatus::Timeout;
+    followerAckLastRttMs_ = 0U;
+    if (followerAckTimeoutCount_ < 255U) {
+      followerAckTimeoutCount_ = static_cast<uint8_t>(followerAckTimeoutCount_ + 1U);
+    }
     followerAckPending_ = false;
     followerRetryEnabled_ = false;
   }
@@ -655,8 +682,10 @@ void LeaderApp::renderStatusLeds() {
 void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs) {
   snapshot.uptimeMs = uptimeMs;
   cpuLoadService_.sample(snapshot.cpu0LoadPct, snapshot.cpu1LoadPct);
-  snapshot.reserved0 = 0;
-  snapshot.reserved1 = 0;
+  snapshot.followerAckRetriesUsed = followerAckRetriesUsed_;
+  snapshot.followerAckRttMs = followerAckLastRttMs_;
+  snapshot.followerAckTimeoutCount = followerAckTimeoutCount_;
+  snapshot.followerAckPending = followerAckPending_ ? 1U : 0U;
   strncpy(snapshot.leaderIp, wifiOta_.ipAddress(), sizeof(snapshot.leaderIp) - 1);
   snapshot.leaderIp[sizeof(snapshot.leaderIp) - 1] = '\0';
   strncpy(snapshot.followerIp, followerIpHint_, sizeof(snapshot.followerIp) - 1);

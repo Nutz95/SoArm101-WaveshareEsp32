@@ -41,6 +41,18 @@
           <div class="card"><span>Command</span><strong id="cmdCode">0</strong></div>
           <div class="card"><span>Leader ACK</span><strong id="cmdLeaderAck">none</strong></div>
           <div class="card"><span>Follower ACK</span><strong id="cmdFollowerAck">none</strong></div>
+          <div class="card"><span>Follower Retries</span><strong id="cmdFollowerRetries">0</strong></div>
+          <div class="card"><span>Follower RTT</span><strong id="cmdFollowerRtt">0 ms</strong></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Transport Diagnostics</h2>
+        <div class="grid pairing-grid">
+          <div class="card"><span>Follower ACK Pending</span><strong id="diagFollowerAckPending">no</strong></div>
+          <div class="card"><span>Follower Timeout Count</span><strong id="diagFollowerTimeoutCount">0</strong></div>
+          <div class="card"><span>Follower Last RTT</span><strong id="diagFollowerRtt">0 ms</strong></div>
+          <div class="card"><span>Follower Last Retries</span><strong id="diagFollowerRetries">0</strong></div>
         </div>
       </section>
 
@@ -137,7 +149,10 @@
         </label>
         <label>
           Mode
-          <input id="servoModeInput" type="number" min="0" max="255" value="0" />
+          <select id="servoModeInput">
+            <option value="0">Position (0)</option>
+            <option value="1">Wheel/PWM (1)</option>
+          </select>
         </label>
         <button id="servoSetModeBtn" type="button">Set Mode</button>
       </div>

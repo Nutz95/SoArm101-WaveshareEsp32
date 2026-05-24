@@ -1,5 +1,6 @@
 #include "follower_presence_service.h"
 
+#include "../common/command/command_ack_status.h"
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
@@ -83,8 +84,7 @@ void FollowerPresenceService::tick(const char *localIp) {
 
     // Send PairRequest periodically even when paired.
     // This forces re-negotiation if leader reset but follower didn't receive the reset message.
-    const uint32_t pairRequestIntervalMs = 5000U;
-    if ((nowMs - lastPairRequestMs_) >= pairRequestIntervalMs) {
+    if ((nowMs - lastPairRequestMs_) >= config::follower::kPairRequestIntervalMs) {
       lastPairRequestMs_ = nowMs;
       Serial.printf("[FOLLOWER] tick: sending periodic PairRequest to %s\n", pairedLeaderMacText_);
       sendPairRequest(localIp);
@@ -130,20 +130,26 @@ bool FollowerPresenceService::resetPairing() {
 bool FollowerPresenceService::consumeServoScanRequested(uint16_t &requestId) {
   const bool requested = servoScanRequested_;
   requestId = pendingServoScanRequestId_;
+  if (requested) {
+    lastConsumedControlSequence_ = pendingServoScanSequence_;
+  }
   servoScanRequested_ = false;
   return requested;
 }
 
 bool FollowerPresenceService::consumeServoControl(uint8_t &op, uint32_t &value, uint16_t &requestId) {
-  const bool requested = servoControlRequested_;
-  if (!requested) {
+  uint8_t sequence = 0U;
+  const bool dequeued = dequeueServoControl(op, value, requestId, sequence);
+  if (!dequeued) {
     return false;
   }
 
-  op = pendingServoControlOp_;
-  value = pendingServoControlValue_;
-  requestId = pendingServoControlRequestId_;
-  servoControlRequested_ = false;
+  lastConsumedControlSequence_ = sequence;
+  hasLastProcessedControl_ = true;
+  lastProcessedOp_ = op;
+  lastProcessedValue_ = value;
+  lastProcessedRequestId_ = requestId;
+  lastProcessedSequence_ = sequence;
   return true;
 }
 
@@ -151,6 +157,12 @@ void FollowerPresenceService::updateLastCommandAck(uint16_t requestId, uint8_t o
   lastAckRequestId_ = requestId;
   lastAckCommandOp_ = op;
   lastAckStatus_ = status;
+  if (op == static_cast<uint8_t>(ServoControlOpcode::Scan)) {
+    hasLastProcessedScan_ = true;
+    lastProcessedScanRequestId_ = requestId;
+    lastProcessedScanSequence_ = lastConsumedControlSequence_;
+  }
+  sendCommandAck(requestId, op, status, lastConsumedControlSequence_);
 }
 
 void FollowerPresenceService::requestImmediatePresenceTx() {
@@ -192,40 +204,79 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
                 static_cast<unsigned>(msgType),
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-  if (msgType == PresenceMessageType::PairReset) {
-    Serial.println("[FOLLOWER] >>> PairReset received - clearing pairing");
-    resetPairing();
-    Serial.println("[FOLLOWER] PairReset complete - now unpaired");
+  switch (msgType) {
+  case PresenceMessageType::PairReset:
+    handlePairResetFrame();
     return;
-  }
-
-  if (msgType == PresenceMessageType::ServoScan) {
+  case PresenceMessageType::ServoScan:
     Serial.println("[FOLLOWER] >>> ServoScan requested");
     servoScanRequested_ = true;
     return;
+  case PresenceMessageType::ServoControl:
+    handleServoControlFrame(packet);
+    return;
+  case PresenceMessageType::PairAck:
+    handlePairAckFrame(mac);
+    return;
+  default:
+    Serial.printf("[FOLLOWER] Ignored msgType=%u\n", static_cast<unsigned>(msgType));
+    return;
   }
+}
 
-  if (msgType == PresenceMessageType::ServoControl) {
-    Serial.printf("[FOLLOWER] >>> ServoControl op=%u val=%u\n",
-                  static_cast<unsigned>(packet.controlOp), packet.controlValue);
-    if (packet.controlOp == static_cast<uint8_t>(ServoControlOpcode::Scan)) {
-      servoScanRequested_ = true;
-      pendingServoScanRequestId_ = packet.reserved2;
-    } else {
-      pendingServoControlOp_ = packet.controlOp;
-      pendingServoControlValue_ = packet.controlValue;
-      pendingServoControlRequestId_ = packet.reserved2;
-      servoControlRequested_ = true;
+void FollowerPresenceService::handlePairResetFrame() {
+  Serial.println("[FOLLOWER] >>> PairReset received - clearing pairing");
+  resetPairing();
+  Serial.println("[FOLLOWER] PairReset complete - now unpaired");
+}
+
+void FollowerPresenceService::handleServoControlFrame(const PresencePacket &packet) {
+  Serial.printf("[FOLLOWER] >>> ServoControl op=%u val=%u req=%u seq=%u\n",
+                static_cast<unsigned>(packet.controlOp),
+                packet.controlValue,
+                static_cast<unsigned>(packet.reserved2),
+                static_cast<unsigned>(packet.reserved));
+
+  if (isDuplicateControlFrame(packet.controlOp, packet.controlValue, packet.reserved2, packet.reserved)) {
+    if (lastAckRequestId_ == packet.reserved2 && lastAckCommandOp_ == packet.controlOp) {
+      sendCommandAck(lastAckRequestId_, lastAckCommandOp_, lastAckStatus_, packet.reserved);
     }
     return;
   }
 
-  if (msgType != PresenceMessageType::PairAck) {
-    Serial.printf("[FOLLOWER] Ignored msgType=%u (expected PairAck)\n",
-                  static_cast<unsigned>(msgType));
+  if (packet.controlOp == static_cast<uint8_t>(ServoControlOpcode::Scan)) {
+    const bool duplicatePending =
+        servoScanRequested_ &&
+        pendingServoScanRequestId_ == packet.reserved2 &&
+        pendingServoScanSequence_ == packet.reserved;
+    const bool duplicateProcessed =
+        hasLastProcessedScan_ &&
+        lastProcessedScanRequestId_ == packet.reserved2 &&
+        lastProcessedScanSequence_ == packet.reserved;
+    if (duplicatePending || duplicateProcessed) {
+      if (lastAckRequestId_ == packet.reserved2 &&
+          lastAckCommandOp_ == static_cast<uint8_t>(ServoControlOpcode::Scan)) {
+        sendCommandAck(lastAckRequestId_, lastAckCommandOp_, lastAckStatus_, packet.reserved);
+      }
+      return;
+    }
+
+    servoScanRequested_ = true;
+    pendingServoScanRequestId_ = packet.reserved2;
+    pendingServoScanSequence_ = packet.reserved;
     return;
   }
 
+  const bool queued = enqueueServoControl(packet.controlOp, packet.controlValue, packet.reserved2, packet.reserved);
+  if (!queued) {
+    sendCommandAck(packet.reserved2,
+                   packet.controlOp,
+                   static_cast<uint8_t>(CommandAckStatus::Rejected),
+                   packet.reserved);
+  }
+}
+
+void FollowerPresenceService::handlePairAckFrame(const uint8_t *mac) {
   Serial.printf("[FOLLOWER] >>> PairAck received from %02X:%02X:%02X:%02X:%02X:%02X\n",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
@@ -242,15 +293,15 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
     } else {
       Serial.println("[FOLLOWER] Pairing FAILED: NVS save error");
     }
+    return;
+  }
+
+  const bool macChanged = memcmp(pairedLeaderMac_, mac, sizeof(pairedLeaderMac_)) != 0;
+  if (!PairingPolicy::shouldAcceptFollowerPairAck(hasPairedLeaderMac_, !macChanged)) {
+    Serial.printf("[FOLLOWER] PairAck: rejected different leader MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   } else {
-    // Already paired. Accept PairAck only from the paired leader MAC.
-    const bool macChanged = memcmp(pairedLeaderMac_, mac, sizeof(pairedLeaderMac_)) != 0;
-    if (!PairingPolicy::shouldAcceptFollowerPairAck(hasPairedLeaderMac_, !macChanged)) {
-      Serial.printf("[FOLLOWER] PairAck: rejected different leader MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
-                    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    } else {
-      Serial.printf("[FOLLOWER] PairAck: already paired with same leader, ignoring\n");
-    }
+    Serial.printf("[FOLLOWER] PairAck: already paired with same leader, ignoring\n");
   }
 }
 
@@ -266,6 +317,81 @@ bool FollowerPresenceService::addPeer(const uint8_t mac[6]) {
 
 bool FollowerPresenceService::hasPairedLeader() const {
   return hasPairedLeaderMac_;
+}
+
+bool FollowerPresenceService::enqueueServoControl(uint8_t op, uint32_t value, uint16_t requestId, uint8_t sequence) {
+  if (controlQueueCount_ >= config::follower::kServoControlQueueCapacity) {
+    return false;
+  }
+
+  PendingServoControl &slot = controlQueue_[controlQueueTail_];
+  slot.op = op;
+  slot.value = value;
+  slot.requestId = requestId;
+  slot.sequence = sequence;
+
+  controlQueueTail_ = static_cast<uint8_t>((controlQueueTail_ + 1U) % config::follower::kServoControlQueueCapacity);
+  controlQueueCount_ = static_cast<uint8_t>(controlQueueCount_ + 1U);
+  return true;
+}
+
+bool FollowerPresenceService::dequeueServoControl(uint8_t &op, uint32_t &value, uint16_t &requestId, uint8_t &sequence) {
+  if (controlQueueCount_ == 0U) {
+    return false;
+  }
+
+  const PendingServoControl &slot = controlQueue_[controlQueueHead_];
+  op = slot.op;
+  value = slot.value;
+  requestId = slot.requestId;
+  sequence = slot.sequence;
+
+  controlQueueHead_ = static_cast<uint8_t>((controlQueueHead_ + 1U) % config::follower::kServoControlQueueCapacity);
+  controlQueueCount_ = static_cast<uint8_t>(controlQueueCount_ - 1U);
+  return true;
+}
+
+bool FollowerPresenceService::isDuplicateControlFrame(uint8_t op, uint32_t value, uint16_t requestId, uint8_t sequence) const {
+  if (hasLastProcessedControl_ &&
+      lastProcessedOp_ == op &&
+      lastProcessedValue_ == value &&
+      lastProcessedRequestId_ == requestId &&
+      lastProcessedSequence_ == sequence) {
+    return true;
+  }
+
+  for (uint8_t idx = 0U; idx < controlQueueCount_; ++idx) {
+    const uint8_t ringIndex = static_cast<uint8_t>((controlQueueHead_ + idx) % config::follower::kServoControlQueueCapacity);
+    const PendingServoControl &slot = controlQueue_[ringIndex];
+    if (slot.op == op && slot.value == value && slot.requestId == requestId && slot.sequence == sequence) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void FollowerPresenceService::sendCommandAck(uint16_t requestId, uint8_t op, uint8_t status, uint8_t sequence) {
+  if (!hasPairedLeaderMac_) {
+    return;
+  }
+
+  PresencePacket packet{};
+  packet.magic = kPresenceMagic;
+  packet.version = kPresenceVersion;
+  packet.messageType = static_cast<uint8_t>(PresenceMessageType::ServoCommandAck);
+  packet.reserved = status;
+  packet.controlOp = op;
+  packet.reserved2 = requestId;
+  packet.controlValue = 0U;
+  if (servoDebugManual_) {
+    packet.controlValue |= (1UL << 8U);
+  }
+  packet.controlValue |= static_cast<uint32_t>(sequence);
+
+  for (uint8_t attempt = 0U; attempt < config::follower::kCommandAckSendBurstCount; ++attempt) {
+    esp_now_send(pairedLeaderMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+  }
 }
 
 void FollowerPresenceService::sendPairRequest(const char *localIp) {
