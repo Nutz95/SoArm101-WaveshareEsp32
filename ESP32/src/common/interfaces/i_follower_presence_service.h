@@ -29,7 +29,8 @@ public:
       const char *servoIds,
       const char *servoTelemetry,
       uint8_t servoCount,
-      bool debugManual) = 0;
+      bool debugManual,
+      bool temperatureAlarm) = 0;
 };
 
 } // namespace soarm

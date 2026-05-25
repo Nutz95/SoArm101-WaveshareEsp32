@@ -38,7 +38,8 @@ public:
       const char *servoIds,
       const char *servoTelemetry,
       uint8_t servoCount,
-      bool debugManual) override;
+      bool debugManual,
+      bool temperatureAlarm) override;
 
 private:
   struct PendingServoControl {
@@ -96,6 +97,7 @@ private:
   int16_t teleopBatchPositions_[config::common::kTeleopBatchMaxServos]{};
   uint8_t servoCount_{0U};
   bool servoDebugManual_{false};
+  bool servoTemperatureAlarm_{false};
   char servoIdsText_[48]{};
   char servoTelemetryText_[96]{};
 

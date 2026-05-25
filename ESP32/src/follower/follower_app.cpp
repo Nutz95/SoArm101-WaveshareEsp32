@@ -155,11 +155,14 @@ void FollowerApp::processIncomingServoScan() {
 }
 
 void FollowerApp::publishServoTelemetry() {
+  servoBusService_.refreshKnownTelemetryFast();
+  servoBusService_.pollTemperatureAlarmSlow();
   presenceService_->updateServoTelemetry(
       servoBusService_.lastIdsText(),
       servoBusService_.lastTelemetryText(),
       servoBusService_.lastScanCount(),
-      servoBusService_.isDebugManual());
+      servoBusService_.isDebugManual(),
+      servoBusService_.hasTemperatureAlarm());
 }
 
 void FollowerApp::updateStateAndLeds(uint32_t uptimeMs) {

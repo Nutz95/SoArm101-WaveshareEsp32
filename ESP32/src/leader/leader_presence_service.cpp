@@ -113,6 +113,10 @@ bool LeaderPresenceService::followerServoDebugManual() const {
   return followerServoDebugManual_;
 }
 
+bool LeaderPresenceService::followerServoTemperatureAlarm() const {
+  return followerServoTemperatureAlarm_;
+}
+
 uint16_t LeaderPresenceService::followerLastAckRequestId() const {
   return followerLastAckRequestId_;
 }
@@ -150,6 +154,7 @@ bool LeaderPresenceService::resetPairing() {
   followerServoTelemetryText_[0] = '\0';
   followerServoCount_ = 0U;
   followerServoDebugManual_ = false;
+  followerServoTemperatureAlarm_ = false;
   lastFollowerSeenMs_ = 0;
   pairingStore_.clear();
   Serial.println("[PAIR] NVS cleared, now unpaired");
@@ -290,7 +295,9 @@ void LeaderPresenceService::handlePresenceData(const uint8_t *mac, const Presenc
   followerIp_[sizeof(followerIp_) - 1] = '\0';
   followerServoCount_ = packet.servoCount;
   const bool debugBitInControlValue = ((packet.controlValue >> 8U) & 0x01U) != 0U;
+  const bool tempAlarmBitInControlValue = ((packet.controlValue >> 9U) & 0x01U) != 0U;
   followerServoDebugManual_ = debugBitInControlValue || (packet.controlOp != 0U);
+  followerServoTemperatureAlarm_ = tempAlarmBitInControlValue;
   followerLastAckStatus_ = packet.reserved;
   followerLastAckRequestId_ = packet.reserved2;
   followerLastAckCommandOp_ = static_cast<uint8_t>(packet.controlValue & 0xFFU);
@@ -311,143 +318,11 @@ void LeaderPresenceService::handleServoCommandAck(const uint8_t *mac, const Pres
   followerLastAckRequestId_ = packet.reserved2;
   followerLastAckCommandOp_ = packet.controlOp;
   const bool debugBitInControlValue = ((packet.controlValue >> 8U) & 0x01U) != 0U;
+  const bool tempAlarmBitInControlValue = ((packet.controlValue >> 9U) & 0x01U) != 0U;
   followerServoDebugManual_ = debugBitInControlValue;
+  followerServoTemperatureAlarm_ = tempAlarmBitInControlValue;
   followerLastAckMs_ = millis();
   lastFollowerSeenMs_ = followerLastAckMs_;
-}
-
-void LeaderPresenceService::sendPairAck(const uint8_t mac[6]) {
-  PresencePacket packet{};
-  packet.magic = kPresenceMagic;
-  packet.version = kPresenceVersion;
-  packet.messageType = static_cast<uint8_t>(PresenceMessageType::PairAck);
-  strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
-  packet.ip[sizeof(packet.ip) - 1] = '\0';
-
-  esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
-}
-
-void LeaderPresenceService::sendPairResetTo(const uint8_t mac[6]) {
-  PresencePacket packet{};
-  packet.magic = kPresenceMagic;
-  packet.version = kPresenceVersion;
-  packet.messageType = static_cast<uint8_t>(PresenceMessageType::PairReset);
-  strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
-  packet.ip[sizeof(packet.ip) - 1] = '\0';
-
-  addPeer(mac);
-
-  Serial.printf("[PAIR] Sending PairReset to %02X:%02X:%02X:%02X:%02X:%02X\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-  // esp_now_send is non-blocking. Sending 3 times improves delivery probability.
-  esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
-  esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
-  esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
-}
-
-void LeaderPresenceService::sendPairResetBroadcast() {
-  PresencePacket packet{};
-  packet.magic = kPresenceMagic;
-  packet.version = kPresenceVersion;
-  packet.messageType = static_cast<uint8_t>(PresenceMessageType::PairReset);
-  strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
-  packet.ip[sizeof(packet.ip) - 1] = '\0';
-
-  uint8_t broadcastAddr[ESP_NOW_ETH_ALEN];
-  memset(broadcastAddr, 0xFF, sizeof(broadcastAddr));
-  addPeer(broadcastAddr);
-  esp_now_send(broadcastAddr, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
-}
-
-void LeaderPresenceService::sendServoScanBroadcast(uint16_t requestId) {
-  sendServoControlBroadcast(static_cast<uint8_t>(ServoControlOpcode::Scan), 0U, requestId);
-}
-
-bool LeaderPresenceService::sendServoControl(const uint8_t mac[6], uint8_t op, uint32_t value, uint16_t requestId) {
-  PresencePacket packet{};
-  packet.magic = kPresenceMagic;
-  packet.version = kPresenceVersion;
-  packet.messageType = static_cast<uint8_t>(PresenceMessageType::ServoControl);
-  packet.reserved = static_cast<uint8_t>(requestId & 0xFFU);
-  packet.controlOp = op;
-  packet.reserved2 = requestId;
-  packet.controlValue = value;
-  strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
-  packet.ip[sizeof(packet.ip) - 1] = '\0';
-
-  const uint8_t sendAttempts = (op == static_cast<uint8_t>(ServoControlOpcode::TeleopMirror))
-                                   ? 1U
-                                   : config::leader::kFollowerInitialSendBurstCount;
-
-  bool sent = false;
-  for (uint8_t attempt = 0U; attempt < sendAttempts; ++attempt) {
-    if (esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)) == ESP_OK) {
-      sent = true;
-    }
-  }
-  return sent;
-}
-
-bool LeaderPresenceService::sendServoControlBatch(
-    const uint8_t mac[6],
-    const uint8_t *ids,
-    const int16_t *positions,
-    uint8_t count,
-    uint8_t speedPct,
-    uint16_t requestId) {
-  if (ids == nullptr || positions == nullptr || count == 0U) {
-    return false;
-  }
-
-  const uint8_t clampedCount = (count > config::common::kTeleopBatchMaxServos)
-                                   ? config::common::kTeleopBatchMaxServos
-                                   : count;
-
-  PresencePacket packet{};
-  packet.magic = kPresenceMagic;
-  packet.version = kPresenceVersion;
-  packet.messageType = static_cast<uint8_t>(PresenceMessageType::ServoControlBatch);
-  packet.reserved = static_cast<uint8_t>(requestId & 0xFFU);
-  packet.controlOp = static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch);
-  packet.reserved2 = requestId;
-  packet.controlValue = 0U;
-  strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
-  packet.ip[sizeof(packet.ip) - 1] = '\0';
-
-  packet.servoTelemetry[0] = static_cast<char>(clampedCount);
-  packet.servoTelemetry[1] = static_cast<char>(speedPct);
-  for (uint8_t i = 0U; i < clampedCount; ++i) {
-    const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));
-    const uint16_t posRaw = static_cast<uint16_t>(positions[i]);
-    packet.servoTelemetry[offset] = static_cast<char>(ids[i]);
-    packet.servoTelemetry[offset + 1U] = static_cast<char>(posRaw & 0xFFU);
-    packet.servoTelemetry[offset + 2U] = static_cast<char>((posRaw >> 8U) & 0xFFU);
-  }
-
-  return esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)) == ESP_OK;
-}
-
-bool LeaderPresenceService::sendServoControlBroadcast(uint8_t op, uint32_t value, uint16_t requestId) {
-  uint8_t broadcastAddr[ESP_NOW_ETH_ALEN];
-  memset(broadcastAddr, 0xFF, sizeof(broadcastAddr));
-  if (!addPeer(broadcastAddr)) {
-    return false;
-  }
-  return sendServoControl(broadcastAddr, op, value, requestId);
-}
-
-bool LeaderPresenceService::addBroadcastPeer() {
-  uint8_t broadcastAddr[ESP_NOW_ETH_ALEN];
-  memset(broadcastAddr, 0xFF, sizeof(broadcastAddr));
-  return addPeer(broadcastAddr);
-}
-
-bool LeaderPresenceService::isPairedMac(const uint8_t mac[6]) const {
-  if (!hasPairedMac_) {
-    return false;
-  }
-  return memcmp(pairedFollowerMac_, mac, sizeof(pairedFollowerMac_)) == 0;
 }
 
 } // namespace soarm

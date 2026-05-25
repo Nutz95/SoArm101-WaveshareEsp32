@@ -36,6 +36,7 @@ public:
   const char *followerServoTelemetry() const override;
   uint8_t followerServoCount() const override;
   bool followerServoDebugManual() const override;
+  bool followerServoTemperatureAlarm() const override;
   uint16_t followerLastAckRequestId() const override;
   uint8_t followerLastAckCommandOp() const override;
   uint8_t followerLastAckStatus() const override;
@@ -72,6 +73,7 @@ private:
   uint32_t lastFollowerSeenMs_{0};
   uint8_t followerServoCount_{0};
   bool followerServoDebugManual_{false};
+  bool followerServoTemperatureAlarm_{false};
   uint16_t followerLastAckRequestId_{0U};
   uint8_t followerLastAckCommandOp_{0U};
   uint8_t followerLastAckStatus_{0U};

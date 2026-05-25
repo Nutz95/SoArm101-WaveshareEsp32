@@ -23,6 +23,8 @@ export function renderSnapshot(data) {
   document.getElementById("status").textContent = data.status || "-";
   document.getElementById("cpu0").textContent = `${data.cpu0_load_pct}%`;
   document.getElementById("cpu1").textContent = `${data.cpu1_load_pct}%`;
+  document.getElementById("leaderTempAlarm").textContent = data.leader_servo_temperature_alarm ? "on" : "off";
+  document.getElementById("followerTempAlarm").textContent = data.follower_servo_temperature_alarm ? "on" : "off";
   document.getElementById("uptime").textContent = uptimeLabel(data.uptime_ms);
   document.getElementById("pairingLocked").textContent = data.pairing_locked ? "locked" : "open";
   document.getElementById("pairingLocked").className = data.pairing_locked ? "locked" : "";

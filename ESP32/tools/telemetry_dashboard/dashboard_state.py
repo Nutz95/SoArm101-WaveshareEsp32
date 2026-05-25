@@ -25,6 +25,8 @@ class DashboardState:
             "pairing_locked": False,
             "leader_servo_debug_manual": False,
             "follower_servo_debug_manual": False,
+            "leader_servo_temperature_alarm": False,
+            "follower_servo_temperature_alarm": False,
             "leader_servo_count": 0,
             "follower_servo_count": 0,
             "leader_ip": "",

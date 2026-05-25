@@ -26,6 +26,8 @@ struct LeaderTelemetrySnapshot {
   bool pairingLocked;
   bool leaderServoDebugManual;
   bool followerServoDebugManual;
+  bool leaderServoTemperatureAlarm;
+  bool followerServoTemperatureAlarm;
   uint8_t leaderServoCount;
   uint8_t followerServoCount;
   char leaderIp[16];

@@ -279,6 +279,8 @@ void LeaderApp::renderStatusLeds() {
 }
 
 void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs) {
+  servoBusService_.pollTemperatureAlarmSlow();
+
   snapshot.uptimeMs = uptimeMs;
   cpuLoadService_.sample(snapshot.cpu0LoadPct, snapshot.cpu1LoadPct);
   snapshot.followerAckRetriesUsed = followerAckRetriesUsed_;
@@ -302,6 +304,8 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.pairingLocked = presenceService_->isPaired();
   snapshot.leaderServoDebugManual = servoBusService_.isDebugManual();
   snapshot.followerServoDebugManual = presenceService_->followerServoDebugManual();
+  snapshot.leaderServoTemperatureAlarm = servoBusService_.hasTemperatureAlarm();
+  snapshot.followerServoTemperatureAlarm = presenceService_->followerServoTemperatureAlarm();
   snapshot.leaderServoCount = servoBusService_.lastScanCount();
   snapshot.followerServoCount = presenceService_->followerServoCount();
   strncpy(snapshot.leaderMac, presenceService_->localMac(), sizeof(snapshot.leaderMac) - 1);
@@ -339,63 +343,6 @@ void LeaderApp::refreshOled(uint32_t uptimeMs) {
           uptimeMs);
     }
   }
-}
-
-void LeaderApp::startBackgroundTasks() {
-  if (telemetryPollTaskHandle_ == nullptr) {
-    TaskHandle_t taskHandle = nullptr;
-    const BaseType_t created = xTaskCreatePinnedToCore(
-        &LeaderApp::telemetryPollTaskEntry,
-        "servo_poll",
-        4096,
-        this,
-        1,
-        &taskHandle,
-        1);
-    if (created == pdPASS) {
-      telemetryPollTaskHandle_ = taskHandle;
-    }
-  }
-
-  if (teleopMirrorTaskHandle_ == nullptr) {
-    TaskHandle_t taskHandle = nullptr;
-    const BaseType_t created = xTaskCreatePinnedToCore(
-        &LeaderApp::teleopMirrorTaskEntry,
-        "teleop_mirror",
-        4096,
-        this,
-        1,
-        &taskHandle,
-        1);
-    if (created == pdPASS) {
-      teleopMirrorTaskHandle_ = taskHandle;
-    }
-  }
-}
-
-void LeaderApp::telemetryPollTaskEntry(void *context) {
-  if (context != nullptr) {
-    LeaderApp *app = static_cast<LeaderApp *>(context);
-    LeaderServoTelemetryTask::runLoop(
-      app->servoBusService_,
-      app->teleopContinuousEnabled_,
-      app->runtimeModeForTasks_);
-  }
-  vTaskDelete(nullptr);
-}
-
-void LeaderApp::teleopMirrorTaskEntry(void *context) {
-  if (context != nullptr) {
-    LeaderApp *app = static_cast<LeaderApp *>(context);
-    LeaderTeleopMirrorTask::runLoop(
-        app->servoBusService_,
-        *app->presenceService_,
-        app->teleopContinuousEnabled_,
-        app->teleopContinuousServoIdFilter_,
-      app->runtimeModeForTasks_,
-        app->teleopContinuousRequestCounter_);
-  }
-  vTaskDelete(nullptr);
 }
 
 } // namespace soarm

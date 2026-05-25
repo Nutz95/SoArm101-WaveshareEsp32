@@ -21,6 +21,8 @@ struct MirrorSample {
 struct TeleopMirrorState {
   bool followerIds[256]{};
   bool hasFollowerIds{false};
+  bool parsedFollowerIds[256]{};
+  MirrorSample mirrorSamples[16]{};
   int16_t previousRawById[256]{};
   int32_t unwrappedById[256]{};
   bool hasPreviousById[256]{};
@@ -121,10 +123,9 @@ bool canMirrorNow(
 }
 
 void refreshFollowerIds(TeleopMirrorState &state, ILeaderPresenceService &presenceService) {
-  bool parsedIds[256]{};
-  const uint8_t parsedCount = parseIdList(presenceService.followerServoIds(), parsedIds);
+  const uint8_t parsedCount = parseIdList(presenceService.followerServoIds(), state.parsedFollowerIds);
   if (parsedCount > 0U) {
-    memcpy(state.followerIds, parsedIds, sizeof(state.followerIds));
+    memcpy(state.followerIds, state.parsedFollowerIds, sizeof(state.followerIds));
     state.hasFollowerIds = true;
   }
 }
@@ -171,15 +172,14 @@ uint8_t buildMirrorBatch(
     TeleopMirrorState &state,
     ServoBusService &servoBusService,
     uint8_t filterId) {
-  MirrorSample samples[16]{};
   const uint8_t sampleCount = parseMirrorSamples(
       servoBusService.lastTelemetryText(),
-      samples,
-      static_cast<uint8_t>(sizeof(samples) / sizeof(samples[0])));
+      state.mirrorSamples,
+      static_cast<uint8_t>(sizeof(state.mirrorSamples) / sizeof(state.mirrorSamples[0])));
 
   uint8_t batchCount = 0U;
   for (uint8_t i = 0U; i < sampleCount; ++i) {
-    tryAppendBatchItem(state, samples[i].id, samples[i].position, batchCount, filterId);
+    tryAppendBatchItem(state, state.mirrorSamples[i].id, state.mirrorSamples[i].position, batchCount, filterId);
   }
   return batchCount;
 }
@@ -211,7 +211,7 @@ void LeaderTeleopMirrorTask::runLoop(
     const std::atomic<uint8_t> &servoIdFilter,
     const std::atomic<uint8_t> &runtimeMode,
     uint16_t &requestCounter) {
-  TeleopMirrorState state{};
+  static TeleopMirrorState state{};
 
   while (true) {
     if (!canMirrorNow(continuousEnabled, runtimeMode, presenceService)) {

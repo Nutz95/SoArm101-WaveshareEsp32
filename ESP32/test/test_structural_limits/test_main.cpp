@@ -3,7 +3,7 @@
 #include <unity.h>
 
 void test_structural_limits_script_passes() {
-  const int rc = std::system("python tools/check_structural_limits.py --root src >nul 2>nul");
+  const int rc = std::system("python tools/check_structural_limits.py --project-root . >nul 2>nul");
   TEST_ASSERT_EQUAL_INT_MESSAGE(0, rc, "Structural limits script failed. Run tools/check_structural_limits.py for details.");
 }
 

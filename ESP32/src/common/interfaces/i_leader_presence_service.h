@@ -29,6 +29,7 @@ public:
   virtual const char *followerServoTelemetry() const = 0;
   virtual uint8_t followerServoCount() const = 0;
   virtual bool followerServoDebugManual() const = 0;
+  virtual bool followerServoTemperatureAlarm() const = 0;
   virtual uint16_t followerLastAckRequestId() const = 0;
   virtual uint8_t followerLastAckCommandOp() const = 0;
   virtual uint8_t followerLastAckStatus() const = 0;
