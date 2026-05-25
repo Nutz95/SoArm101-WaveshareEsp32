@@ -358,8 +358,12 @@ bool LeaderPresenceService::sendServoControl(const uint8_t mac[6], uint8_t op, u
   strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
   packet.ip[sizeof(packet.ip) - 1] = '\0';
 
+  const uint8_t sendAttempts = (op == static_cast<uint8_t>(ServoControlOpcode::TeleopMirror))
+                                   ? 1U
+                                   : config::leader::kFollowerInitialSendBurstCount;
+
   bool sent = false;
-  for (uint8_t attempt = 0U; attempt < config::leader::kFollowerInitialSendBurstCount; ++attempt) {
+  for (uint8_t attempt = 0U; attempt < sendAttempts; ++attempt) {
     if (esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)) == ESP_OK) {
       sent = true;
     }

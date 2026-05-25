@@ -1,0 +1,99 @@
+.teleop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.teleop-card {
+  background: rgba(8, 22, 37, 0.9);
+}
+
+.teleop-card.teleop-ready {
+  border-color: rgba(125, 220, 151, 0.45);
+}
+
+.teleop-card.teleop-active {
+  border-color: rgba(74, 222, 128, 0.72);
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.25) inset;
+}
+
+.teleop-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.teleop-card-header strong {
+  margin: 0;
+}
+
+.teleop-pill {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 178, 255, 0.35);
+  background: rgba(89, 181, 255, 0.12);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.teleop-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.teleop-card-grid span,
+.teleop-card-footer span {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.teleop-card-grid strong {
+  display: block;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.teleop-card-grid p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.teleop-card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.teleop-empty {
+  display: flex;
+  align-items: center;
+  min-height: 88px;
+}
+
+.teleop-toggle {
+  justify-content: space-between;
+}
+
+.teleop-toggle input {
+  width: 20px;
+  height: 20px;
+}
+
+#teleopContinuousState.state-on {
+  color: var(--ok);
+}
+
+#teleopStatus {
+  margin-top: 10px;
+  color: var(--accent);
+}

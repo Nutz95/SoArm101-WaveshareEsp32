@@ -224,6 +224,18 @@ Behavior:
 	servo count, debug/manual flags, and telemetry text from each board.
 5. UI `Servo Manual Commands` panel exposes debug enable/disable, move, set-id,
 	and set-mode controls forwarded through leader command channel.
+6. UI `Teleoperation` panel provides:
+	- one-shot mirror for matched IDs (`TeleopMirror`, command `15`)
+	- continuous mirror loop start/stop (`TeleopContinuousSet`, command `16`)
+	- per-servo continuous mirror toggles using same-ID mapping
+	- runtime indicator showing active continuous target (`all matched` or one servo ID)
+
+Continuous teleop runtime notes:
+
+1. Leader now runs a dedicated servo telemetry polling task.
+2. Teleop mirror loop runs in a separate task and publishes mirrored positions without ACK wait.
+3. Servo bus reads/writes are guarded by a lock to prevent read/write collisions.
+4. `TeleopMirror` uses single-frame ESP-NOW send in loop mode to avoid burst amplification.
 
 This starts:
 

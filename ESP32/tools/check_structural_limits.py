@@ -7,9 +7,11 @@ from typing import List, Tuple
 
 MAX_IMPLEMENTATION_LINES = 600
 MAX_IMPLEMENTATION_FUNCTIONS = 30
+MAX_IMPLEMENTATION_CLASSES = 1
 FUNCTION_RE = re.compile(
     r"^\s*(?:[A-Za-z_][\w:<>,~\*&\s]*?)\s+[A-Za-z_][\w:<>~]*\s*\([^;{}]*\)\s*(?:const\s*)?(?:noexcept\s*)?\{\s*$"
 )
+CLASS_RE = re.compile(r"^\s*class\s+[A-Za-z_][\w]*\b[^;]*\{\s*$")
 
 
 def iter_implementation_files(root: Path) -> List[Path]:
@@ -28,10 +30,19 @@ def count_function_definitions(lines: List[str]) -> int:
     return count
 
 
+def count_class_definitions(lines: List[str]) -> int:
+    count = 0
+    for line in lines:
+        if CLASS_RE.match(line):
+            count += 1
+    return count
+
+
 def check_file(path: Path) -> List[str]:
     lines = path.read_text(encoding="utf-8").splitlines()
     line_count = count_non_empty_lines(lines)
     function_count = count_function_definitions(lines)
+    class_count = count_class_definitions(lines)
     errors: List[str] = []
 
     if line_count > MAX_IMPLEMENTATION_LINES:
@@ -39,6 +50,9 @@ def check_file(path: Path) -> List[str]:
 
     if function_count > MAX_IMPLEMENTATION_FUNCTIONS:
         errors.append(f"{path}: implementation file has {function_count} function definitions (max {MAX_IMPLEMENTATION_FUNCTIONS})")
+
+    if class_count > MAX_IMPLEMENTATION_CLASSES:
+        errors.append(f"{path}: implementation file has {class_count} class definitions (max {MAX_IMPLEMENTATION_CLASSES})")
 
     return errors
 

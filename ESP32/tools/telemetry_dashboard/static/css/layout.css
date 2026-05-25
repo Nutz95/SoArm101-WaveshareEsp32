@@ -11,6 +11,35 @@ main {
   margin-bottom: 18px;
 }
 
+.view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.view-tab {
+  border: 1px solid var(--surface-border);
+  background: rgba(10, 20, 38, 0.9);
+  color: var(--text-main);
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.view-tab.is-active {
+  background: linear-gradient(180deg, #1f4673, #163558);
+  border-color: rgba(120, 178, 255, 0.5);
+}
+
+.view-panel {
+  display: none;
+}
+
+.view-panel.is-visible {
+  display: block;
+}
+
 .panel {
   margin-bottom: 16px;
   padding: 14px;

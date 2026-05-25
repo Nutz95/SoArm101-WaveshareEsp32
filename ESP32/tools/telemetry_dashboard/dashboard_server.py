@@ -21,6 +21,7 @@ from dashboard_protocol import (
     ESP_CMD_SERVO_SCAN_LEADER,
     ESP_CMD_START_STREAM,
     ESP_CMD_STOP_STREAM,
+    ESP_CMD_TELEOP_CONTINUOUS_SET,
     ESP_CMD_TELEOP_MIRROR,
 )
 from dashboard_state import DashboardState
@@ -53,6 +54,7 @@ def build_dashboard_server(
             "servo_set_id": ESP_CMD_SERVO_SET_ID,
             "servo_set_mode": ESP_CMD_SERVO_SET_MODE,
             "teleop_mirror": ESP_CMD_TELEOP_MIRROR,
+            "teleop_continuous_set": ESP_CMD_TELEOP_CONTINUOUS_SET,
         }
         next_request_id: int = 1
 

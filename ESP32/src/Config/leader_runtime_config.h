@@ -11,6 +11,11 @@ constexpr uint32_t kJoystickPairReadyMs = 3000U;
 constexpr uint32_t kCalibrationReadyMs = 6000U;
 constexpr bool kCalibrationRequired = false;
 constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
+constexpr uint8_t kTeleopContinuousSpeedPct = 100U;
+constexpr uint32_t kServoTelemetryTaskActiveDelayMs = 1U;
+constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
+constexpr uint32_t kTeleopMirrorTaskActiveDelayMs = 1U;
+constexpr uint32_t kTeleopMirrorTaskIdleDelayMs = 10U;
 
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
 constexpr uint8_t kFollowerCommandMaxRetries = 6U;

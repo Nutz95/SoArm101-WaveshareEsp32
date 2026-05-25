@@ -1,12 +1,16 @@
 #include "leader_app.h"
 #include "leader_presence_service.h"
 #include "leader_retry_policy.h"
+#include "leader_servo_telemetry_task.h"
 #include "leader_servo_command_policy.h"
+#include "leader_teleop_mirror_task.h"
 #include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
 #include "../common/servo/servo_control_opcode.h"
 
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <cstdio>
 #include <cstring>
 
@@ -112,6 +116,8 @@ void LeaderApp::begin() {
   } else {
     Serial.println("[INFO] Telemetry stream on :9090");
   }
+
+  startBackgroundTasks();
 }
 
 void LeaderApp::tick() {
@@ -278,6 +284,8 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.followerAckRttMs = followerAckLastRttMs_;
   snapshot.followerAckTimeoutCount = followerAckTimeoutCount_;
   snapshot.followerAckPending = followerAckPending_ ? 1U : 0U;
+  snapshot.teleopContinuousEnabled = teleopContinuousEnabled_.load() ? 1U : 0U;
+  snapshot.teleopContinuousServoId = teleopContinuousServoIdFilter_.load();
   strncpy(snapshot.leaderIp, wifiOta_.ipAddress(), sizeof(snapshot.leaderIp) - 1);
   snapshot.leaderIp[sizeof(snapshot.leaderIp) - 1] = '\0';
   strncpy(snapshot.followerIp, followerIpHint_, sizeof(snapshot.followerIp) - 1);
@@ -330,6 +338,59 @@ void LeaderApp::refreshOled(uint32_t uptimeMs) {
           uptimeMs);
     }
   }
+}
+
+void LeaderApp::startBackgroundTasks() {
+  if (telemetryPollTaskHandle_ == nullptr) {
+    TaskHandle_t taskHandle = nullptr;
+    const BaseType_t created = xTaskCreatePinnedToCore(
+        &LeaderApp::telemetryPollTaskEntry,
+        "servo_poll",
+        4096,
+        this,
+        1,
+        &taskHandle,
+        1);
+    if (created == pdPASS) {
+      telemetryPollTaskHandle_ = taskHandle;
+    }
+  }
+
+  if (teleopMirrorTaskHandle_ == nullptr) {
+    TaskHandle_t taskHandle = nullptr;
+    const BaseType_t created = xTaskCreatePinnedToCore(
+        &LeaderApp::teleopMirrorTaskEntry,
+        "teleop_mirror",
+        4096,
+        this,
+        1,
+        &taskHandle,
+        1);
+    if (created == pdPASS) {
+      teleopMirrorTaskHandle_ = taskHandle;
+    }
+  }
+}
+
+void LeaderApp::telemetryPollTaskEntry(void *context) {
+  if (context != nullptr) {
+    LeaderApp *app = static_cast<LeaderApp *>(context);
+    LeaderServoTelemetryTask::runLoop(app->servoBusService_, app->teleopContinuousEnabled_);
+  }
+  vTaskDelete(nullptr);
+}
+
+void LeaderApp::teleopMirrorTaskEntry(void *context) {
+  if (context != nullptr) {
+    LeaderApp *app = static_cast<LeaderApp *>(context);
+    LeaderTeleopMirrorTask::runLoop(
+        app->servoBusService_,
+        *app->presenceService_,
+        app->teleopContinuousEnabled_,
+        app->teleopContinuousServoIdFilter_,
+        app->teleopContinuousRequestCounter_);
+  }
+  vTaskDelete(nullptr);
 }
 
 } // namespace soarm

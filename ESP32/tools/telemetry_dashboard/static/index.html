@@ -19,7 +19,14 @@
       </div>
     </header>
 
-    <section class="panel">
+    <nav class="view-tabs" aria-label="Dashboard views">
+      <button type="button" class="view-tab is-active" data-view-tab="overview">Overview</button>
+      <button type="button" class="view-tab" data-view-tab="pairing">Pairing + Xbox</button>
+      <button type="button" class="view-tab" data-view-tab="teleop">Teleoperation</button>
+      <button type="button" class="view-tab" data-view-tab="manual">Manual Commands</button>
+    </nav>
+
+    <section class="panel view-panel" data-view-panel="pairing">
       <h2>Pairing Control</h2>
       <div class="grid pairing-grid">
         <div class="card"><span>Pairing State</span><strong id="pairingLocked">open</strong></div>
@@ -34,7 +41,17 @@
       </div>
       <p id="commandStatus">No command sent.</p>
     </section>
-      <section class="panel">
+
+    <section class="panel view-panel" data-view-panel="pairing">
+      <h2>Xbox Bluetooth Pairing</h2>
+      <p>Use this panel to pair and validate the Xbox controller link before teleoperation.</p>
+      <div class="actions">
+        <button id="xboxPairingGuideBtn" type="button">Show Pairing Guide</button>
+      </div>
+      <p id="xboxPairingStatus">No pairing action started.</p>
+    </section>
+
+      <section class="panel view-panel" data-view-panel="overview">
         <h2>Command ACK</h2>
         <div class="grid pairing-grid">
           <div class="card"><span>Request ID</span><strong id="cmdRequestId">0</strong></div>
@@ -46,7 +63,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel view-panel" data-view-panel="overview">
         <h2>Transport Diagnostics</h2>
         <div class="grid pairing-grid">
           <div class="card"><span>Follower ACK Pending</span><strong id="diagFollowerAckPending">no</strong></div>
@@ -56,7 +73,7 @@
         </div>
       </section>
 
-    <section class="panel">
+    <section class="panel view-panel" data-view-panel="overview">
       <h2>Runtime</h2>
       <div class="grid">
         <div class="card"><span>Connected</span><strong id="connected">no</strong></div>
@@ -72,7 +89,7 @@
       </div>
     </section>
 
-    <section class="panel">
+    <section class="panel view-panel" data-view-panel="overview">
       <h2>Servo Buses</h2>
       <div class="servo-columns">
         <article class="servo-column">
@@ -101,13 +118,14 @@
       </div>
     </section>
 
-    <section class="panel">
+    <section class="panel view-panel" data-view-panel="teleop">
       <h2>Teleoperation</h2>
       <div class="grid pairing-grid">
         <div class="card"><span>Matched IDs</span><strong id="teleopMatchedCount">0</strong></div>
         <div class="card"><span>Mirrorable IDs</span><strong id="teleopMirrorableCount">0</strong></div>
         <div class="card"><span>Leader Detected</span><strong id="teleopLeaderDetected">0</strong></div>
         <div class="card"><span>Follower Detected</span><strong id="teleopFollowerDetected">0</strong></div>
+        <div class="card"><span>Continuous Mirror</span><strong id="teleopContinuousState">off</strong></div>
       </div>
       <div class="command-grid teleop-config-grid">
         <label class="teleop-toggle">
@@ -130,12 +148,14 @@
       <div class="actions">
         <button id="teleopSaveConfigBtn" type="button">Save Teleop Config</button>
         <button id="teleopMirrorAllBtn" type="button">Mirror Matched Servos</button>
+        <button id="teleopContinuousAllBtn" type="button">Start Continuous (All Matched)</button>
+        <button id="teleopContinuousStopBtn" type="button">Stop Continuous Mirror</button>
       </div>
       <p id="teleopStatus">Teleoperation idle.</p>
       <div id="teleopServoCards" class="teleop-grid"></div>
     </section>
 
-    <section class="panel">
+    <section class="panel view-panel" data-view-panel="manual">
       <h2>Servo Manual Commands</h2>
       <div class="actions">
         <button id="servoDebugEnableBtn" type="button">Enable Debug Manual (Leader)</button>

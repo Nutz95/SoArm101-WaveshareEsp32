@@ -105,6 +105,18 @@ bool LeaderTelemetryStreamServer::consumeTeleopMirrorRequested(uint32_t &value, 
   return true;
 }
 
+bool LeaderTelemetryStreamServer::consumeTeleopContinuousRequested(uint32_t &value, uint16_t &requestId) {
+  const bool pending = teleopContinuousRequested_;
+  if (!pending) {
+    return false;
+  }
+
+  value = teleopContinuousValue_;
+  requestId = teleopContinuousRequestId_;
+  teleopContinuousRequested_ = false;
+  return true;
+}
+
 void LeaderTelemetryStreamServer::tick() {
   if (!started_) {
     return;
@@ -182,7 +194,8 @@ void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action, uint3
       {LeaderCommandAction::ServoMove, &LeaderTelemetryStreamServer::servoMoveRequested_, &LeaderTelemetryStreamServer::servoMoveValue_, &LeaderTelemetryStreamServer::servoMoveRequestId_, 0U, false},
       {LeaderCommandAction::ServoSetId, &LeaderTelemetryStreamServer::servoSetIdRequested_, &LeaderTelemetryStreamServer::servoSetIdValue_, &LeaderTelemetryStreamServer::servoSetIdRequestId_, 0U, false},
       {LeaderCommandAction::ServoSetMode, &LeaderTelemetryStreamServer::servoSetModeRequested_, &LeaderTelemetryStreamServer::servoSetModeValue_, &LeaderTelemetryStreamServer::servoSetModeRequestId_, 0U, false},
-        {LeaderCommandAction::TeleopMirror, &LeaderTelemetryStreamServer::teleopMirrorRequested_, &LeaderTelemetryStreamServer::teleopMirrorValue_, &LeaderTelemetryStreamServer::teleopMirrorRequestId_, 0U, false},
+      {LeaderCommandAction::TeleopMirror, &LeaderTelemetryStreamServer::teleopMirrorRequested_, &LeaderTelemetryStreamServer::teleopMirrorValue_, &LeaderTelemetryStreamServer::teleopMirrorRequestId_, 0U, false},
+      {LeaderCommandAction::TeleopContinuousSet, &LeaderTelemetryStreamServer::teleopContinuousRequested_, &LeaderTelemetryStreamServer::teleopContinuousValue_, &LeaderTelemetryStreamServer::teleopContinuousRequestId_, 0U, false},
   };
 
   for (size_t i = 0; i < (sizeof(kFlagActions) / sizeof(kFlagActions[0])); ++i) {

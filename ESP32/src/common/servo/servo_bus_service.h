@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../lock_manager.h"
+
 #include <cstdint>
 
 class HardwareSerial;
@@ -21,6 +23,7 @@ public:
 
   bool begin(const ServoBusConfig &config);
   uint8_t scan();
+  uint8_t refreshKnownTelemetryFast();
   bool moveTo(uint8_t id, int16_t position, uint16_t speed, uint8_t acceleration);
   bool setServoId(uint8_t oldId, uint8_t newId);
   bool ping(uint8_t id);
@@ -43,6 +46,7 @@ private:
   char lastScanSummary_[64]{};
   char lastIdsText_[48]{};
   char lastTelemetryText_[96]{};
+  LockManager lockManager_{};
 };
 
 } // namespace soarm

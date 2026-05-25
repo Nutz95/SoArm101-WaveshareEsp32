@@ -14,6 +14,8 @@ class DashboardState:
             "follower_ack_rtt_ms": 0,
             "follower_ack_timeout_count": 0,
             "follower_ack_pending": False,
+            "teleop_continuous_enabled": False,
+            "teleop_continuous_servo_id": 0,
             "leader_state": 0,
             "follower_state": 0,
             "mode": 0,

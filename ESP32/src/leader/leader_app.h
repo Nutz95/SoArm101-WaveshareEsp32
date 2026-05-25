@@ -15,6 +15,7 @@
 #include "leader_telemetry_stream_server.h"
 #include "leader_command_processor.h"
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
 
@@ -51,10 +52,12 @@ private:
     bool handleServoSetIdValueCommand();
     bool handleServoSetModeValueCommand();
     bool handleTeleopMirrorValueCommand();
+    bool handleTeleopContinuousValueCommand();
   void handleServoMoveCommand(uint32_t value, uint16_t requestId);
   void handleServoSetIdCommand(uint32_t value, uint16_t requestId);
   void handleServoSetModeCommand(uint32_t value, uint16_t requestId);
   void handleTeleopMirrorCommand(uint32_t value, uint16_t requestId);
+  void handleTeleopContinuousCommand(uint32_t value, uint16_t requestId);
   void setTransientStatus(const char *text, uint32_t holdMs);
   void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
   void setLeaderCommandStatus(CommandAckStatus status);
@@ -74,6 +77,10 @@ private:
   // Telemetry / display extracted from tick()
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
   void refreshOled(uint32_t uptimeMs);
+
+  void startBackgroundTasks();
+  static void telemetryPollTaskEntry(void *context);
+  static void teleopMirrorTaskEntry(void *context);
 
   ArmStateMachine     stateMachine_;
   NvsCalibrationStore calibrationStore_;
@@ -110,6 +117,11 @@ private:
   uint8_t             followerAckRetriesUsed_{0U};
   uint8_t             followerAckLastRttMs_{0U};
   uint8_t             followerAckTimeoutCount_{0U};
+  std::atomic<bool>   teleopContinuousEnabled_{false};
+  std::atomic<uint8_t> teleopContinuousServoIdFilter_{0U};
+  uint16_t            teleopContinuousRequestCounter_{40000U};
+  void               *telemetryPollTaskHandle_{nullptr};
+  void               *teleopMirrorTaskHandle_{nullptr};
   bool                leaderStartupScanDone_{false};
   bool                followerStartupScanDone_{false};
   bool                followerStartupScanPending_{false};

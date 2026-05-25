@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-SERVO_TELEMETRY_RE = re.compile(r"#(?P<id>\d+)\s+p(?P<position>-?\d+)\s+v(?P<voltage>-?\d+)\s+t(?P<temperature>-?\d+)\s+m(?P<mode>-?\d+)")
+SERVO_TELEMETRY_RE = re.compile(
+    r"#(?P<id>\d+)\s+p(?P<position>-?\d+)(?:\s+v(?P<voltage>-?\d+)\s+t(?P<temperature>-?\d+)\s+m(?P<mode>-?\d+))?"
+)
 
 
 def _clamp_speed_pct(value: Any) -> int:
@@ -48,11 +50,14 @@ def parse_servo_telemetry(raw_text: str) -> Dict[int, Dict[str, int]]:
     parsed: Dict[int, Dict[str, int]] = {}
     for match in SERVO_TELEMETRY_RE.finditer(raw_text):
         servo_id = int(match.group("id"))
+        voltage = match.group("voltage")
+        temperature = match.group("temperature")
+        mode = match.group("mode")
         parsed[servo_id] = {
             "position": int(match.group("position")),
-            "voltage": int(match.group("voltage")),
-            "temperature": int(match.group("temperature")),
-            "mode": int(match.group("mode")),
+            "voltage": int(voltage) if voltage is not None else 0,
+            "temperature": int(temperature) if temperature is not None else 0,
+            "mode": int(mode) if mode is not None else 0,
         }
     return parsed
 
@@ -120,6 +125,9 @@ def build_teleop_state(snapshot: Dict[str, Any], config: Dict[str, Any]) -> Dict
     cards: List[Dict[str, Any]] = []
     matched_count = 0
     mirrorable_count = 0
+    continuous_enabled = bool(snapshot.get("teleop_continuous_enabled", False))
+    continuous_servo_id = int(snapshot.get("teleop_continuous_servo_id", 0) or 0)
+
     for servo_id in ordered_ids:
         leader_data = leader_telemetry.get(servo_id)
         follower_data = follower_telemetry.get(servo_id)
@@ -139,6 +147,8 @@ def build_teleop_state(snapshot: Dict[str, Any], config: Dict[str, Any]) -> Dict
         if can_mirror:
             mirrorable_count += 1
 
+        active_continuous = bool(continuous_enabled and (continuous_servo_id == 0 or continuous_servo_id == servo_id))
+
         leader_position = leader_data.get("position") if leader_data else None
         follower_position = follower_data.get("position") if follower_data else None
         delta = None
@@ -155,11 +165,16 @@ def build_teleop_state(snapshot: Dict[str, Any], config: Dict[str, Any]) -> Dict
                 "leader": leader_data,
                 "follower": follower_data,
                 "position_delta": delta,
+                "active_continuous": active_continuous,
             }
         )
 
     return {
         "config": dict(config),
+        "runtime": {
+            "continuous_enabled": continuous_enabled,
+            "continuous_servo_id": continuous_servo_id,
+        },
         "summary": {
             "leader_detected": len(leader_ids),
             "follower_detected": len(follower_ids),

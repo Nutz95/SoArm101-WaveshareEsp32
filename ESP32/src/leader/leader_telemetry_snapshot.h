@@ -15,6 +15,8 @@ struct LeaderTelemetrySnapshot {
   uint8_t followerAckRttMs;
   uint8_t followerAckTimeoutCount;
   uint8_t followerAckPending;
+  uint8_t teleopContinuousEnabled;
+  uint8_t teleopContinuousServoId;
   ArmRuntimeState leaderState;
   ArmRuntimeState followerState;
   OperationMode mode;
