@@ -37,8 +37,6 @@ class TelemetryClient(threading.Thread):
         with self._sock_lock:
             if self._sock is None:
                 return False
-            if (time.monotonic() - self._last_frame_monotonic) > self.STALE_STREAM_TIMEOUT_S:
-                return False
             try:
                 self._sock.sendall(frame)
                 return True

@@ -141,7 +141,6 @@ def build_teleop_state(snapshot: Dict[str, Any], config: Dict[str, Any]) -> Dict
             bool(config.get("enabled", True))
             and mapped
             and leader_data is not None
-            and snapshot.get("connected", False)
             and snapshot.get("espnow_linked", False)
         )
         if can_mirror:

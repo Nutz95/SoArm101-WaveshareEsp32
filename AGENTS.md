@@ -26,5 +26,6 @@ Before changing the firmware, command flow, telemetry, or dashboard UI, read the
 
 - [README.md](README.md)
 - [ESP32/docs/architecture/README.md](ESP32/docs/architecture/README.md)
+- [ESP32/docs/CODE_CONTEXT_INDEX.md](ESP32/docs/CODE_CONTEXT_INDEX.md)
 
 Use the architecture README and diagram to understand how messages move between the dashboard, leader board, and follower board.
