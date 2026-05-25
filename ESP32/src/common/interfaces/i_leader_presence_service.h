@@ -19,6 +19,12 @@ public:
   virtual bool resetPairing() = 0;
   virtual bool requestServoScan(uint16_t requestId) = 0;
   virtual bool requestServoControl(uint8_t op, uint32_t value, uint16_t requestId) = 0;
+  virtual bool requestTeleopMirrorBatch(
+      const uint8_t *ids,
+      const int16_t *positions,
+      uint8_t count,
+      uint8_t speedPct,
+      uint16_t requestId) = 0;
   virtual const char *followerServoIds() const = 0;
   virtual const char *followerServoTelemetry() const = 0;
   virtual uint8_t followerServoCount() const = 0;

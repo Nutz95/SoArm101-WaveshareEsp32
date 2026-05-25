@@ -11,7 +11,8 @@ enum class PresenceMessageType : uint8_t {
   PairReset = 4,
   ServoScan = 5,
   ServoControl = 6,
-  ServoCommandAck = 7
+  ServoCommandAck = 7,
+  ServoControlBatch = 8
 };
 
 } // namespace soarm

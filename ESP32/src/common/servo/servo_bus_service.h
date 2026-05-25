@@ -24,6 +24,7 @@ public:
   bool begin(const ServoBusConfig &config);
   uint8_t scan();
   uint8_t refreshKnownTelemetryFast();
+  bool moveBatch(const uint8_t *ids, const int16_t *positions, uint8_t count, uint16_t speed);
   bool moveTo(uint8_t id, int16_t position, uint16_t speed, uint8_t acceleration);
   bool setServoId(uint8_t oldId, uint8_t newId);
   bool ping(uint8_t id);

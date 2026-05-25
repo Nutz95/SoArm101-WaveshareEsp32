@@ -19,6 +19,7 @@ public:
   void tick();
 
 private:
+  void processIncomingTeleopBatch();
   void processIncomingServoControl();
   void processIncomingServoScan();
   void publishServoTelemetry();

@@ -7,6 +7,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <cstdio>
+#include <cstring>
 
 namespace soarm {
 
@@ -15,6 +16,18 @@ namespace {
 struct MirrorSample {
   uint8_t id;
   int16_t position;
+};
+
+struct TeleopMirrorState {
+  bool followerIds[256]{};
+  bool hasFollowerIds{false};
+  int16_t previousRawById[256]{};
+  int32_t unwrappedById[256]{};
+  bool hasPreviousById[256]{};
+  int16_t lastSentPositionById[256]{};
+  bool hasLastSentPositionById[256]{};
+  uint8_t batchIds[6]{};
+  int16_t batchPositions[6]{};
 };
 
 uint8_t parseMirrorSamples(const char *telemetry, MirrorSample *out, uint8_t capacity) {
@@ -51,20 +64,24 @@ uint8_t parseMirrorSamples(const char *telemetry, MirrorSample *out, uint8_t cap
   return count;
 }
 
-void parseIdList(const char *idsText, bool present[256]) {
+uint8_t parseIdList(const char *idsText, bool present[256]) {
   for (uint16_t i = 0; i < 256U; ++i) {
     present[i] = false;
   }
 
   if (idsText == nullptr) {
-    return;
+    return 0U;
   }
 
+  uint8_t count = 0U;
   const char *cursor = idsText;
   while (*cursor != '\0') {
     unsigned int id = 0U;
     if (sscanf(cursor, "%u", &id) == 1 && id < 256U) {
-      present[id] = true;
+      if (!present[id]) {
+        present[id] = true;
+        ++count;
+      }
     }
     while (*cursor != '\0' && *cursor != ',') {
       ++cursor;
@@ -73,6 +90,8 @@ void parseIdList(const char *idsText, bool present[256]) {
       ++cursor;
     }
   }
+
+  return count;
 }
 
 int32_t unwrapPosition(int16_t rawPosition, int16_t previousRaw, int32_t previousUnwrapped) {
@@ -85,6 +104,104 @@ int32_t unwrapPosition(int16_t rawPosition, int16_t previousRaw, int32_t previou
   return previousUnwrapped + delta;
 }
 
+void resetHistory(TeleopMirrorState &state) {
+  for (uint16_t i = 0; i < 256U; ++i) {
+    state.hasPreviousById[i] = false;
+    state.hasLastSentPositionById[i] = false;
+  }
+}
+
+bool canMirrorNow(
+    const std::atomic<bool> &continuousEnabled,
+    const std::atomic<uint8_t> &runtimeMode,
+    const ILeaderPresenceService &presenceService) {
+  const bool active = continuousEnabled.load();
+  const OperationMode mode = static_cast<OperationMode>(runtimeMode.load());
+  return active && mode == OperationMode::Teleoperation && presenceService.isFollowerLinked();
+}
+
+void refreshFollowerIds(TeleopMirrorState &state, ILeaderPresenceService &presenceService) {
+  bool parsedIds[256]{};
+  const uint8_t parsedCount = parseIdList(presenceService.followerServoIds(), parsedIds);
+  if (parsedCount > 0U) {
+    memcpy(state.followerIds, parsedIds, sizeof(state.followerIds));
+    state.hasFollowerIds = true;
+  }
+}
+
+void tryAppendBatchItem(
+    TeleopMirrorState &state,
+    uint8_t id,
+    int16_t rawPosition,
+    uint8_t &batchCount,
+    uint8_t filterId) {
+  if (id == 0U || (filterId != 0U && id != filterId)) {
+    return;
+  }
+
+  if (!state.hasFollowerIds || !state.followerIds[id]) {
+    return;
+  }
+
+  const int32_t unwrapped = state.hasPreviousById[id]
+                                ? unwrapPosition(rawPosition, state.previousRawById[id], state.unwrappedById[id])
+                                : static_cast<int32_t>(rawPosition);
+
+  state.previousRawById[id] = rawPosition;
+  state.unwrappedById[id] = unwrapped;
+  state.hasPreviousById[id] = true;
+
+  const int32_t bounded = (unwrapped > 32767) ? 32767 : ((unwrapped < -32767) ? -32767 : unwrapped);
+  const int16_t boundedPosition = static_cast<int16_t>(bounded);
+  const bool changed = !state.hasLastSentPositionById[id] ||
+                       state.lastSentPositionById[id] != boundedPosition;
+  if (!changed || batchCount >= 6U) {
+    return;
+  }
+
+  state.batchIds[batchCount] = id;
+  state.batchPositions[batchCount] = boundedPosition;
+  ++batchCount;
+
+  state.lastSentPositionById[id] = boundedPosition;
+  state.hasLastSentPositionById[id] = true;
+}
+
+uint8_t buildMirrorBatch(
+    TeleopMirrorState &state,
+    ServoBusService &servoBusService,
+    uint8_t filterId) {
+  MirrorSample samples[16]{};
+  const uint8_t sampleCount = parseMirrorSamples(
+      servoBusService.lastTelemetryText(),
+      samples,
+      static_cast<uint8_t>(sizeof(samples) / sizeof(samples[0])));
+
+  uint8_t batchCount = 0U;
+  for (uint8_t i = 0U; i < sampleCount; ++i) {
+    tryAppendBatchItem(state, samples[i].id, samples[i].position, batchCount, filterId);
+  }
+  return batchCount;
+}
+
+void sendBatch(
+    ILeaderPresenceService &presenceService,
+    uint8_t count,
+    TeleopMirrorState &state,
+    uint16_t &requestCounter) {
+  if (count == 0U) {
+    return;
+  }
+
+  ++requestCounter;
+  presenceService.requestTeleopMirrorBatch(
+      state.batchIds,
+      state.batchPositions,
+      count,
+      config::leader::kTeleopContinuousSpeedPct,
+      requestCounter);
+}
+
 } // namespace
 
 void LeaderTeleopMirrorTask::runLoop(
@@ -92,57 +209,21 @@ void LeaderTeleopMirrorTask::runLoop(
     ILeaderPresenceService &presenceService,
     const std::atomic<bool> &continuousEnabled,
     const std::atomic<uint8_t> &servoIdFilter,
+    const std::atomic<uint8_t> &runtimeMode,
     uint16_t &requestCounter) {
-  MirrorSample samples[16]{};
-  bool followerIds[256]{};
-  int16_t previousRawById[256]{};
-  int32_t unwrappedById[256]{};
-  bool hasPreviousById[256]{};
+  TeleopMirrorState state{};
 
   while (true) {
-    const bool active = continuousEnabled.load();
-    if (!active || !presenceService.isFollowerLinked()) {
-      for (uint16_t i = 0; i < 256U; ++i) {
-        hasPreviousById[i] = false;
-      }
+    if (!canMirrorNow(continuousEnabled, runtimeMode, presenceService)) {
+      resetHistory(state);
       vTaskDelay(pdMS_TO_TICKS(config::leader::kTeleopMirrorTaskIdleDelayMs));
       continue;
     }
 
-    parseIdList(presenceService.followerServoIds(), followerIds);
-    const uint8_t sampleCount = parseMirrorSamples(
-        servoBusService.lastTelemetryText(),
-        samples,
-        static_cast<uint8_t>(sizeof(samples) / sizeof(samples[0])));
+    refreshFollowerIds(state, presenceService);
     const uint8_t filterId = servoIdFilter.load();
-
-    for (uint8_t i = 0U; i < sampleCount; ++i) {
-      const uint8_t id = samples[i].id;
-      if (id == 0U || !followerIds[id] || (filterId != 0U && id != filterId)) {
-        continue;
-      }
-
-      const int16_t rawPosition = samples[i].position;
-      const int32_t unwrapped = hasPreviousById[id]
-                                    ? unwrapPosition(rawPosition, previousRawById[id], unwrappedById[id])
-                                    : static_cast<int32_t>(rawPosition);
-
-      previousRawById[id] = rawPosition;
-      unwrappedById[id] = unwrapped;
-      hasPreviousById[id] = true;
-
-      const int32_t bounded = (unwrapped > 32767) ? 32767 : ((unwrapped < -32767) ? -32767 : unwrapped);
-      const int16_t target = static_cast<int16_t>(bounded);
-      const uint32_t packed = (static_cast<uint32_t>(id) & 0xFFU)
-                              | ((static_cast<uint32_t>(static_cast<uint16_t>(target)) & 0xFFFFU) << 8)
-                              | ((static_cast<uint32_t>(config::leader::kTeleopContinuousSpeedPct) & 0xFFU) << 24);
-
-      ++requestCounter;
-      presenceService.requestServoControl(
-          static_cast<uint8_t>(ServoControlOpcode::TeleopMirror),
-          packed,
-          requestCounter);
-    }
+    const uint8_t batchCount = buildMirrorBatch(state, servoBusService, filterId);
+    sendBatch(presenceService, batchCount, state, requestCounter);
 
     vTaskDelay(pdMS_TO_TICKS(config::leader::kTeleopMirrorTaskActiveDelayMs));
   }

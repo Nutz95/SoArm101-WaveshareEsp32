@@ -204,6 +204,44 @@ uint8_t ServoBusService::refreshKnownTelemetryFast() {
   return availableCount;
 }
 
+bool ServoBusService::moveBatch(const uint8_t *ids, const int16_t *positions, uint8_t count, uint16_t speed) {
+  if (!started_ || serial_ == nullptr || ids == nullptr || positions == nullptr || count == 0U) {
+    setSummary("batch invalid");
+    return false;
+  }
+
+  const uint8_t clampedCount = (count > config::common::kTeleopBatchMaxServos)
+                                   ? config::common::kTeleopBatchMaxServos
+                                   : count;
+
+  ScopedBusLock guard(lockManager_, config::common::kServoBusLockTimeoutMs);
+  if (!guard.locked()) {
+    setSummary("bus busy");
+    return false;
+  }
+
+  SMS_STS driver;
+  driver.End = 0;
+  driver.pSerial = serial_;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
+
+  uint8_t idBuffer[config::common::kTeleopBatchMaxServos]{};
+  int16_t positionBuffer[config::common::kTeleopBatchMaxServos]{};
+  uint16_t speedBuffer[config::common::kTeleopBatchMaxServos]{};
+  uint8_t accBuffer[config::common::kTeleopBatchMaxServos]{};
+
+  for (uint8_t i = 0U; i < clampedCount; ++i) {
+    idBuffer[i] = ids[i];
+    positionBuffer[i] = positions[i];
+    speedBuffer[i] = speed;
+    accBuffer[i] = 0U;
+  }
+
+  driver.SyncWritePosEx(idBuffer, clampedCount, positionBuffer, speedBuffer, accBuffer);
+  setSummary("batch move sent");
+  return true;
+}
+
 bool ServoBusService::moveTo(uint8_t id, int16_t position, uint16_t speed, uint8_t acceleration) {
   if (!started_ || serial_ == nullptr) {
     setSummary("not started");

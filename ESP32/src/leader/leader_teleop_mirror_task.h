@@ -2,6 +2,7 @@
 
 #include "../common/interfaces/i_leader_presence_service.h"
 #include "../common/servo/servo_bus_service.h"
+#include "../common/types/operation_mode.h"
 
 #include <atomic>
 #include <cstdint>
@@ -15,6 +16,7 @@ public:
       ILeaderPresenceService &presenceService,
       const std::atomic<bool> &continuousEnabled,
       const std::atomic<uint8_t> &servoIdFilter,
+      const std::atomic<uint8_t> &runtimeMode,
       uint16_t &requestCounter);
 };
 

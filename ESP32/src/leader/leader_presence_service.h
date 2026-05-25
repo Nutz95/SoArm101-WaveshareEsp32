@@ -26,6 +26,12 @@ public:
   bool resetPairing() override;
   bool requestServoScan(uint16_t requestId) override;
   bool requestServoControl(uint8_t op, uint32_t value, uint16_t requestId) override;
+  bool requestTeleopMirrorBatch(
+      const uint8_t *ids,
+      const int16_t *positions,
+      uint8_t count,
+      uint8_t speedPct,
+      uint16_t requestId) override;
   const char *followerServoIds() const override;
   const char *followerServoTelemetry() const override;
   uint8_t followerServoCount() const override;
@@ -48,6 +54,13 @@ private:
   void sendPairResetBroadcast();
   void sendServoScanBroadcast(uint16_t requestId);
   bool sendServoControl(const uint8_t mac[6], uint8_t op, uint32_t value, uint16_t requestId);
+  bool sendServoControlBatch(
+      const uint8_t mac[6],
+      const uint8_t *ids,
+      const int16_t *positions,
+      uint8_t count,
+      uint8_t speedPct,
+      uint16_t requestId);
   bool sendServoControlBroadcast(uint8_t op, uint32_t value, uint16_t requestId);
   bool addBroadcastPeer();
   bool isPairedMac(const uint8_t mac[6]) const;

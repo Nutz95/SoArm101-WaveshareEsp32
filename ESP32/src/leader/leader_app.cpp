@@ -134,6 +134,7 @@ void LeaderApp::tick() {
   updateLocalInputs(uptimeMs);
   updateServoHealthFlags();
   computeModeAndStatus();
+  runtimeModeForTasks_.store(static_cast<uint8_t>(mode_));
   updateFollowerState();
   renderStatusLeds();
 
@@ -375,7 +376,10 @@ void LeaderApp::startBackgroundTasks() {
 void LeaderApp::telemetryPollTaskEntry(void *context) {
   if (context != nullptr) {
     LeaderApp *app = static_cast<LeaderApp *>(context);
-    LeaderServoTelemetryTask::runLoop(app->servoBusService_, app->teleopContinuousEnabled_);
+    LeaderServoTelemetryTask::runLoop(
+      app->servoBusService_,
+      app->teleopContinuousEnabled_,
+      app->runtimeModeForTasks_);
   }
   vTaskDelete(nullptr);
 }
@@ -388,6 +392,7 @@ void LeaderApp::teleopMirrorTaskEntry(void *context) {
         *app->presenceService_,
         app->teleopContinuousEnabled_,
         app->teleopContinuousServoIdFilter_,
+      app->runtimeModeForTasks_,
         app->teleopContinuousRequestCounter_);
   }
   vTaskDelete(nullptr);

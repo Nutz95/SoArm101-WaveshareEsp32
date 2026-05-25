@@ -152,6 +152,13 @@
         <button id="teleopContinuousStopBtn" type="button">Stop Continuous Mirror</button>
       </div>
       <p id="teleopStatus">Teleoperation idle.</p>
+      <section class="card teleop-chart-card" aria-label="Teleoperation position chart">
+        <div class="teleop-chart-header">
+          <strong>Position Curves (Leader vs Follower)</strong>
+          <span id="teleopChartLegend" class="teleop-chart-legend">No data yet.</span>
+        </div>
+        <canvas id="teleopPositionChart" class="teleop-chart-canvas" width="960" height="280"></canvas>
+      </section>
       <div id="teleopServoCards" class="teleop-grid"></div>
     </section>
 

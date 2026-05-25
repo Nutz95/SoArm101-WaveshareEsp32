@@ -6,6 +6,7 @@
 #include "../common/presence/presence_packet.h"
 #include "../common/pairing/pairing_policy.h"
 #include "../common/servo/servo_control_opcode.h"
+#include "../Config/common_runtime_config.h"
 
 #include <Arduino.h>
 #include <esp_now.h>
@@ -153,6 +154,30 @@ bool FollowerPresenceService::consumeServoControl(uint8_t &op, uint32_t &value, 
   return true;
 }
 
+bool FollowerPresenceService::consumeTeleopMirrorBatch(
+    uint8_t *ids,
+    int16_t *positions,
+    uint8_t capacity,
+    uint8_t &count,
+    uint8_t &speedPct,
+    uint16_t &requestId) {
+  if (ids == nullptr || positions == nullptr || capacity == 0U || !teleopBatchPending_) {
+    return false;
+  }
+
+  const uint8_t copyCount = (teleopBatchCount_ < capacity) ? teleopBatchCount_ : capacity;
+  for (uint8_t i = 0U; i < copyCount; ++i) {
+    ids[i] = teleopBatchIds_[i];
+    positions[i] = teleopBatchPositions_[i];
+  }
+
+  count = copyCount;
+  speedPct = teleopBatchSpeedPct_;
+  requestId = teleopBatchRequestId_;
+  teleopBatchPending_ = false;
+  return true;
+}
+
 void FollowerPresenceService::updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) {
   lastAckRequestId_ = requestId;
   lastAckCommandOp_ = op;
@@ -204,24 +229,56 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
                 static_cast<unsigned>(msgType),
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-  switch (msgType) {
-  case PresenceMessageType::PairReset:
-    handlePairResetFrame();
-    return;
-  case PresenceMessageType::ServoScan:
-    Serial.println("[FOLLOWER] >>> ServoScan requested");
-    servoScanRequested_ = true;
-    return;
-  case PresenceMessageType::ServoControl:
-    handleServoControlFrame(packet);
-    return;
-  case PresenceMessageType::PairAck:
-    handlePairAckFrame(mac);
-    return;
-  default:
-    Serial.printf("[FOLLOWER] Ignored msgType=%u\n", static_cast<unsigned>(msgType));
-    return;
+  using FrameHandler = void (FollowerPresenceService::*)(const uint8_t *, const PresencePacket &);
+  struct DispatchEntry {
+    PresenceMessageType messageType;
+    FrameHandler handler;
+  };
+
+  static const DispatchEntry kDispatchTable[] = {
+      {PresenceMessageType::PairReset, &FollowerPresenceService::handlePairResetMessage},
+      {PresenceMessageType::ServoScan, &FollowerPresenceService::handleServoScanMessage},
+      {PresenceMessageType::ServoControl, &FollowerPresenceService::handleServoControlMessage},
+      {PresenceMessageType::ServoControlBatch, &FollowerPresenceService::handleServoControlBatchMessage},
+      {PresenceMessageType::PairAck, &FollowerPresenceService::handlePairAckMessage},
+  };
+
+  for (const DispatchEntry &entry : kDispatchTable) {
+    if (entry.messageType == msgType) {
+      (this->*entry.handler)(mac, packet);
+      return;
+    }
   }
+
+  Serial.printf("[FOLLOWER] Ignored msgType=%u\n", static_cast<unsigned>(msgType));
+}
+
+void FollowerPresenceService::handlePairResetMessage(const uint8_t *mac, const PresencePacket &packet) {
+  (void)mac;
+  (void)packet;
+  handlePairResetFrame();
+}
+
+void FollowerPresenceService::handleServoScanMessage(const uint8_t *mac, const PresencePacket &packet) {
+  (void)mac;
+  (void)packet;
+  Serial.println("[FOLLOWER] >>> ServoScan requested");
+  servoScanRequested_ = true;
+}
+
+void FollowerPresenceService::handleServoControlMessage(const uint8_t *mac, const PresencePacket &packet) {
+  (void)mac;
+  handleServoControlFrame(packet);
+}
+
+void FollowerPresenceService::handleServoControlBatchMessage(const uint8_t *mac, const PresencePacket &packet) {
+  (void)mac;
+  handleServoControlBatchFrame(packet);
+}
+
+void FollowerPresenceService::handlePairAckMessage(const uint8_t *mac, const PresencePacket &packet) {
+  (void)packet;
+  handlePairAckFrame(mac);
 }
 
 void FollowerPresenceService::handlePairResetFrame() {
@@ -274,6 +331,30 @@ void FollowerPresenceService::handleServoControlFrame(const PresencePacket &pack
                    static_cast<uint8_t>(CommandAckStatus::Rejected),
                    packet.reserved);
   }
+}
+
+void FollowerPresenceService::handleServoControlBatchFrame(const PresencePacket &packet) {
+  if (packet.controlOp != static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch)) {
+    return;
+  }
+
+  const uint8_t rawCount = static_cast<uint8_t>(packet.servoTelemetry[0]);
+  const uint8_t clampedCount = (rawCount > config::common::kTeleopBatchMaxServos)
+                                   ? config::common::kTeleopBatchMaxServos
+                                   : rawCount;
+  teleopBatchCount_ = clampedCount;
+  teleopBatchSpeedPct_ = static_cast<uint8_t>(packet.servoTelemetry[1]);
+  teleopBatchRequestId_ = packet.reserved2;
+
+  for (uint8_t i = 0U; i < clampedCount; ++i) {
+    const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));
+    teleopBatchIds_[i] = static_cast<uint8_t>(packet.servoTelemetry[offset]);
+    const uint16_t lo = static_cast<uint8_t>(packet.servoTelemetry[offset + 1U]);
+    const uint16_t hi = static_cast<uint8_t>(packet.servoTelemetry[offset + 2U]);
+    teleopBatchPositions_[i] = static_cast<int16_t>((hi << 8U) | lo);
+  }
+
+  teleopBatchPending_ = true;
 }
 
 void FollowerPresenceService::handlePairAckFrame(const uint8_t *mac) {

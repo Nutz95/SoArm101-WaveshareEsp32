@@ -119,6 +119,7 @@ private:
   uint8_t             followerAckTimeoutCount_{0U};
   std::atomic<bool>   teleopContinuousEnabled_{false};
   std::atomic<uint8_t> teleopContinuousServoIdFilter_{0U};
+  std::atomic<uint8_t> runtimeModeForTasks_{0U};
   uint16_t            teleopContinuousRequestCounter_{40000U};
   void               *telemetryPollTaskHandle_{nullptr};
   void               *teleopMirrorTaskHandle_{nullptr};

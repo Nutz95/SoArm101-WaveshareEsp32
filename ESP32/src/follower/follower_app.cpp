@@ -81,6 +81,7 @@ void FollowerApp::tick() {
   wifiOta_.tick();
   presenceService_->tick(wifiOta_.ipAddress());
 
+  processIncomingTeleopBatch();
   processIncomingServoControl();
   processIncomingServoScan();
   publishServoTelemetry();
@@ -88,6 +89,33 @@ void FollowerApp::tick() {
   updateStateAndLeds(millis());
 
   delay(config::follower::kTickDelayMs);
+}
+
+void FollowerApp::processIncomingTeleopBatch() {
+  uint8_t ids[config::common::kTeleopBatchMaxServos]{};
+  int16_t positions[config::common::kTeleopBatchMaxServos]{};
+  uint8_t count = 0U;
+  uint8_t speedPct = 0U;
+  uint16_t requestId = 0U;
+
+  if (!presenceService_->consumeTeleopMirrorBatch(
+          ids,
+          positions,
+          config::common::kTeleopBatchMaxServos,
+          count,
+          speedPct,
+          requestId)) {
+    return;
+  }
+
+  const uint16_t speed = static_cast<uint16_t>(
+      (static_cast<uint32_t>(speedPct) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
+  const bool ok = servoBusService_.moveBatch(ids, positions, count, speed);
+  presenceService_->updateLastCommandAck(
+      requestId,
+      static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch),
+      static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
+  presenceService_->requestImmediatePresenceTx();
 }
 
 void FollowerApp::processIncomingServoControl() {

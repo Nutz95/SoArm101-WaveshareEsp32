@@ -7,6 +7,7 @@
 #include "../common/presence/presence_packet.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
+#include "../Config/common_runtime_config.h"
 
 #include <cstdint>
 
@@ -24,6 +25,13 @@ public:
   bool resetPairing() override;
   bool consumeServoScanRequested(uint16_t &requestId) override;
   bool consumeServoControl(uint8_t &op, uint32_t &value, uint16_t &requestId) override;
+  bool consumeTeleopMirrorBatch(
+      uint8_t *ids,
+      int16_t *positions,
+      uint8_t capacity,
+      uint8_t &count,
+      uint8_t &speedPct,
+      uint16_t &requestId) override;
   void updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) override;
   void requestImmediatePresenceTx() override;
   void updateServoTelemetry(
@@ -41,8 +49,14 @@ private:
   };
 
   void onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) override;
+  void handlePairResetMessage(const uint8_t *mac, const PresencePacket &packet);
+  void handleServoScanMessage(const uint8_t *mac, const PresencePacket &packet);
+  void handleServoControlMessage(const uint8_t *mac, const PresencePacket &packet);
+  void handleServoControlBatchMessage(const uint8_t *mac, const PresencePacket &packet);
+  void handlePairAckMessage(const uint8_t *mac, const PresencePacket &packet);
   void handlePairResetFrame();
   void handleServoControlFrame(const PresencePacket &packet);
+  void handleServoControlBatchFrame(const PresencePacket &packet);
   void handlePairAckFrame(const uint8_t *mac);
 
   bool addBroadcastPeer();
@@ -74,6 +88,12 @@ private:
   uint16_t lastAckRequestId_{0U};
   uint8_t lastAckCommandOp_{0U};
   uint8_t lastAckStatus_{0U};
+  bool teleopBatchPending_{false};
+  uint8_t teleopBatchCount_{0U};
+  uint8_t teleopBatchSpeedPct_{0U};
+  uint16_t teleopBatchRequestId_{0U};
+  uint8_t teleopBatchIds_[config::common::kTeleopBatchMaxServos]{};
+  int16_t teleopBatchPositions_[config::common::kTeleopBatchMaxServos]{};
   uint8_t servoCount_{0U};
   bool servoDebugManual_{false};
   char servoIdsText_[48]{};

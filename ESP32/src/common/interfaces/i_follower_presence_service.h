@@ -16,6 +16,13 @@ public:
   virtual bool resetPairing() = 0;
   virtual bool consumeServoScanRequested(uint16_t &requestId) = 0;
   virtual bool consumeServoControl(uint8_t &op, uint32_t &value, uint16_t &requestId) = 0;
+  virtual bool consumeTeleopMirrorBatch(
+      uint8_t *ids,
+      int16_t *positions,
+      uint8_t capacity,
+      uint8_t &count,
+      uint8_t &speedPct,
+      uint16_t &requestId) = 0;
   virtual void updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) = 0;
   virtual void requestImmediatePresenceTx() = 0;
   virtual void updateServoTelemetry(

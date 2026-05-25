@@ -5,6 +5,7 @@
 #include "../common/presence/presence_packet.h"
 #include "../common/pairing/pairing_policy.h"
 #include "../Config/leader_runtime_config.h"
+#include "../Config/common_runtime_config.h"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -181,6 +182,23 @@ bool LeaderPresenceService::requestServoControl(uint8_t op, uint32_t value, uint
     return sendServoControl(pairedFollowerMac_, op, value, requestId);
   }
   return sendServoControlBroadcast(op, value, requestId);
+}
+
+bool LeaderPresenceService::requestTeleopMirrorBatch(
+    const uint8_t *ids,
+    const int16_t *positions,
+    uint8_t count,
+    uint8_t speedPct,
+    uint16_t requestId) {
+  if (ids == nullptr || positions == nullptr || count == 0U) {
+    return false;
+  }
+
+  if (hasPairedMac_) {
+    return sendServoControlBatch(pairedFollowerMac_, ids, positions, count, speedPct, requestId);
+  }
+
+  return false;
 }
 
 void LeaderPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) {
@@ -369,6 +387,45 @@ bool LeaderPresenceService::sendServoControl(const uint8_t mac[6], uint8_t op, u
     }
   }
   return sent;
+}
+
+bool LeaderPresenceService::sendServoControlBatch(
+    const uint8_t mac[6],
+    const uint8_t *ids,
+    const int16_t *positions,
+    uint8_t count,
+    uint8_t speedPct,
+    uint16_t requestId) {
+  if (ids == nullptr || positions == nullptr || count == 0U) {
+    return false;
+  }
+
+  const uint8_t clampedCount = (count > config::common::kTeleopBatchMaxServos)
+                                   ? config::common::kTeleopBatchMaxServos
+                                   : count;
+
+  PresencePacket packet{};
+  packet.magic = kPresenceMagic;
+  packet.version = kPresenceVersion;
+  packet.messageType = static_cast<uint8_t>(PresenceMessageType::ServoControlBatch);
+  packet.reserved = static_cast<uint8_t>(requestId & 0xFFU);
+  packet.controlOp = static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch);
+  packet.reserved2 = requestId;
+  packet.controlValue = 0U;
+  strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
+  packet.ip[sizeof(packet.ip) - 1] = '\0';
+
+  packet.servoTelemetry[0] = static_cast<char>(clampedCount);
+  packet.servoTelemetry[1] = static_cast<char>(speedPct);
+  for (uint8_t i = 0U; i < clampedCount; ++i) {
+    const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));
+    const uint16_t posRaw = static_cast<uint16_t>(positions[i]);
+    packet.servoTelemetry[offset] = static_cast<char>(ids[i]);
+    packet.servoTelemetry[offset + 1U] = static_cast<char>(posRaw & 0xFFU);
+    packet.servoTelemetry[offset + 2U] = static_cast<char>((posRaw >> 8U) & 0xFFU);
+  }
+
+  return esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)) == ESP_OK;
 }
 
 bool LeaderPresenceService::sendServoControlBroadcast(uint8_t op, uint32_t value, uint16_t requestId) {
