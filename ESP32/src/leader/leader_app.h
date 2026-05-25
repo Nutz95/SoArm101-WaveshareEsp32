@@ -50,9 +50,11 @@ private:
     bool handleServoMoveValueCommand();
     bool handleServoSetIdValueCommand();
     bool handleServoSetModeValueCommand();
+    bool handleTeleopMirrorValueCommand();
   void handleServoMoveCommand(uint32_t value, uint16_t requestId);
   void handleServoSetIdCommand(uint32_t value, uint16_t requestId);
   void handleServoSetModeCommand(uint32_t value, uint16_t requestId);
+  void handleTeleopMirrorCommand(uint32_t value, uint16_t requestId);
   void setTransientStatus(const char *text, uint32_t holdMs);
   void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
   void setLeaderCommandStatus(CommandAckStatus status);

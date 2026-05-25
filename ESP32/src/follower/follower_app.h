@@ -27,6 +27,7 @@ private:
   CommandAckStatus handleDebugEnable(uint32_t value);
   CommandAckStatus handleDebugDisable(uint32_t value);
   CommandAckStatus handleMove(uint32_t value);
+  CommandAckStatus handleTeleopMirror(uint32_t value);
   CommandAckStatus handleSetId(uint32_t value);
   CommandAckStatus handleSetMode(uint32_t value);
 

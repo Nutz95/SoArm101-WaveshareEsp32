@@ -3,6 +3,11 @@ export async function fetchLatest() {
   return response.json();
 }
 
+export async function fetchTeleopState() {
+  const response = await fetch("/api/teleop/state", { cache: "no-store" });
+  return response.json();
+}
+
 export async function sendCommand(command, value = 0) {
   const response = await fetch("/api/command", {
     method: "POST",
@@ -47,4 +52,31 @@ export async function commandWithStatus(command, value, okText, failText) {
     statusNode.textContent = failText;
     return { ok: false, error: "network_error", command };
   }
+}
+
+export async function saveTeleopConfig(config) {
+  const response = await fetch("/api/teleop/config", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(config),
+  });
+  return response.json();
+}
+
+export async function triggerTeleopMirror(servoId = null) {
+  const payload = {};
+  if (servoId !== null) {
+    payload.servo_id = servoId;
+  }
+
+  const response = await fetch("/api/teleop/mirror", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  return response.json();
 }

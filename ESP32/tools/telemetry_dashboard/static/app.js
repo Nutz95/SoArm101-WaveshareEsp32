@@ -1,6 +1,7 @@
-import { fetchLatest, commandWithStatus } from "./js/api.js";
+import { fetchLatest, fetchTeleopState, commandWithStatus, saveTeleopConfig, triggerTeleopMirror } from "./js/api.js";
 import { clampU8 } from "./js/servo_ui.js";
 import { renderSnapshot } from "./js/dashboard_render.js";
+import { renderTeleopState } from "./js/teleop_ui.js";
 import {
   hasPendingFollowerCommand,
   registerPendingCommand,
@@ -11,8 +12,9 @@ const REFRESH_INTERVAL_MS = 200;
 
 async function refresh() {
   try {
-    const data = await fetchLatest();
+    const [data, teleopState] = await Promise.all([fetchLatest(), fetchTeleopState()]);
     renderSnapshot(data);
+    renderTeleopState(teleopState);
     syncPendingCommandStatus(data);
   } catch (_err) {
   }
@@ -102,6 +104,46 @@ function setupButtons() {
       "Servo mode update sent.",
       "Servo mode update failed."
     );
+  });
+
+  document.getElementById("teleopSaveConfigBtn").addEventListener("click", async () => {
+    const config = {
+      enabled: document.getElementById("teleopEnabledInput").checked,
+      same_id_mapping: document.getElementById("teleopSameIdInput").checked,
+      calibration_required: document.getElementById("teleopCalibrationInput").checked,
+      speed_pct: clampU8(Number(document.getElementById("teleopSpeedInput").value)),
+    };
+    const result = await saveTeleopConfig(config);
+    const statusNode = document.getElementById("teleopStatus");
+    statusNode.textContent = result?.ok ? "Teleoperation config saved." : "Teleoperation config save failed.";
+    await refresh();
+  });
+
+  document.getElementById("teleopMirrorAllBtn").addEventListener("click", async () => {
+    const statusNode = document.getElementById("teleopStatus");
+    const result = await triggerTeleopMirror();
+    if (result?.ok) {
+      statusNode.textContent = `Mirror batch sent for ${result.sent_count}/${result.requested_count} servo(s).`;
+      return;
+    }
+    statusNode.textContent = `Mirror batch failed (${result?.error || "send_error"}).`;
+  });
+
+  document.getElementById("teleopServoCards").addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-teleop-servo-id]");
+    if (!button) {
+      return;
+    }
+
+    const servoId = clampU8(Number(button.dataset.teleopServoId));
+    const result = await triggerTeleopMirror(servoId);
+    const statusNode = document.getElementById("teleopStatus");
+    if (result?.ok && Array.isArray(result.request_ids) && result.request_ids.length === 1) {
+      statusNode.textContent = `Mirror servo ID ${servoId} sent.`;
+      registerPendingCommand({ ok: true, request_id: result.request_ids[0] }, "follower", `teleop mirror ID ${servoId}`);
+      return;
+    }
+    statusNode.textContent = `Mirror servo ID ${servoId} failed (${result?.error || "send_error"}).`;
   });
 }
 

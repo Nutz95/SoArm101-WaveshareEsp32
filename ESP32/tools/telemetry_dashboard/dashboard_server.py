@@ -21,8 +21,10 @@ from dashboard_protocol import (
     ESP_CMD_SERVO_SCAN_LEADER,
     ESP_CMD_START_STREAM,
     ESP_CMD_STOP_STREAM,
+    ESP_CMD_TELEOP_MIRROR,
 )
 from dashboard_state import DashboardState
+from teleop_runtime import TeleopConfigStore, build_mirror_values, build_teleop_state
 
 
 def build_dashboard_server(
@@ -33,6 +35,7 @@ def build_dashboard_server(
 ) -> HTTPServer:
     class DashboardHandler(BaseHTTPRequestHandler):
         static_dir = Path(os.path.join(os.path.dirname(__file__), "static")).resolve()
+        teleop_store = TeleopConfigStore(Path(os.path.join(os.path.dirname(__file__), "teleop_config.json")))
 
         command_map: Dict[str, int] = {
             "start_stream": ESP_CMD_START_STREAM,
@@ -49,8 +52,17 @@ def build_dashboard_server(
             "servo_move": ESP_CMD_SERVO_MOVE,
             "servo_set_id": ESP_CMD_SERVO_SET_ID,
             "servo_set_mode": ESP_CMD_SERVO_SET_MODE,
+            "teleop_mirror": ESP_CMD_TELEOP_MIRROR,
         }
         next_request_id: int = 1
+
+        @classmethod
+        def allocate_request_id(cls) -> int:
+            request_id = cls.next_request_id
+            cls.next_request_id = (cls.next_request_id + 1) & 0xFFFF
+            if cls.next_request_id == 0:
+                cls.next_request_id = 1
+            return request_id
 
         def do_GET(self):
             parsed = urlparse(self.path)
@@ -58,6 +70,11 @@ def build_dashboard_server(
 
             if request_path == "/api/latest":
                 payload = json.dumps(state.snapshot()).encode("utf-8")
+                self._send_bytes(200, "application/json", payload)
+                return
+
+            if request_path == "/api/teleop/state":
+                payload = json.dumps(self._build_teleop_payload()).encode("utf-8")
                 self._send_bytes(200, "application/json", payload)
                 return
 
@@ -69,16 +86,21 @@ def build_dashboard_server(
 
         def do_POST(self):
             parsed = urlparse(self.path)
+            if parsed.path == "/api/teleop/config":
+                self._handle_teleop_config_post()
+                return
+
+            if parsed.path == "/api/teleop/mirror":
+                self._handle_teleop_mirror_post()
+                return
+
             if parsed.path != "/api/command":
                 self.send_response(404)
                 self.end_headers()
                 return
 
-            content_length = int(self.headers.get("Content-Length", "0"))
-            raw_body = self.rfile.read(content_length) if content_length > 0 else b"{}"
-            try:
-                payload = json.loads(raw_body.decode("utf-8"))
-            except Exception:
+            payload = self._read_json_body()
+            if payload is None:
                 self._send_json(400, {"ok": False, "error": "invalid_json"})
                 return
 
@@ -90,13 +112,70 @@ def build_dashboard_server(
                 self._send_json(400, {"ok": False, "error": "unknown_command"})
                 return
 
-            request_id = DashboardHandler.next_request_id
-            DashboardHandler.next_request_id = (DashboardHandler.next_request_id + 1) & 0xFFFF
-            if DashboardHandler.next_request_id == 0:
-                DashboardHandler.next_request_id = 1
-
+            request_id = DashboardHandler.allocate_request_id()
             sent = command_sender(command_id, value, request_id)
             self._send_json(200, {"ok": sent, "command": command_name, "request_id": request_id})
+
+        def _handle_teleop_config_post(self) -> None:
+            payload = self._read_json_body()
+            if payload is None:
+                self._send_json(400, {"ok": False, "error": "invalid_json"})
+                return
+
+            config = self.teleop_store.update(payload)
+            self._send_json(200, {"ok": True, "config": config})
+
+        def _handle_teleop_mirror_post(self) -> None:
+            payload = self._read_json_body()
+            if payload is None:
+                payload = {}
+
+            requested_servo_id = payload.get("servo_id")
+            servo_id = None
+            if requested_servo_id is not None:
+                try:
+                    servo_id = int(requested_servo_id)
+                except (TypeError, ValueError):
+                    self._send_json(400, {"ok": False, "error": "invalid_servo_id"})
+                    return
+
+            snapshot = state.snapshot()
+            config = self.teleop_store.snapshot()
+            packed_values = build_mirror_values(snapshot, config, servo_id)
+            if not packed_values:
+                self._send_json(400, {"ok": False, "error": "no_mirrorable_servo"})
+                return
+
+            request_ids = []
+            sent_count = 0
+            for packed_value in packed_values:
+                request_id = DashboardHandler.allocate_request_id()
+                request_ids.append(request_id)
+                if command_sender(ESP_CMD_TELEOP_MIRROR, packed_value, request_id):
+                    sent_count += 1
+
+            self._send_json(
+                200,
+                {
+                    "ok": sent_count == len(packed_values),
+                    "sent_count": sent_count,
+                    "requested_count": len(packed_values),
+                    "request_ids": request_ids,
+                },
+            )
+
+        def _build_teleop_payload(self) -> Dict[str, object]:
+            snapshot = state.snapshot()
+            config = self.teleop_store.snapshot()
+            return build_teleop_state(snapshot, config)
+
+        def _read_json_body(self):
+            content_length = int(self.headers.get("Content-Length", "0"))
+            raw_body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            try:
+                return json.loads(raw_body.decode("utf-8"))
+            except Exception:
+                return None
 
         def log_message(self, format, *args):
             return

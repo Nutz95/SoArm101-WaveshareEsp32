@@ -33,6 +33,12 @@ void test_maps_follower_debug_enable_command() {
   TEST_ASSERT_EQUAL_INT(static_cast<int>(LeaderCommandAction::ServoDebugEnableFollower), static_cast<int>(action));
 }
 
+void test_maps_teleop_mirror_command() {
+  LeaderCommandProcessor processor;
+  const auto action = processor.process(make_frame(15U));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LeaderCommandAction::TeleopMirror), static_cast<int>(action));
+}
+
 void test_rejects_unknown_command() {
   LeaderCommandProcessor processor;
   const auto action = processor.process(make_frame(200U));
@@ -50,6 +56,7 @@ int main(int argc, char **argv) {
   RUN_TEST(test_maps_servo_scan_leader_command);
   RUN_TEST(test_maps_servo_scan_follower_command);
   RUN_TEST(test_maps_follower_debug_enable_command);
+  RUN_TEST(test_maps_teleop_mirror_command);
   RUN_TEST(test_rejects_unknown_command);
   return UNITY_END();
 }

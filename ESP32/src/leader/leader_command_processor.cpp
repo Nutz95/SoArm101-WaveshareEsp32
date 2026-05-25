@@ -24,6 +24,7 @@ constexpr CommandEntry kCommandEntries[] = {
     {12U, soarm::LeaderCommandAction::ServoDebugDisableFollower},
     {13U, soarm::LeaderCommandAction::ServoScanLeader},
     {14U, soarm::LeaderCommandAction::ServoScanFollower},
+    {15U, soarm::LeaderCommandAction::TeleopMirror},
 };
 
 } // namespace

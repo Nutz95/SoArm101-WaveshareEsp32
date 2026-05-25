@@ -9,6 +9,7 @@ namespace leader {
 constexpr uint32_t kTickDelayMs = 10U;
 constexpr uint32_t kJoystickPairReadyMs = 3000U;
 constexpr uint32_t kCalibrationReadyMs = 6000U;
+constexpr bool kCalibrationRequired = false;
 constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
 
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;

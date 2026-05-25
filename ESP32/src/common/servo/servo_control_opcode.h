@@ -11,7 +11,8 @@ enum class ServoControlOpcode : uint8_t {
   DebugDisable = 3,
   Move = 4,
   SetId = 5,
-  SetMode = 6
+  SetMode = 6,
+  TeleopMirror = 7
 };
 
 } // namespace soarm

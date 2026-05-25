@@ -21,7 +21,8 @@ enum class LeaderCommandAction : uint8_t {
   ServoDebugEnableFollower = 11,
   ServoDebugDisableFollower = 12,
   ServoScanLeader = 13,
-  ServoScanFollower = 14
+  ServoScanFollower = 14,
+  TeleopMirror = 15
 };
 
 class LeaderCommandProcessor {

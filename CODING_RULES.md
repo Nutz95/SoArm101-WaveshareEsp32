@@ -88,6 +88,7 @@ Refactor constraints (mandatory):
 
 Size and responsibility constraints:
 - A class should not exceed 600 lines in its implementation file. If it does, split responsibilities into focused collaborators.
+- An implementation file should not exceed 30 function definitions. If it does, split helpers or move a responsibility into a dedicated module.
 - Avoid nested class definitions unless there is a strong and documented reason.
 - When a file accumulates unrelated helper functions, extract a dedicated module.
 

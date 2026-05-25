@@ -156,6 +156,7 @@ CommandAckStatus FollowerApp::executeServoControl(uint8_t op, uint32_t value) {
       {static_cast<uint8_t>(ServoControlOpcode::DebugEnable), &FollowerApp::handleDebugEnable},
       {static_cast<uint8_t>(ServoControlOpcode::DebugDisable), &FollowerApp::handleDebugDisable},
       {static_cast<uint8_t>(ServoControlOpcode::Move), &FollowerApp::handleMove},
+      {static_cast<uint8_t>(ServoControlOpcode::TeleopMirror), &FollowerApp::handleTeleopMirror},
       {static_cast<uint8_t>(ServoControlOpcode::SetId), &FollowerApp::handleSetId},
       {static_cast<uint8_t>(ServoControlOpcode::SetMode), &FollowerApp::handleSetMode},
   };
@@ -195,6 +196,18 @@ CommandAckStatus FollowerApp::handleMove(uint32_t value) {
 
   const bool ok = servoBusService_.moveTo(id, position, speed, 0U);
   Serial.printf("[SERVO] move %s id=%u pos=%d\n", ok ? "ok" : "fail", id, position);
+  return ok ? CommandAckStatus::Applied : CommandAckStatus::Failed;
+}
+
+CommandAckStatus FollowerApp::handleTeleopMirror(uint32_t value) {
+  const uint8_t id = static_cast<uint8_t>(value & 0xFFU);
+  const int16_t position = static_cast<int16_t>((value >> 8U) & 0xFFFFU);
+  const uint8_t speedPct = static_cast<uint8_t>((value >> 24U) & 0xFFU);
+  const uint16_t speed = static_cast<uint16_t>(
+      (static_cast<uint32_t>(speedPct) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
+
+  const bool ok = servoBusService_.moveTo(id, position, speed, 0U);
+  Serial.printf("[SERVO] teleop mirror %s id=%u pos=%d\n", ok ? "ok" : "fail", id, position);
   return ok ? CommandAckStatus::Applied : CommandAckStatus::Failed;
 }
 
