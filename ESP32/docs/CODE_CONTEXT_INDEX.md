@@ -21,6 +21,12 @@ Use it when implementing changes to avoid broad code searches.
   - Command tracking, retry scheduling, and transient status updates.
 - `src/leader/leader_app_commands.cpp`
   - Dashboard command routing and command execution.
+- `src/leader/leader_app_commands_teleop_continuous.cpp`
+  - Continuous teleoperation command parsing, speed update, and enable/disable handling.
+- `src/leader/leader_app_commands_teleop_transport.cpp`
+  - Runtime teleop transport mode command handling (ESP-NOW/Wi-Fi UDP).
+- `src/leader/leader_app_oled_mode.cpp`
+  - OLED fifth-line mode text formatting (calibration, teleop ESP-NOW, teleop Wi-Fi).
 - `src/leader/leader_presence_service.cpp`
   - ESP-NOW pairing, frame ingest, and follower state updates.
 - `src/leader/leader_presence_transport.cpp`
@@ -28,7 +34,9 @@ Use it when implementing changes to avoid broad code searches.
 - `src/leader/leader_servo_telemetry_task.cpp`
   - Background servo telemetry refresh and scan gating.
 - `src/leader/leader_teleop_mirror_task.cpp`
-  - Continuous teleop mirroring logic and batch sends.
+  - Continuous teleop mirroring logic, batch sends, and send-to-ACK latency metrics.
+- `src/leader/leader_teleop_wifi_bridge.cpp`
+  - Leader-side Wi-Fi UDP teleop batch sender and ACK polling.
 
 ## Follower Firmware
 
@@ -40,6 +48,8 @@ Use it when implementing changes to avoid broad code searches.
   - ESP-NOW outbound presence, pair request, and ACK emission.
 - `src/follower/follower_presence_queue.cpp`
   - Deduplicated servo-control queue enqueue/dequeue helpers.
+- `src/follower/follower_teleop_wifi_bridge.cpp`
+  - Follower-side Wi-Fi UDP teleop batch receiver and ACK sender.
 
 ## Shared Firmware Services
 
@@ -55,6 +65,10 @@ Use it when implementing changes to avoid broad code searches.
   - Presence message type IDs.
 - `src/common/servo/servo_control_opcode.h`
   - Shared servo opcode IDs.
+- `src/common/teleop/teleop_transport_mode.h`
+  - Teleop transport mode enum shared by firmware modules.
+- `src/common/teleop/teleop_wifi_packet.h`
+  - Wi-Fi UDP teleop batch/ACK packet layouts and constants.
 
 ## Runtime Configuration
 
@@ -72,16 +86,18 @@ Use it when implementing changes to avoid broad code searches.
 - `tools/telemetry_dashboard/dashboard_server.py`
   - HTTP API and static file serving.
 - `tools/telemetry_dashboard/teleop_runtime.py`
-  - Teleop card model, mapping logic, packed mirror values.
+  - Teleop card model, mapping logic, packed mirror values, and firmware latency fields.
 - `tools/telemetry_dashboard/dashboard_protocol.py`
-  - Binary protocol constants and struct layout.
+  - Binary protocol constants and stream snapshot struct layout.
 
 ## Dashboard UI (Web)
 
 - `tools/telemetry_dashboard/static/index.html`
   - Dashboard structure and teleop panel layout.
 - `tools/telemetry_dashboard/static/js/teleop_ui.js`
-  - Teleop card rendering and position chart.
+  - Teleop card rendering, position chart, and lag/tracking-error estimation.
+- `tools/telemetry_dashboard/static/js/lag_metrics.js`
+  - Lag search and tracking error statistics computed from leader/follower histories.
 - `tools/telemetry_dashboard/static/js/dashboard_render.js`
   - Overview rendering, including temperature alarm indicators.
 - `tools/telemetry_dashboard/static/js/views/teleop_view.js`

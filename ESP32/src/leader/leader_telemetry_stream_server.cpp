@@ -117,6 +117,18 @@ bool LeaderTelemetryStreamServer::consumeTeleopContinuousRequested(uint32_t &val
   return true;
 }
 
+bool LeaderTelemetryStreamServer::consumeTeleopTransportRequested(uint32_t &value, uint16_t &requestId) {
+  const bool pending = teleopTransportRequested_;
+  if (!pending) {
+    return false;
+  }
+
+  value = teleopTransportValue_;
+  requestId = teleopTransportRequestId_;
+  teleopTransportRequested_ = false;
+  return true;
+}
+
 void LeaderTelemetryStreamServer::tick() {
   if (!started_) {
     return;
@@ -196,6 +208,7 @@ void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action, uint3
       {LeaderCommandAction::ServoSetMode, &LeaderTelemetryStreamServer::servoSetModeRequested_, &LeaderTelemetryStreamServer::servoSetModeValue_, &LeaderTelemetryStreamServer::servoSetModeRequestId_, 0U, false},
       {LeaderCommandAction::TeleopMirror, &LeaderTelemetryStreamServer::teleopMirrorRequested_, &LeaderTelemetryStreamServer::teleopMirrorValue_, &LeaderTelemetryStreamServer::teleopMirrorRequestId_, 0U, false},
       {LeaderCommandAction::TeleopContinuousSet, &LeaderTelemetryStreamServer::teleopContinuousRequested_, &LeaderTelemetryStreamServer::teleopContinuousValue_, &LeaderTelemetryStreamServer::teleopContinuousRequestId_, 0U, false},
+      {LeaderCommandAction::TeleopTransportSet, &LeaderTelemetryStreamServer::teleopTransportRequested_, &LeaderTelemetryStreamServer::teleopTransportValue_, &LeaderTelemetryStreamServer::teleopTransportRequestId_, 0U, false},
   };
 
   for (size_t i = 0; i < (sizeof(kFlagActions) / sizeof(kFlagActions[0])); ++i) {

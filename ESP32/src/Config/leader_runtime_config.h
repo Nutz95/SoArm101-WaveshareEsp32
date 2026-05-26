@@ -6,7 +6,7 @@ namespace soarm {
 namespace config {
 namespace leader {
 
-constexpr uint32_t kTickDelayMs = 10U;
+constexpr uint32_t kTickDelayMs = 2U;
 constexpr uint32_t kJoystickPairReadyMs = 3000U;
 constexpr uint32_t kCalibrationReadyMs = 6000U;
 constexpr bool kCalibrationRequired = false;
@@ -14,12 +14,12 @@ constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
 constexpr uint8_t kTeleopContinuousSpeedPct = 100U;
 constexpr uint32_t kServoTelemetryTaskActiveDelayMs = 5U;
 constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
-constexpr uint32_t kTeleopMirrorTaskActiveDelayMs = 5U;
-constexpr uint32_t kTeleopMirrorTaskIdleDelayMs = 10U;
+constexpr uint32_t kTeleopMirrorTaskActiveDelayMs = 1U;
+constexpr uint32_t kTeleopMirrorTaskIdleDelayMs = 1U;
 
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
 constexpr uint8_t kFollowerCommandMaxRetries = 6U;
-constexpr uint32_t kFollowerRetryIntervalMs = 450U;
+constexpr uint32_t kFollowerRetryIntervalMs = 200U;
 constexpr uint8_t kFollowerInitialSendBurstCount = 6U;
 constexpr uint32_t kFollowerAckDeadlineSlackMs = 600U;
 constexpr uint8_t kFollowerAckRttClampMs = 250U;

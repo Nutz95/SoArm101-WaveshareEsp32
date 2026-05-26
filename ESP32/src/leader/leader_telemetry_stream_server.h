@@ -25,6 +25,7 @@ public:
   bool consumeServoSetModeRequested(uint32_t &value, uint16_t &requestId);
   bool consumeTeleopMirrorRequested(uint32_t &value, uint16_t &requestId);
   bool consumeTeleopContinuousRequested(uint32_t &value, uint16_t &requestId);
+  bool consumeTeleopTransportRequested(uint32_t &value, uint16_t &requestId);
 
 private:
   void handleIncomingCommands();
@@ -61,11 +62,14 @@ private:
   uint16_t teleopMirrorRequestId_{0U};
   bool teleopContinuousRequested_{false};
   uint16_t teleopContinuousRequestId_{0U};
+  bool teleopTransportRequested_{false};
+  uint16_t teleopTransportRequestId_{0U};
   uint32_t servoMoveValue_{0U};
   uint32_t servoSetIdValue_{0U};
   uint32_t servoSetModeValue_{0U};
   uint32_t teleopMirrorValue_{0U};
   uint32_t teleopContinuousValue_{0U};
+  uint32_t teleopTransportValue_{0U};
   uint32_t lastStreamMs_{0};
 };
 

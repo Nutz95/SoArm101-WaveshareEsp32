@@ -58,10 +58,14 @@ void LeaderApp::teleopMirrorTaskEntry(void *context) {
     LeaderTeleopMirrorTask::runLoop(
         app->servoBusService_,
         *app->presenceService_,
+        app->teleopWifiBridge_,
         app->teleopContinuousEnabled_,
         app->teleopContinuousServoIdFilter_,
+        app->teleopContinuousSpeedPct_,
+        app->teleopTransportMode_,
         app->runtimeModeForTasks_,
-        app->teleopContinuousRequestCounter_);
+        app->teleopContinuousRequestCounter_,
+        app->teleopMirrorLatencyMetrics_);
   }
   vTaskDelete(nullptr);
 }

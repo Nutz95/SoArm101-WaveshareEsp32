@@ -23,7 +23,8 @@ enum class LeaderCommandAction : uint8_t {
   ServoScanLeader = 13,
   ServoScanFollower = 14,
   TeleopMirror = 15,
-  TeleopContinuousSet = 16
+  TeleopContinuousSet = 16,
+  TeleopTransportSet = 17,
 };
 
 class LeaderCommandProcessor {

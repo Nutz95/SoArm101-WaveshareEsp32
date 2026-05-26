@@ -1,3 +1,5 @@
+import { renderLagMetrics } from "./lag_metrics.js";
+
 const CHART_MAX_POINTS = 160;
 const CHART_WINDOW_MS = 20000;
 const CHART_MARGIN = 28;
@@ -15,6 +17,10 @@ function metricText(data, emptyText = "-") {
 function syncControl(controlId, value, propertyName = "value") {
   const element = document.getElementById(controlId);
   if (!element) {
+    return;
+  }
+
+  if (element.dataset.userDirty === "1") {
     return;
   }
 
@@ -183,6 +189,7 @@ function renderChart(cards) {
 
   const servoIds = trackedServoIds.slice(0, 6);
   renderLegend(servoIds);
+  renderLagMetrics(historyByServoId, servoIds);
 
   const now = Date.now();
   const minTs = now - CHART_WINDOW_MS;
@@ -243,14 +250,35 @@ export function renderTeleopState(data) {
   const continuousNode = document.getElementById("teleopContinuousState");
   const continuousEnabled = !!runtime.continuous_enabled;
   const continuousServoId = Number(runtime.continuous_servo_id || 0);
+  const fwLastMs = Number(runtime.fw_latency_last_ms || 0);
+  const fwEwmaMs = Number(runtime.fw_latency_ewma_ms || 0);
+  const fwP95Ms = Number(runtime.fw_latency_p95_ms || 0);
+  const fwPendingCount = Number(runtime.fw_pending_count || 0);
+  const fwTimeoutCount = Number(runtime.fw_timeout_count || 0);
+  const transportMode = Number(runtime.transport_mode ?? config.transport_mode ?? 0);
   continuousNode.textContent = continuousEnabled
     ? (continuousServoId === 0 ? "all matched" : `ID ${continuousServoId}`)
     : "off";
   continuousNode.classList.toggle("state-on", continuousEnabled);
+  continuousNode.dataset.enabled = continuousEnabled ? "1" : "0";
+  continuousNode.dataset.servoId = `${continuousServoId}`;
+  const fwLatencyNode = document.getElementById("teleopFwLatency");
+  if (fwLatencyNode) {
+    fwLatencyNode.textContent = `last ${fwLastMs} / ewma ${fwEwmaMs} / p95 ${fwP95Ms} ms`;
+  }
+  const fwQueueNode = document.getElementById("teleopFwQueue");
+  if (fwQueueNode) {
+    fwQueueNode.textContent = `pending ${fwPendingCount} / timeout ${fwTimeoutCount}`;
+  }
+  const transportNode = document.getElementById("teleopTransportMode");
+  if (transportNode) {
+    transportNode.textContent = transportMode === 1 ? "Wi-Fi UDP" : "ESP-NOW";
+  }
   syncControl("teleopEnabledInput", !!config.enabled, "checked");
   syncControl("teleopSameIdInput", !!config.same_id_mapping, "checked");
   syncControl("teleopCalibrationInput", !!config.calibration_required, "checked");
   syncControl("teleopSpeedInput", `${config.speed_pct ?? 35}`);
+  syncControl("teleopTransportInput", `${transportMode}`);
 
   const container = document.getElementById("teleopServoCards");
   container.innerHTML = "";

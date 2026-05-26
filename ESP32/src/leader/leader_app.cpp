@@ -6,6 +6,7 @@
 #include "leader_teleop_mirror_task.h"
 #include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
+#include "../common/teleop/teleop_wifi_packet.h"
 #include "../common/servo/servo_control_opcode.h"
 
 #include <Arduino.h>
@@ -64,6 +65,7 @@ void LeaderApp::begin() {
   Serial.begin(115200);
 
   statusLedService_.begin();
+  teleopContinuousSpeedPct_.store(config::leader::kTeleopContinuousSpeedPct);
 
   if (!oled_.begin()) {
     Serial.println("[WARN] OLED not found");
@@ -115,6 +117,10 @@ void LeaderApp::begin() {
     Serial.println("[WARN] Telemetry stream init failed");
   } else {
     Serial.println("[INFO] Telemetry stream on :9090");
+  }
+
+  if (!teleopWifiBridge_.begin(static_cast<uint16_t>(teleop_wifi::kFollowerListenPort + 1U))) {
+    Serial.println("[WARN] Teleop Wi-Fi UDP bridge init failed on leader");
   }
 
   startBackgroundTasks();
@@ -287,8 +293,14 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.followerAckRttMs = followerAckLastRttMs_;
   snapshot.followerAckTimeoutCount = followerAckTimeoutCount_;
   snapshot.followerAckPending = followerAckPending_ ? 1U : 0U;
+  snapshot.teleopMirrorLatencyLastMs = teleopMirrorLatencyMetrics_.lastMs.load();
+  snapshot.teleopMirrorLatencyEwmaMs = teleopMirrorLatencyMetrics_.ewmaMs.load();
+  snapshot.teleopMirrorLatencyP95Ms = teleopMirrorLatencyMetrics_.p95Ms.load();
+  snapshot.teleopMirrorPendingCount = teleopMirrorLatencyMetrics_.pendingCount.load();
+  snapshot.teleopMirrorTimeoutCount = teleopMirrorLatencyMetrics_.timeoutCount.load();
   snapshot.teleopContinuousEnabled = teleopContinuousEnabled_.load() ? 1U : 0U;
   snapshot.teleopContinuousServoId = teleopContinuousServoIdFilter_.load();
+  snapshot.teleopTransportMode = teleopTransportMode_.load();
   strncpy(snapshot.leaderIp, wifiOta_.ipAddress(), sizeof(snapshot.leaderIp) - 1);
   snapshot.leaderIp[sizeof(snapshot.leaderIp) - 1] = '\0';
   strncpy(snapshot.followerIp, followerIpHint_, sizeof(snapshot.followerIp) - 1);
@@ -334,12 +346,15 @@ void LeaderApp::refreshOled(uint32_t uptimeMs) {
       statusLine_[sizeof(statusLine_) - 1] = '\0';
       oled_.showOtaProgress(50);
     } else {
+      char modeLine[24] = "Mode: IDLE";
+      buildOledModeLine(modeLine, sizeof(modeLine));
+
       oled_.showDashboard(
           wifiOta_.ipAddress(),
           followerIpHint_,
           mode_,
           statusLine_,
-          presenceService_->isPaired() ? "P:locked" : "P:open",
+          modeLine,
           uptimeMs);
     }
   }

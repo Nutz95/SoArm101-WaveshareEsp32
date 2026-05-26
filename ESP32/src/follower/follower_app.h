@@ -7,6 +7,7 @@
 #include "../common/status_led_service.h"
 #include "../common/wifi_ota_service.h"
 #include "../common/servo/servo_bus_service.h"
+#include "follower_teleop_wifi_bridge.h"
 
 #include <memory>
 
@@ -20,6 +21,7 @@ public:
 
 private:
   void processIncomingTeleopBatch();
+  void processIncomingTeleopWifiBatch();
   void processIncomingServoControl();
   void processIncomingServoScan();
   void publishServoTelemetry();
@@ -37,6 +39,7 @@ private:
   StatusLedService    statusLedService_;
   WifiOtaService      wifiOta_;
   ServoBusService     servoBusService_;
+  FollowerTeleopWifiBridge teleopWifiBridge_;
   std::unique_ptr<IFollowerPresenceService> presenceService_;
   ArmStateInputs      localInputs_;
 };

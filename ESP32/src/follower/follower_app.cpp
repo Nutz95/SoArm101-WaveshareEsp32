@@ -3,6 +3,7 @@
 #include "../Config/common_runtime_config.h"
 #include "../Config/follower_runtime_config.h"
 #include "../common/command/command_ack_status.h"
+#include "../common/teleop/teleop_wifi_packet.h"
 #include "../common/servo/servo_control_opcode.h"
 
 #include <Arduino.h>
@@ -74,6 +75,10 @@ void FollowerApp::begin() {
     Serial.println("[WARN] ESP-NOW init failed on follower");
   }
 
+  if (!teleopWifiBridge_.begin(teleop_wifi::kFollowerListenPort)) {
+    Serial.println("[WARN] Teleop Wi-Fi UDP listener init failed on follower");
+  }
+
   publishServoTelemetry();
 }
 
@@ -81,6 +86,7 @@ void FollowerApp::tick() {
   wifiOta_.tick();
   presenceService_->tick(wifiOta_.ipAddress());
 
+  processIncomingTeleopWifiBatch();
   processIncomingTeleopBatch();
   processIncomingServoControl();
   processIncomingServoScan();
@@ -89,6 +95,31 @@ void FollowerApp::tick() {
   updateStateAndLeds(millis());
 
   delay(config::follower::kTickDelayMs);
+}
+
+void FollowerApp::processIncomingTeleopWifiBatch() {
+  uint8_t ids[config::common::kTeleopBatchMaxServos]{};
+  int16_t positions[config::common::kTeleopBatchMaxServos]{};
+  uint8_t count = 0U;
+  uint8_t speedPct = 0U;
+  uint16_t requestId = 0U;
+
+  if (!teleopWifiBridge_.consumeBatch(
+          ids,
+          positions,
+          config::common::kTeleopBatchMaxServos,
+          count,
+          speedPct,
+          requestId)) {
+    return;
+  }
+
+  const uint16_t speed = static_cast<uint16_t>(
+      (static_cast<uint32_t>(speedPct) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
+  const bool ok = servoBusService_.moveBatch(ids, positions, count, speed);
+  teleopWifiBridge_.sendAck(
+      requestId,
+      static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
 }
 
 void FollowerApp::processIncomingTeleopBatch() {

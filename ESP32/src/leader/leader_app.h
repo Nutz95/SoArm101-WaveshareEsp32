@@ -14,8 +14,12 @@
 #include "leader_telemetry_state.h"
 #include "leader_telemetry_stream_server.h"
 #include "leader_command_processor.h"
+#include "leader_teleop_mirror_task.h"
+#include "leader_teleop_wifi_bridge.h"
+#include "../common/teleop/teleop_transport_mode.h"
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 
@@ -53,11 +57,13 @@ private:
     bool handleServoSetModeValueCommand();
     bool handleTeleopMirrorValueCommand();
     bool handleTeleopContinuousValueCommand();
+    bool handleTeleopTransportValueCommand();
   void handleServoMoveCommand(uint32_t value, uint16_t requestId);
   void handleServoSetIdCommand(uint32_t value, uint16_t requestId);
   void handleServoSetModeCommand(uint32_t value, uint16_t requestId);
   void handleTeleopMirrorCommand(uint32_t value, uint16_t requestId);
   void handleTeleopContinuousCommand(uint32_t value, uint16_t requestId);
+  void handleTeleopTransportCommand(uint32_t value, uint16_t requestId);
   void setTransientStatus(const char *text, uint32_t holdMs);
   void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
   void setLeaderCommandStatus(CommandAckStatus status);
@@ -77,6 +83,7 @@ private:
   // Telemetry / display extracted from tick()
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
   void refreshOled(uint32_t uptimeMs);
+  void buildOledModeLine(char *buffer, size_t bufferSize) const;
 
   void startBackgroundTasks();
   static void telemetryPollTaskEntry(void *context);
@@ -119,7 +126,11 @@ private:
   uint8_t             followerAckTimeoutCount_{0U};
   std::atomic<bool>   teleopContinuousEnabled_{false};
   std::atomic<uint8_t> teleopContinuousServoIdFilter_{0U};
+  std::atomic<uint8_t> teleopContinuousSpeedPct_{35U};
+  std::atomic<uint8_t> teleopTransportMode_{static_cast<uint8_t>(TeleopTransportMode::EspNow)};
   std::atomic<uint8_t> runtimeModeForTasks_{0U};
+  TeleopMirrorLatencyMetrics teleopMirrorLatencyMetrics_{};
+  LeaderTeleopWifiBridge teleopWifiBridge_{};
   uint16_t            teleopContinuousRequestCounter_{40000U};
   void               *telemetryPollTaskHandle_{nullptr};
   void               *teleopMirrorTaskHandle_{nullptr};

@@ -11,7 +11,7 @@ import {
   syncPendingCommandStatus,
 } from "./js/pending_command.js";
 
-const REFRESH_INTERVAL_MS = 200;
+const REFRESH_INTERVAL_MS = 100;
 
 async function refresh() {
   try {
@@ -24,7 +24,7 @@ async function refresh() {
 }
 
 initNavigationView();
-initPairingView(commandWithStatus);
+initPairingView(commandWithStatus, saveTeleopConfig, refresh);
 initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleopMirror, refresh);
 initManualView(commandWithStatus, hasPendingFollowerCommand, registerPendingCommand);
 setInterval(refresh, REFRESH_INTERVAL_MS);

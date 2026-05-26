@@ -1,0 +1,42 @@
+#pragma once
+
+#include "teleop_transport_mode.h"
+
+#include <cstdint>
+
+namespace soarm {
+
+namespace teleop_wifi {
+
+constexpr uint16_t kMagic = 0x5457U;
+constexpr uint8_t kVersion = 1U;
+constexpr uint8_t kTypeBatch = 1U;
+constexpr uint8_t kTypeAck = 2U;
+constexpr uint16_t kFollowerListenPort = 29110U;
+
+struct BatchEntry {
+  uint8_t id;
+  int16_t position;
+} __attribute__((packed));
+
+struct BatchPacket {
+  uint16_t magic;
+  uint8_t version;
+  uint8_t type;
+  uint16_t requestId;
+  uint8_t count;
+  uint8_t speedPct;
+  BatchEntry entries[6];
+} __attribute__((packed));
+
+struct AckPacket {
+  uint16_t magic;
+  uint8_t version;
+  uint8_t type;
+  uint16_t requestId;
+  uint8_t status;
+} __attribute__((packed));
+
+} // namespace teleop_wifi
+
+} // namespace soarm

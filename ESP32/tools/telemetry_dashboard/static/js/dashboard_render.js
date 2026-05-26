@@ -31,6 +31,23 @@ export function renderSnapshot(data) {
   document.getElementById("leaderMac").textContent = data.leader_mac || "-";
   document.getElementById("followerMac").textContent = data.follower_mac || "-";
 
+  let profile = "teleop_espnow";
+  if (Number(data.mode) === 1 || Number(data.mode) === 2) {
+    profile = "calibration";
+  } else if (Number(data.teleop_transport_mode || 0) === 1) {
+    profile = "teleop_wifi";
+  }
+
+  const profileNode = document.getElementById("pairingModeCurrent");
+  if (profileNode) {
+    profileNode.textContent = profile;
+  }
+
+  const profileSelect = document.getElementById("pairingModeSelect");
+  if (profileSelect && document.activeElement !== profileSelect) {
+    profileSelect.value = profile;
+  }
+
   document.getElementById("leaderServoCount").textContent = `${data.leader_servo_count || 0}`;
   document.getElementById("followerServoCount").textContent = `${data.follower_servo_count || 0}`;
   document.getElementById("leaderServoDebug").textContent = boolLabel(!!data.leader_servo_debug_manual);

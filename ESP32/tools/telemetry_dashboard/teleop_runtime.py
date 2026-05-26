@@ -27,6 +27,14 @@ def _as_bool(value: Any, default: bool) -> bool:
     return bool(value)
 
 
+def _clamp_transport_mode(value: Any) -> int:
+    try:
+        numeric = int(value)
+    except (TypeError, ValueError):
+        numeric = 0
+    return 1 if numeric == 1 else 0
+
+
 def parse_servo_ids(raw_ids: str) -> List[int]:
     if not raw_ids or raw_ids == "-":
         return []
@@ -74,7 +82,8 @@ class TeleopConfigStore:
         self._config["enabled"] = _as_bool(payload.get("enabled"), self._config["enabled"])
         self._config["same_id_mapping"] = _as_bool(payload.get("same_id_mapping"), self._config["same_id_mapping"])
         self._config["calibration_required"] = _as_bool(payload.get("calibration_required"), self._config["calibration_required"])
-        self._config["speed_pct"] = _clamp_speed_pct(payload.get("speed_pct"))
+        self._config["speed_pct"] = _clamp_speed_pct(payload.get("speed_pct", self._config["speed_pct"]))
+        self._config["transport_mode"] = _clamp_transport_mode(payload.get("transport_mode", self._config.get("transport_mode", 0)))
         self._save()
         return self.snapshot()
 
@@ -84,6 +93,7 @@ class TeleopConfigStore:
             "same_id_mapping": True,
             "calibration_required": False,
             "speed_pct": 35,
+            "transport_mode": 0,
         }
 
         if not self._file_path.is_file():
@@ -100,6 +110,7 @@ class TeleopConfigStore:
                 "same_id_mapping": _as_bool(loaded.get("same_id_mapping"), defaults["same_id_mapping"]),
                 "calibration_required": _as_bool(loaded.get("calibration_required"), defaults["calibration_required"]),
                 "speed_pct": _clamp_speed_pct(loaded.get("speed_pct")),
+                "transport_mode": _clamp_transport_mode(loaded.get("transport_mode", defaults["transport_mode"])),
             }
         )
         return defaults
@@ -173,6 +184,12 @@ def build_teleop_state(snapshot: Dict[str, Any], config: Dict[str, Any]) -> Dict
         "runtime": {
             "continuous_enabled": continuous_enabled,
             "continuous_servo_id": continuous_servo_id,
+            "transport_mode": int(snapshot.get("teleop_transport_mode", config.get("transport_mode", 0)) or 0),
+            "fw_latency_last_ms": int(snapshot.get("teleop_mirror_latency_last_ms", 0) or 0),
+            "fw_latency_ewma_ms": int(snapshot.get("teleop_mirror_latency_ewma_ms", 0) or 0),
+            "fw_latency_p95_ms": int(snapshot.get("teleop_mirror_latency_p95_ms", 0) or 0),
+            "fw_pending_count": int(snapshot.get("teleop_mirror_pending_count", 0) or 0),
+            "fw_timeout_count": int(snapshot.get("teleop_mirror_timeout_count", 0) or 0),
         },
         "summary": {
             "leader_detected": len(leader_ids),

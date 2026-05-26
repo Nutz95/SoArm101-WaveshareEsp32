@@ -45,6 +45,20 @@
     <section class="panel view-panel" data-view-panel="pairing">
       <h2>Xbox Bluetooth Pairing</h2>
       <p>Use this panel to pair and validate the Xbox controller link before teleoperation.</p>
+      <div class="grid pairing-grid">
+        <div class="card"><span>Current Operation Profile</span><strong id="pairingModeCurrent">teleop_espnow</strong></div>
+      </div>
+      <div class="command-grid">
+        <label>
+          Operation Profile
+          <select id="pairingModeSelect">
+            <option value="calibration">Calibration</option>
+            <option value="teleop_espnow">Teleoperation ESP-NOW</option>
+            <option value="teleop_wifi">Teleoperation Wi-Fi</option>
+          </select>
+        </label>
+        <button id="pairingApplyModeBtn" type="button">Apply Operation Profile</button>
+      </div>
       <div class="actions">
         <button id="xboxPairingGuideBtn" type="button">Show Pairing Guide</button>
       </div>
@@ -128,6 +142,11 @@
         <div class="card"><span>Leader Detected</span><strong id="teleopLeaderDetected">0</strong></div>
         <div class="card"><span>Follower Detected</span><strong id="teleopFollowerDetected">0</strong></div>
         <div class="card"><span>Continuous Mirror</span><strong id="teleopContinuousState">off</strong></div>
+        <div class="card"><span>Estimated Lag</span><strong id="teleopLagEstimate">-</strong></div>
+        <div class="card"><span>Tracking Error</span><strong id="teleopErrorEstimate">-</strong></div>
+        <div class="card"><span>FW Mirror RTT</span><strong id="teleopFwLatency">-</strong></div>
+        <div class="card"><span>FW Mirror Queue</span><strong id="teleopFwQueue">-</strong></div>
+        <div class="card"><span>Transport</span><strong id="teleopTransportMode">ESP-NOW</strong></div>
       </div>
       <div class="command-grid teleop-config-grid">
         <label class="teleop-toggle">
@@ -146,9 +165,17 @@
           Mirror Speed %
           <input id="teleopSpeedInput" type="number" min="0" max="100" value="35" />
         </label>
+        <label>
+          Transport Mode
+          <select id="teleopTransportInput">
+            <option value="0">ESP-NOW</option>
+            <option value="1">Wi-Fi UDP</option>
+          </select>
+        </label>
       </div>
       <div class="actions">
         <button id="teleopSaveConfigBtn" type="button">Save Teleop Config</button>
+        <button id="teleopApplyTransportBtn" type="button">Apply Transport Mode</button>
         <button id="teleopMirrorAllBtn" type="button">Mirror Matched Servos</button>
         <button id="teleopContinuousAllBtn" type="button">Start Continuous (All Matched)</button>
         <button id="teleopContinuousStopBtn" type="button">Stop Continuous Mirror</button>
