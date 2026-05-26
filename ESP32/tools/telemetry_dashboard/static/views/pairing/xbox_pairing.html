@@ -19,7 +19,21 @@
       <div class="card"><span>Runtime State</span><strong id="xboxRuntimeState">disconnected</strong></div>
       <div class="card"><span>Last Input Report Age</span><strong id="xboxRuntimeAge">0 ms</strong></div>
       <div class="card"><span>Detected Controller Name</span><strong id="xboxRuntimeController">-</strong></div>
+      <div class="card"><span>BLE Encryption</span><strong id="xboxRuntimeEncrypted">off</strong></div>
+      <div class="card"><span>Input Subscription</span><strong id="xboxRuntimeSubscribed">off</strong></div>
+      <div class="card"><span>Input Report Count</span><strong id="xboxRuntimeReportCount">0</strong></div>
     </div>
+  </section>
+
+  <section class="xbox-step">
+    <h3>Step 2b - Live Input Monitor (for mapping)</h3>
+    <div class="grid pairing-grid">
+      <div class="card"><span>Buttons Bitmask</span><strong id="xboxButtonsMask">0x0000</strong></div>
+      <div class="card"><span>Left Stick (X,Y)</span><strong id="xboxLeftStick">0, 0</strong></div>
+      <div class="card"><span>Right Stick (X,Y)</span><strong id="xboxRightStick">0, 0</strong></div>
+      <div class="card"><span>Triggers (LT,RT)</span><strong id="xboxTriggers">0, 0</strong></div>
+    </div>
+    <p>Manipulate buttons and sticks to verify incoming HID values before assigning teleoperation actions.</p>
   </section>
 
   <section class="xbox-step">

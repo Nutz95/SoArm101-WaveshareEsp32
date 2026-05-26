@@ -123,6 +123,8 @@ void LeaderApp::begin() {
     Serial.println("[WARN] Teleop Wi-Fi UDP bridge init failed on leader");
   }
 
+  xboxControllerService_.begin();
+
   startBackgroundTasks();
 }
 
@@ -207,7 +209,9 @@ void LeaderApp::updateServoHealthFlags() {
 }
 
 void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
-  localInputs_.joystickPaired  = uptimeMs > config::leader::kJoystickPairReadyMs;
+  (void)uptimeMs;
+  xboxControllerService_.tick();
+  localInputs_.joystickPaired = xboxControllerService_.isControllerPaired();
   localInputs_.calibrationDone = !config::leader::kCalibrationRequired ||
                                  uptimeMs > config::leader::kCalibrationReadyMs;
   localInputs_.espNowLinked    = presenceService_->isFollowerLinked();
@@ -286,6 +290,8 @@ void LeaderApp::renderStatusLeds() {
 
 void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs) {
   servoBusService_.pollTemperatureAlarmSlow();
+  XboxRuntimeSnapshot xboxRuntime{};
+  xboxControllerService_.snapshot(xboxRuntime);
 
   snapshot.uptimeMs = uptimeMs;
   cpuLoadService_.sample(snapshot.cpu0LoadPct, snapshot.cpu1LoadPct);
@@ -301,6 +307,21 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.teleopContinuousEnabled = teleopContinuousEnabled_.load() ? 1U : 0U;
   snapshot.teleopContinuousServoId = teleopContinuousServoIdFilter_.load();
   snapshot.teleopTransportMode = teleopTransportMode_.load();
+  snapshot.xboxRuntimeState = xboxRuntime.state;
+  snapshot.xboxLastReportAgeMs = xboxRuntime.lastReportAgeMs;
+  snapshot.xboxReportCount = xboxRuntime.reportCount;
+  snapshot.xboxButtonsMask = xboxRuntime.buttonsMask;
+  snapshot.xboxAxisLeftX = xboxRuntime.axisLeftX;
+  snapshot.xboxAxisLeftY = xboxRuntime.axisLeftY;
+  snapshot.xboxAxisRightX = xboxRuntime.axisRightX;
+  snapshot.xboxAxisRightY = xboxRuntime.axisRightY;
+  snapshot.xboxTriggerLeft = xboxRuntime.triggerLeft;
+  snapshot.xboxTriggerRight = xboxRuntime.triggerRight;
+  snapshot.xboxLinkEncrypted = xboxRuntime.linkEncrypted;
+  snapshot.xboxInputSubscribed = xboxRuntime.inputSubscribed;
+  snapshot.xboxControllerPaired = xboxRuntime.controllerPaired;
+  strncpy(snapshot.xboxControllerName, xboxRuntime.controllerName, sizeof(snapshot.xboxControllerName) - 1U);
+  snapshot.xboxControllerName[sizeof(snapshot.xboxControllerName) - 1U] = '\0';
   strncpy(snapshot.leaderIp, wifiOta_.ipAddress(), sizeof(snapshot.leaderIp) - 1);
   snapshot.leaderIp[sizeof(snapshot.leaderIp) - 1] = '\0';
   strncpy(snapshot.followerIp, followerIpHint_, sizeof(snapshot.followerIp) - 1);

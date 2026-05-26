@@ -30,6 +30,13 @@ constexpr uint32_t kFollowerSetIdAckTimeoutMs = 2000U;
 constexpr uint32_t kFollowerSetModeAckTimeoutMs = 1500U;
 constexpr uint32_t kFollowerScanAckTimeoutMs = 3000U;
 
+// Xbox BLE controller runtime.
+constexpr uint32_t kXboxScanWindowMs = 4000U;
+constexpr uint32_t kXboxScanRetryDelayMs = 1000U;
+constexpr uint32_t kXboxConnectedTickDelayMs = 20U;
+constexpr uint32_t kXboxDisconnectedTickDelayMs = 200U;
+constexpr uint32_t kXboxInputReportStaleMs = 2000U;
+
 constexpr uint32_t kResetPairingStatusHoldMs = 2500U;
 constexpr uint32_t kScanStatusHoldMs = 2200U;
 constexpr uint32_t kDebugStatusHoldMs = 2000U;

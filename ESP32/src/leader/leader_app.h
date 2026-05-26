@@ -16,6 +16,7 @@
 #include "leader_command_processor.h"
 #include "leader_teleop_mirror_task.h"
 #include "leader_teleop_wifi_bridge.h"
+#include "leader_xbox_controller_service.h"
 #include "../common/teleop/teleop_transport_mode.h"
 
 #include <atomic>
@@ -129,6 +130,7 @@ private:
   std::atomic<uint8_t> runtimeModeForTasks_{0U};
   TeleopMirrorLatencyMetrics teleopMirrorLatencyMetrics_{};
   LeaderTeleopWifiBridge teleopWifiBridge_{};
+  LeaderXboxControllerService xboxControllerService_{};
   uint16_t            teleopContinuousRequestCounter_{40000U};
   void               *telemetryPollTaskHandle_{nullptr};
   void               *teleopMirrorTaskHandle_{nullptr};

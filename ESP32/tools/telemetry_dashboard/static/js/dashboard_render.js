@@ -43,7 +43,17 @@ function xboxRuntimeLabel(stateValue) {
 function updateXboxRuntime(data) {
   const runtimeLabel = xboxRuntimeLabel(data.xbox_runtime_state);
   const paired = !!data.xbox_controller_paired;
+  const encrypted = !!data.xbox_link_encrypted;
+  const subscribed = !!data.xbox_input_subscribed;
   const ageMs = Number(data.xbox_last_report_age_ms || 0);
+  const reportCount = Number(data.xbox_report_count || 0);
+  const buttonsMask = Number(data.xbox_buttons_mask || 0) & 0xFFFF;
+  const leftX = Number(data.xbox_axis_left_x || 0);
+  const leftY = Number(data.xbox_axis_left_y || 0);
+  const rightX = Number(data.xbox_axis_right_x || 0);
+  const rightY = Number(data.xbox_axis_right_y || 0);
+  const triggerLeft = Number(data.xbox_trigger_left || 0);
+  const triggerRight = Number(data.xbox_trigger_right || 0);
   const name = data.xbox_controller_name || "-";
 
   const runtimeStateNode = document.getElementById("xboxRuntimeState");
@@ -66,10 +76,45 @@ function updateXboxRuntime(data) {
     runtimePairNode.textContent = paired ? "paired" : "not paired";
   }
 
+  const runtimeEncryptedNode = document.getElementById("xboxRuntimeEncrypted");
+  if (runtimeEncryptedNode) {
+    runtimeEncryptedNode.textContent = encrypted ? "on" : "off";
+  }
+
+  const runtimeSubscribedNode = document.getElementById("xboxRuntimeSubscribed");
+  if (runtimeSubscribedNode) {
+    runtimeSubscribedNode.textContent = subscribed ? "on" : "off";
+  }
+
+  const reportCountNode = document.getElementById("xboxRuntimeReportCount");
+  if (reportCountNode) {
+    reportCountNode.textContent = `${reportCount}`;
+  }
+
+  const buttonsNode = document.getElementById("xboxButtonsMask");
+  if (buttonsNode) {
+    buttonsNode.textContent = `0x${buttonsMask.toString(16).padStart(4, "0")}`;
+  }
+
+  const leftStickNode = document.getElementById("xboxLeftStick");
+  if (leftStickNode) {
+    leftStickNode.textContent = `${leftX}, ${leftY}`;
+  }
+
+  const rightStickNode = document.getElementById("xboxRightStick");
+  if (rightStickNode) {
+    rightStickNode.textContent = `${rightX}, ${rightY}`;
+  }
+
+  const triggerNode = document.getElementById("xboxTriggers");
+  if (triggerNode) {
+    triggerNode.textContent = `${triggerLeft}, ${triggerRight}`;
+  }
+
   const runtimeDot = document.getElementById("xboxRuntimeDot");
   if (runtimeDot) {
     runtimeDot.classList.remove("state-green", "state-red", "state-amber");
-    if (runtimeLabel === "connected" && paired) {
+    if (runtimeLabel === "connected" && paired && encrypted && subscribed) {
       runtimeDot.classList.add("state-green");
     } else if (runtimeLabel === "scanning" || runtimeLabel === "pairing") {
       runtimeDot.classList.add("state-amber");

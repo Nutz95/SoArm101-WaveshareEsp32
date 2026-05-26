@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "preferred_controller_name": "Xbox Wireless Controller",
+  "auto_reconnect": true,
+  "deadzone_pct": 12,
+  "trigger_threshold_pct": 35,
+  "invert_left_y": true,
+  "invert_right_y": true,
+  "mode_cycle_button": "view",
+  "user_action_button": "share"
+}
