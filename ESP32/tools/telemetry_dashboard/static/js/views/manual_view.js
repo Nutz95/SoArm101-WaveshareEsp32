@@ -7,14 +7,15 @@ function buildServoMovePackedValue(servoId, position, speedPercent) {
 }
 
 export function initManualView(commandWithStatus, hasPendingFollowerCommand, registerPendingCommand) {
-  document.getElementById("servoDebugEnableBtn").addEventListener("click", async () => {
-    const result = await commandWithStatus("servo_debug_enable", 0, "Servo debug/manual enabled.", "Enable debug failed.");
-    registerPendingCommand(result, "leader", "leader debug enable");
-  });
+  document.getElementById("leaderServoDebugToggleBtn").addEventListener("click", async (event) => {
+    const toggleButton = event.currentTarget;
+    const isEnabled = String(toggleButton?.dataset?.enabled || "0") === "1";
+    const command = isEnabled ? "servo_debug_disable" : "servo_debug_enable";
+    const okText = isEnabled ? "Servo debug/manual disabled." : "Servo debug/manual enabled.";
+    const failText = isEnabled ? "Disable debug failed." : "Enable debug failed.";
 
-  document.getElementById("servoDebugDisableBtn").addEventListener("click", async () => {
-    const result = await commandWithStatus("servo_debug_disable", 0, "Servo debug/manual disabled.", "Disable debug failed.");
-    registerPendingCommand(result, "leader", "leader debug disable");
+    const result = await commandWithStatus(command, 0, okText, failText);
+    registerPendingCommand(result, "leader", isEnabled ? "leader debug disable" : "leader debug enable");
   });
 
   document.getElementById("followerServoDebugEnableBtn").addEventListener("click", async () => {

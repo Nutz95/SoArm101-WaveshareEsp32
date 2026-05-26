@@ -13,6 +13,72 @@ function updateFollowerDebugButtons(debugEnabled) {
   disableBtn.classList.toggle("state-on", !debugEnabled);
 }
 
+function updateLeaderDebugToggleButton(debugEnabled) {
+  const toggleBtn = document.getElementById("leaderServoDebugToggleBtn");
+  if (!toggleBtn) {
+    return;
+  }
+
+  toggleBtn.dataset.enabled = debugEnabled ? "1" : "0";
+  toggleBtn.classList.toggle("state-on", !!debugEnabled);
+  toggleBtn.textContent = debugEnabled
+    ? "Disable Debug Manual (Leader)"
+    : "Enable Debug Manual (Leader)";
+}
+
+function xboxRuntimeLabel(stateValue) {
+  const state = Number(stateValue || 0);
+  if (state === 1) {
+    return "scanning";
+  }
+  if (state === 2) {
+    return "pairing";
+  }
+  if (state === 3) {
+    return "connected";
+  }
+  return "disconnected";
+}
+
+function updateXboxRuntime(data) {
+  const runtimeLabel = xboxRuntimeLabel(data.xbox_runtime_state);
+  const paired = !!data.xbox_controller_paired;
+  const ageMs = Number(data.xbox_last_report_age_ms || 0);
+  const name = data.xbox_controller_name || "-";
+
+  const runtimeStateNode = document.getElementById("xboxRuntimeState");
+  if (runtimeStateNode) {
+    runtimeStateNode.textContent = runtimeLabel;
+  }
+
+  const runtimeAgeNode = document.getElementById("xboxRuntimeAge");
+  if (runtimeAgeNode) {
+    runtimeAgeNode.textContent = `${ageMs} ms`;
+  }
+
+  const runtimeNameNode = document.getElementById("xboxRuntimeController");
+  if (runtimeNameNode) {
+    runtimeNameNode.textContent = name;
+  }
+
+  const runtimePairNode = document.getElementById("xboxRuntimePairing");
+  if (runtimePairNode) {
+    runtimePairNode.textContent = paired ? "paired" : "not paired";
+  }
+
+  const runtimeDot = document.getElementById("xboxRuntimeDot");
+  if (runtimeDot) {
+    runtimeDot.classList.remove("state-green", "state-red", "state-amber");
+    if (runtimeLabel === "connected" && paired) {
+      runtimeDot.classList.add("state-green");
+    } else if (runtimeLabel === "scanning" || runtimeLabel === "pairing") {
+      runtimeDot.classList.add("state-amber");
+    } else {
+      runtimeDot.classList.add("state-red");
+    }
+  }
+}
+
 export function renderSnapshot(data) {
   document.getElementById("connected").textContent = data.connected ? "yes" : "no";
   document.getElementById("leaderIp").textContent = data.leader_ip || "-";
@@ -37,7 +103,9 @@ export function renderSnapshot(data) {
   document.getElementById("followerServoDebug").textContent = boolLabel(!!data.follower_servo_debug_manual);
   document.getElementById("leaderServoTelemetry").textContent = data.leader_servo_telemetry || "-";
   document.getElementById("followerServoTelemetry").textContent = data.follower_servo_telemetry || "-";
+  updateLeaderDebugToggleButton(!!data.leader_servo_debug_manual);
   updateFollowerDebugButtons(!!data.follower_servo_debug_manual);
+  updateXboxRuntime(data);
 
   document.getElementById("cmdRequestId").textContent = `${data.command_request_id || 0}`;
   document.getElementById("cmdCode").textContent = `${data.command_code || 0}`;

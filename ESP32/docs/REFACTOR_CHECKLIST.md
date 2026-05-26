@@ -12,10 +12,10 @@ This checklist tracks the current multi-phase implementation plan for dashboard 
 
 ## Phase 2 - Operator Testability Controls
 
-- [ ] 2.1: Add "Center all servos" action in teleoperation view.
-- [ ] 2.2: Add per-servo "Center" action in manual commands view.
-- [ ] 2.3: Ensure center commands are safe with partial setup (for bench testing with only two servos connected).
-- [ ] 2.4: Add clear command status feedback for each center action.
+- [x] 2.1: Add "Center all servos" action in teleoperation view.
+- [x] 2.2: Add per-servo "Center" action in manual commands view.
+- [x] 2.3: Ensure center commands are safe with partial setup (for bench testing with only two servos connected).
+- [x] 2.4: Add clear command status feedback for each center action.
 
 ## Phase 3 - Xbox Pairing and Mapping Wizard
 

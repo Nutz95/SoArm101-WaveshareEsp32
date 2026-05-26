@@ -1,6 +1,29 @@
 <section class="panel view-panel" data-view-panel="pairing">
   <h2>Xbox Bluetooth Pairing</h2>
-  <p>Use this panel to pair and validate the Xbox controller link before teleoperation.</p>
+  <p>Follow this flow: pair hardware, verify runtime state, then save your controller mapping and operation profile.</p>
+
+  <section class="xbox-step">
+    <h3>Step 1 - Pair Controller Hardware</h3>
+    <div class="actions">
+      <button id="xboxPairingGuideBtn" type="button">Show Pairing Guide</button>
+      <span class="xbox-runtime-indicator">
+        <span id="xboxRuntimeDot" class="status-dot state-red" aria-hidden="true"></span>
+        <strong id="xboxRuntimePairing">not paired</strong>
+      </span>
+    </div>
+  </section>
+
+  <section class="xbox-step">
+    <h3>Step 2 - Validate Live Runtime</h3>
+    <div class="grid pairing-grid">
+      <div class="card"><span>Runtime State</span><strong id="xboxRuntimeState">disconnected</strong></div>
+      <div class="card"><span>Last Input Report Age</span><strong id="xboxRuntimeAge">0 ms</strong></div>
+      <div class="card"><span>Detected Controller Name</span><strong id="xboxRuntimeController">-</strong></div>
+    </div>
+  </section>
+
+  <section class="xbox-step">
+    <h3>Step 3 - Configure Operation Profile</h3>
   <div class="grid pairing-grid">
     <div class="card"><span>Current Operation Profile</span><strong id="pairingModeCurrent">teleop_espnow</strong></div>
     <div class="card"><span>Controller Config</span><strong id="xboxConfigStatus">disabled</strong></div>
@@ -17,6 +40,10 @@
     </label>
     <button id="pairingApplyModeBtn" type="button">Apply Operation Profile</button>
   </div>
+  </section>
+
+  <section class="xbox-step">
+    <h3>Step 4 - Configure Buttons and Sticks</h3>
   <div class="command-grid">
     <label>
       Preferred Controller Name
@@ -35,22 +62,22 @@
     <label>
       Mode Cycle Button
       <select id="xboxModeCycleButtonSelect">
-        <option value="view">View button</option>
-        <option value="menu">Menu button</option>
-        <option value="share">Share button</option>
-        <option value="left_stick">Left stick press</option>
-        <option value="right_stick">Right stick press</option>
+        <option value="view">View (button 6, center-left)</option>
+        <option value="menu">Menu (button 7, center-right)</option>
+        <option value="share">Share (center button)</option>
+        <option value="left_stick">Left stick click (button 8)</option>
+        <option value="right_stick">Right stick click (button 9)</option>
         <option value="none">Disabled</option>
       </select>
     </label>
     <label>
       User Action Button
       <select id="xboxUserActionButtonSelect">
-        <option value="share">Share button</option>
-        <option value="view">View button</option>
-        <option value="menu">Menu button</option>
-        <option value="left_stick">Left stick press</option>
-        <option value="right_stick">Right stick press</option>
+        <option value="share">Share (center button)</option>
+        <option value="view">View (button 6, center-left)</option>
+        <option value="menu">Menu (button 7, center-right)</option>
+        <option value="left_stick">Left stick click (button 8)</option>
+        <option value="right_stick">Right stick click (button 9)</option>
         <option value="none">Disabled</option>
       </select>
     </label>
@@ -62,8 +89,33 @@
     <label><input id="xboxInvertRightYInput" type="checkbox" checked /> Invert right Y axis</label>
     <button id="xboxSaveConfigBtn" type="button">Save Xbox Config</button>
   </div>
-  <div class="actions">
-    <button id="xboxPairingGuideBtn" type="button">Show Pairing Guide</button>
-  </div>
+  </section>
+
+  <section class="xbox-step">
+    <h3>Controller Diagram and Button Mapping</h3>
+    <figure class="xbox-diagram-figure">
+      <img src="XBoxControler.jpg" alt="Xbox controller mapping diagram" class="xbox-controller-diagram" />
+      <figcaption>Reference mapping used by this dashboard.</figcaption>
+    </figure>
+    <div class="xbox-mapping-grid">
+      <div class="card">
+        <span>Face Buttons</span>
+        <p>A = button 0, B = button 1, X = button 2, Y = button 3</p>
+      </div>
+      <div class="card">
+        <span>Shoulders and Triggers</span>
+        <p>LB = button 4, RB = button 5, LT = axis 9, RT = axis 10</p>
+      </div>
+      <div class="card">
+        <span>Sticks and Center Buttons</span>
+        <p>Left stick click = button 8, right stick click = button 9, View = button 6, Menu = button 7</p>
+      </div>
+      <div class="card">
+        <span>D-pad</span>
+        <p>Right/Left = axis 6, Up/Down = axis 7</p>
+      </div>
+    </div>
+  </section>
+
   <p id="xboxPairingStatus">No pairing action started.</p>
 </section>

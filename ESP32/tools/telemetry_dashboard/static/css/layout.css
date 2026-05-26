@@ -84,6 +84,17 @@ main {
   margin-top: 12px;
 }
 
+.xbox-step {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(130, 180, 246, 0.2);
+}
+
+.xbox-step h3 {
+  margin: 0 0 10px;
+  font-size: 0.98rem;
+}
+
 @media (max-width: 640px) {
   .hero {
     flex-direction: column;

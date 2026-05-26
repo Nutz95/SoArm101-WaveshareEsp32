@@ -25,8 +25,6 @@ Use it when implementing changes to avoid broad code searches.
   - Continuous teleoperation command parsing, speed update, and enable/disable handling.
 - `src/leader/leader_app_commands_teleop_transport.cpp`
   - Runtime teleop transport mode command handling (ESP-NOW/Wi-Fi UDP).
-- `src/leader/leader_app_oled_mode.cpp`
-  - OLED fifth-line mode text formatting (calibration, teleop ESP-NOW, teleop Wi-Fi).
 - `src/leader/leader_presence_service.cpp`
   - ESP-NOW pairing, frame ingest, and follower state updates.
 - `src/leader/leader_presence_transport.cpp`
@@ -37,6 +35,8 @@ Use it when implementing changes to avoid broad code searches.
   - Continuous teleop mirroring logic, batch sends, and send-to-ACK latency metrics.
 - `src/leader/leader_teleop_wifi_bridge.cpp`
   - Leader-side Wi-Fi UDP teleop batch sender and ACK polling.
+- `src/leader/leader_xbox_controller_service.cpp`
+  - NimBLE Xbox scan/connect/subscribe runtime service and controller telemetry state.
 
 ## Follower Firmware
 
@@ -55,6 +55,8 @@ Use it when implementing changes to avoid broad code searches.
 
 - `src/common/servo/servo_bus_service.cpp`
   - Servo scan/read/write operations and SyncWrite batch move.
+- `src/common/servo/servo_bus_service_torque.cpp`
+  - Servo torque enable/release operations extracted from ServoBusService core file.
 - `src/common/servo/servo_bus_service_temperature.cpp`
   - Slow temperature polling and alarm hysteresis logic.
 - `src/common/servo/servo_bus_service_refresh.cpp`
