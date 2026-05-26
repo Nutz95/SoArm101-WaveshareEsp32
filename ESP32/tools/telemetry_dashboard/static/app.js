@@ -12,6 +12,26 @@ import {
 } from "./js/pending_command.js";
 
 const REFRESH_INTERVAL_MS = 100;
+const VIEW_PARTIALS = ["views/pairing.html", "views/overview.html", "views/teleop.html", "views/manual.html"];
+
+async function loadViewPartials() {
+  const root = document.getElementById("dashboardViewsRoot");
+  if (!root) {
+    throw new Error("dashboardViewsRoot not found");
+  }
+
+  const partialMarkup = await Promise.all(
+    VIEW_PARTIALS.map(async (path) => {
+      const response = await fetch(path, { cache: "no-cache" });
+      if (!response.ok) {
+        throw new Error(`Failed to load ${path}`);
+      }
+      return response.text();
+    })
+  );
+
+  root.innerHTML = partialMarkup.join("\n");
+}
 
 async function refresh() {
   try {
@@ -23,9 +43,15 @@ async function refresh() {
   }
 }
 
-initNavigationView();
-initPairingView(commandWithStatus, saveTeleopConfig, refresh);
-initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleopMirror, refresh);
-initManualView(commandWithStatus, hasPendingFollowerCommand, registerPendingCommand);
-setInterval(refresh, REFRESH_INTERVAL_MS);
-refresh();
+async function bootstrap() {
+  await loadViewPartials();
+  initNavigationView();
+  initPairingView(commandWithStatus, saveTeleopConfig, refresh);
+  initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleopMirror, refresh);
+  initManualView(commandWithStatus, hasPendingFollowerCommand, registerPendingCommand);
+  setInterval(refresh, REFRESH_INTERVAL_MS);
+  refresh();
+}
+
+bootstrap().catch(() => {
+});

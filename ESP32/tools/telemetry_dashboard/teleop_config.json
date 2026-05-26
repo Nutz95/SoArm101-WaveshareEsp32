@@ -3,5 +3,5 @@
   "same_id_mapping": true,
   "calibration_required": false,
   "speed_pct": 100,
-  "transport_mode": 0
+  "transport_mode": 1
 }
