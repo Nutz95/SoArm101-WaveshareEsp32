@@ -12,7 +12,7 @@ bool FollowerTeleopWifiBridge::consumeBatch(
     int16_t *positions,
     uint8_t capacity,
     uint8_t &count,
-    uint8_t &speedPct,
+  uint8_t &speedPercent,
     uint16_t &requestId) {
   if (!started_ || ids == nullptr || positions == nullptr || capacity == 0U) {
     return false;
@@ -42,7 +42,7 @@ bool FollowerTeleopWifiBridge::consumeBatch(
   }
 
   count = copyCount;
-  speedPct = packet.speedPct;
+  speedPercent = packet.speedPercent;
   requestId = packet.requestId;
 
   leaderAckIp_ = udp_.remoteIP();

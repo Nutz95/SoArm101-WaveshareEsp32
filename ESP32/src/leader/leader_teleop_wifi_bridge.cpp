@@ -14,7 +14,7 @@ bool LeaderTeleopWifiBridge::sendBatch(
     const uint8_t *ids,
     const int16_t *positions,
     uint8_t count,
-    uint8_t speedPct,
+  uint8_t speedPercent,
     uint16_t requestId) {
   if (!started_ || followerIp == nullptr || ids == nullptr || positions == nullptr || count == 0U) {
     return false;
@@ -32,7 +32,7 @@ bool LeaderTeleopWifiBridge::sendBatch(
   packet.type = teleop_wifi::kTypeBatch;
   packet.requestId = requestId;
   packet.count = clampedCount;
-  packet.speedPct = speedPct;
+  packet.speedPercent = speedPercent;
   for (uint8_t i = 0U; i < clampedCount; ++i) {
     packet.entries[i].id = ids[i];
     packet.entries[i].position = positions[i];

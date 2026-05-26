@@ -341,7 +341,7 @@ uint8_t buildMirrorBatch(
 void sendBatch(
   ILeaderPresenceService &presenceService, LeaderTeleopWifiBridge &teleopWifiBridge, uint8_t count,
   TeleopMirrorState &state, uint16_t &requestCounter, TeleopMirrorLatencyMetrics &latencyMetrics,
-  uint32_t nowMs, TeleopTransportMode transportMode, uint8_t speedPct) {
+  uint32_t nowMs, TeleopTransportMode transportMode, uint8_t speedPercent) {
   if (count == 0U) {
     return;
   }
@@ -349,9 +349,9 @@ void sendBatch(
   ++requestCounter;
   bool sent = false;
   if (transportMode == TeleopTransportMode::WifiUdp) {
-    sent = teleopWifiBridge.sendBatch(presenceService.followerIp(), state.batchIds, state.batchPositions, count, speedPct, requestCounter);
+    sent = teleopWifiBridge.sendBatch(presenceService.followerIp(), state.batchIds, state.batchPositions, count, speedPercent, requestCounter);
   } else {
-    sent = presenceService.requestTeleopMirrorBatch(state.batchIds, state.batchPositions, count, speedPct, requestCounter);
+    sent = presenceService.requestTeleopMirrorBatch(state.batchIds, state.batchPositions, count, speedPercent, requestCounter);
   }
   if (sent) {
     registerPendingBatch(state, requestCounter, nowMs);
@@ -387,8 +387,8 @@ void LeaderTeleopMirrorTask::runLoop(
     refreshFollowerIds(state, presenceService);
     const uint8_t filterId = servoIdFilter.load();
     const uint8_t batchCount = buildMirrorBatch(state, servoBusService, filterId);
-    const uint8_t continuousSpeed = speedPct.load();
-    sendBatch(presenceService, teleopWifiBridge, batchCount, state, requestCounter, latencyMetrics, nowMs, selectedMode, continuousSpeed);
+    const uint8_t continuousSpeedPercent = speedPct.load();
+    sendBatch(presenceService, teleopWifiBridge, batchCount, state, requestCounter, latencyMetrics, nowMs, selectedMode, continuousSpeedPercent);
 
     vTaskDelay(pdMS_TO_TICKS(config::leader::kTeleopMirrorTaskActiveDelayMs));
   }

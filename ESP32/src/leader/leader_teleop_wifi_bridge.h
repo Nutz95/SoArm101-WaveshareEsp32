@@ -15,7 +15,7 @@ public:
       const uint8_t *ids,
       const int16_t *positions,
       uint8_t count,
-      uint8_t speedPct,
+      uint8_t speedPercent,
       uint16_t requestId);
   bool pollAck(uint16_t &requestId, uint8_t &status);
 

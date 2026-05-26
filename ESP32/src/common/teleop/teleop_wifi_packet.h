@@ -25,7 +25,7 @@ struct BatchPacket {
   uint8_t type;
   uint16_t requestId;
   uint8_t count;
-  uint8_t speedPct;
+  uint8_t speedPercent;
   BatchEntry entries[6];
 } __attribute__((packed));
 

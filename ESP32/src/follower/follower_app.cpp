@@ -101,7 +101,7 @@ void FollowerApp::processIncomingTeleopWifiBatch() {
   uint8_t ids[config::common::kTeleopBatchMaxServos]{};
   int16_t positions[config::common::kTeleopBatchMaxServos]{};
   uint8_t count = 0U;
-  uint8_t speedPct = 0U;
+  uint8_t speedPercent = 0U;
   uint16_t requestId = 0U;
 
   if (!teleopWifiBridge_.consumeBatch(
@@ -109,13 +109,13 @@ void FollowerApp::processIncomingTeleopWifiBatch() {
           positions,
           config::common::kTeleopBatchMaxServos,
           count,
-          speedPct,
+            speedPercent,
           requestId)) {
     return;
   }
 
   const uint16_t speed = static_cast<uint16_t>(
-      (static_cast<uint32_t>(speedPct) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
+          (static_cast<uint32_t>(speedPercent) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
   const bool ok = servoBusService_.moveBatch(ids, positions, count, speed);
   teleopWifiBridge_.sendAck(
       requestId,
@@ -126,7 +126,7 @@ void FollowerApp::processIncomingTeleopBatch() {
   uint8_t ids[config::common::kTeleopBatchMaxServos]{};
   int16_t positions[config::common::kTeleopBatchMaxServos]{};
   uint8_t count = 0U;
-  uint8_t speedPct = 0U;
+  uint8_t speedPercent = 0U;
   uint16_t requestId = 0U;
 
   if (!presenceService_->consumeTeleopMirrorBatch(
@@ -134,13 +134,13 @@ void FollowerApp::processIncomingTeleopBatch() {
           positions,
           config::common::kTeleopBatchMaxServos,
           count,
-          speedPct,
+            speedPercent,
           requestId)) {
     return;
   }
 
   const uint16_t speed = static_cast<uint16_t>(
-      (static_cast<uint32_t>(speedPct) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
+          (static_cast<uint32_t>(speedPercent) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
   const bool ok = servoBusService_.moveBatch(ids, positions, count, speed);
   presenceService_->updateLastCommandAck(
       requestId,
