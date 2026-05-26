@@ -12,7 +12,19 @@ import {
 } from "./js/pending_command.js";
 
 const REFRESH_INTERVAL_MS = 100;
-const VIEW_PARTIALS = ["views/pairing.html", "views/overview.html", "views/teleop.html", "views/manual.html"];
+const VIEW_PARTIALS = [
+  "views/pairing/pairing_control.html",
+  "views/pairing/xbox_pairing.html",
+  "views/overview/command_ack.html",
+  "views/overview/transport_diagnostics.html",
+  "views/overview/runtime.html",
+  "views/overview/servo_buses.html",
+  "views/teleop/summary.html",
+  "views/teleop/controls.html",
+  "views/teleop/chart.html",
+  "views/teleop/cards.html",
+  "views/manual/commands.html",
+];
 
 async function loadViewPartials() {
   const root = document.getElementById("dashboardViewsRoot");

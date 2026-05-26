@@ -1,17 +1,5 @@
 <section class="panel view-panel" data-view-panel="teleop">
-  <h2>Teleoperation</h2>
-  <div class="grid pairing-grid">
-    <div class="card"><span>Matched IDs</span><strong id="teleopMatchedCount">0</strong></div>
-    <div class="card"><span>Mirrorable IDs</span><strong id="teleopMirrorableCount">0</strong></div>
-    <div class="card"><span>Leader Detected</span><strong id="teleopLeaderDetected">0</strong></div>
-    <div class="card"><span>Follower Detected</span><strong id="teleopFollowerDetected">0</strong></div>
-    <div class="card"><span>Continuous Mirror</span><strong id="teleopContinuousState">off</strong></div>
-    <div class="card"><span>Estimated Lag</span><strong id="teleopLagEstimate">-</strong></div>
-    <div class="card"><span>Tracking Error</span><strong id="teleopErrorEstimate">-</strong></div>
-    <div class="card"><span>FW Mirror RTT</span><strong id="teleopFwLatency">-</strong></div>
-    <div class="card"><span>FW Mirror Queue</span><strong id="teleopFwQueue">-</strong></div>
-    <div class="card"><span>Transport</span><strong id="teleopTransportMode">ESP-NOW</strong></div>
-  </div>
+  <h2>Teleoperation Controls</h2>
   <div class="command-grid teleop-config-grid">
     <label class="teleop-toggle">
       <span>Teleop Enabled</span>
@@ -43,15 +31,8 @@
     <button id="teleopMirrorAllBtn" type="button">Mirror Matched Servos</button>
     <button id="teleopContinuousAllBtn" type="button">Start Continuous (All Matched)</button>
     <button id="teleopContinuousStopBtn" type="button">Stop Continuous Mirror</button>
+    <button id="teleopCenterAllBtn" type="button">Center All Mirrorable Servos</button>
   </div>
   <p id="teleopStatus">Teleoperation idle.</p>
   <p class="teleop-legend">Legend: p = position (raw), v = voltage, t = temperature, m = servo mode. In fast telemetry mode, v/t/m can stay at 0.</p>
-  <section class="card teleop-chart-card" aria-label="Teleoperation position chart">
-    <div class="teleop-chart-header">
-      <strong>Position Curves (Leader vs Follower)</strong>
-      <span id="teleopChartLegend" class="teleop-chart-legend">No data yet.</span>
-    </div>
-    <canvas id="teleopPositionChart" class="teleop-chart-canvas" width="960" height="280"></canvas>
-  </section>
-  <div id="teleopServoCards" class="teleop-grid"></div>
 </section>
