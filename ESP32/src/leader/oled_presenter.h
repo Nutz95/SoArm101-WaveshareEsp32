@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../common/types/operation_mode.h"
+#include "../common/teleop/teleop_transport_mode.h"
 #include "oled_display_config.h"
 
 #include <cstdint>
@@ -25,11 +26,11 @@ public:
 
     void showConnecting(const char *followerIpHint);
     void showDashboard(const char *leaderIp,
-                                         const char *followerIp,
-                                         OperationMode mode,
-                                         const char *status,
-                                         const char *extraLine,
-                                         uint32_t nowMs);
+                       const char *followerIp,
+                       OperationMode mode,
+                       TeleopTransportMode transportMode,
+                       const char *status,
+                       uint32_t nowMs);
     void showOtaProgress(uint8_t progressPercent);
     void showError(uint32_t errorCode, const char *message);
 
@@ -42,8 +43,7 @@ private:
         const char *line1,
         const char *line2,
         const char *line3,
-        const char *line4,
-        const char *line5);
+        const char *line4);
 };
 
 } // namespace soarm

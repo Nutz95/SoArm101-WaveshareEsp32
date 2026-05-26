@@ -8,16 +8,16 @@ namespace soarm {
 
 namespace {
 
-const char *modeLabel(OperationMode mode) {
+const char *modeLabel(OperationMode mode, TeleopTransportMode transportMode) {
     switch (mode) {
         case OperationMode::Idle:
             return "IDLE";
         case OperationMode::CalibrationLeader:
-            return "CAL LEAD";
+            return "CAL LEADER";
         case OperationMode::CalibrationFollower:
-            return "CAL FOLL";
+            return "CAL FOLLOWER";
         case OperationMode::Teleoperation:
-            return "TELEOP";
+            return transportMode == TeleopTransportMode::WifiUdp ? "TELEOP WIFI" : "TELEOP ESPNOW";
         default:
             return "UNKNOWN";
     }
@@ -90,15 +90,15 @@ void OledPresenter::showConnecting(const char *followerIpHint) {
         snprintf(l2, sizeof(l2), "F:%s", followerIpHint);
     }
 
-    printLines("L:connecting", l2, "M:IDLE", "S:WiFi connecting", nullptr);
+    printLines("L:connecting", l2, "M:IDLE", "S:WiFi connecting");
 }
 
 void OledPresenter::showDashboard(const char *leaderIp,
-                                                                    const char *followerIp,
-                                                                    OperationMode mode,
-                                                                    const char *status,
-                                                                    const char *extraLine,
-                                                                    uint32_t nowMs) {
+                                 const char *followerIp,
+                                 OperationMode mode,
+                                 TeleopTransportMode transportMode,
+                                 const char *status,
+                                 uint32_t nowMs) {
     if (display_ == nullptr) {
         return;
     }
@@ -114,7 +114,7 @@ void OledPresenter::showDashboard(const char *leaderIp,
     if (followerIp && followerIp[0] != '\0') {
         snprintf(l2, sizeof(l2), "F:%s", followerIp);
     }
-    snprintf(l3, sizeof(l3), "M:%s", modeLabel(mode));
+    snprintf(l3, sizeof(l3), "M:%s", modeLabel(mode, transportMode));
     if (status && status[0] != '\0') {
         snprintf(l4, sizeof(l4), "S:%s", status);
     }
@@ -128,7 +128,7 @@ void OledPresenter::showDashboard(const char *leaderIp,
         }
     }
 
-    printLines(l1, l2, l3, l4, extraLine);
+    printLines(l1, l2, l3, l4);
 }
 
 void OledPresenter::showOtaProgress(uint8_t progressPercent) {
@@ -209,8 +209,7 @@ void OledPresenter::applyTextStyle() {
 void OledPresenter::printLines(const char *line1,
                                                                 const char *line2,
                                                                 const char *line3,
-                                                                const char *line4,
-                                                                const char *line5) {
+                                                                const char *line4) {
     if (display_ == nullptr) {
         return;
     }
@@ -237,17 +236,6 @@ void OledPresenter::printLines(const char *line1,
         }
     }
 
-    const bool hasFiveLines =
-        line5 != nullptr && line5[0] != '\0' && config_.textStyle == OledTextStyle::Small
-        && config_.screenHeight >= 40U;
-
-    if (hasFiveLines) {
-        y0 = 0;
-        y1 = 8;
-        y2 = 16;
-        y3 = 24;
-    }
-
     display_->setCursor(0, y0);
     display_->println(line1);
     display_->setCursor(0, y1);
@@ -257,10 +245,6 @@ void OledPresenter::printLines(const char *line1,
     display_->setCursor(0, y3);
     display_->println(line4);
 
-    if (hasFiveLines) {
-        display_->setCursor(0, 32);
-        display_->println(line5);
-    }
     display_->display();
 }
 

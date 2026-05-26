@@ -346,15 +346,12 @@ void LeaderApp::refreshOled(uint32_t uptimeMs) {
       statusLine_[sizeof(statusLine_) - 1] = '\0';
       oled_.showOtaProgress(50);
     } else {
-      char modeLine[24] = "Mode: IDLE";
-      buildOledModeLine(modeLine, sizeof(modeLine));
-
       oled_.showDashboard(
           wifiOta_.ipAddress(),
           followerIpHint_,
           mode_,
+          static_cast<TeleopTransportMode>(teleopTransportMode_.load()),
           statusLine_,
-          modeLine,
           uptimeMs);
     }
   }

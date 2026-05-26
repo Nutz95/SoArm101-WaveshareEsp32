@@ -19,7 +19,6 @@
 #include "../common/teleop/teleop_transport_mode.h"
 
 #include <atomic>
-#include <cstddef>
 #include <cstdint>
 #include <memory>
 
@@ -83,7 +82,6 @@ private:
   // Telemetry / display extracted from tick()
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
   void refreshOled(uint32_t uptimeMs);
-  void buildOledModeLine(char *buffer, size_t bufferSize) const;
 
   void startBackgroundTasks();
   static void telemetryPollTaskEntry(void *context);
