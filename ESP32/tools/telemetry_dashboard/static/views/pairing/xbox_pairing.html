@@ -3,6 +3,8 @@
   <p>Use this panel to pair and validate the Xbox controller link before teleoperation.</p>
   <div class="grid pairing-grid">
     <div class="card"><span>Current Operation Profile</span><strong id="pairingModeCurrent">teleop_espnow</strong></div>
+    <div class="card"><span>Controller Config</span><strong id="xboxConfigStatus">disabled</strong></div>
+    <div class="card"><span>Preferred Controller</span><strong id="xboxPreferredControllerCurrent">Xbox Wireless Controller</strong></div>
   </div>
   <div class="command-grid">
     <label>
@@ -14,6 +16,51 @@
       </select>
     </label>
     <button id="pairingApplyModeBtn" type="button">Apply Operation Profile</button>
+  </div>
+  <div class="command-grid">
+    <label>
+      Preferred Controller Name
+      <input id="xboxPreferredControllerInput" type="text" maxlength="64" placeholder="Xbox Wireless Controller" />
+    </label>
+    <label>
+      Analog Deadzone (%)
+      <input id="xboxDeadzoneInput" type="number" min="0" max="100" step="1" value="12" />
+    </label>
+    <label>
+      Trigger Threshold (%)
+      <input id="xboxTriggerThresholdInput" type="number" min="0" max="100" step="1" value="35" />
+    </label>
+  </div>
+  <div class="command-grid">
+    <label>
+      Mode Cycle Button
+      <select id="xboxModeCycleButtonSelect">
+        <option value="view">View button</option>
+        <option value="menu">Menu button</option>
+        <option value="share">Share button</option>
+        <option value="left_stick">Left stick press</option>
+        <option value="right_stick">Right stick press</option>
+        <option value="none">Disabled</option>
+      </select>
+    </label>
+    <label>
+      User Action Button
+      <select id="xboxUserActionButtonSelect">
+        <option value="share">Share button</option>
+        <option value="view">View button</option>
+        <option value="menu">Menu button</option>
+        <option value="left_stick">Left stick press</option>
+        <option value="right_stick">Right stick press</option>
+        <option value="none">Disabled</option>
+      </select>
+    </label>
+  </div>
+  <div class="actions">
+    <label><input id="xboxControllerEnabledInput" type="checkbox" /> Enable Xbox controller workflow</label>
+    <label><input id="xboxAutoReconnectInput" type="checkbox" checked /> Auto reconnect on startup</label>
+    <label><input id="xboxInvertLeftYInput" type="checkbox" checked /> Invert left Y axis</label>
+    <label><input id="xboxInvertRightYInput" type="checkbox" checked /> Invert right Y axis</label>
+    <button id="xboxSaveConfigBtn" type="button">Save Xbox Config</button>
   </div>
   <div class="actions">
     <button id="xboxPairingGuideBtn" type="button">Show Pairing Guide</button>

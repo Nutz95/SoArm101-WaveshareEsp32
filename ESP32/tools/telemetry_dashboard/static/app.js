@@ -1,4 +1,12 @@
-import { fetchLatest, fetchTeleopState, commandWithStatus, saveTeleopConfig, triggerTeleopMirror } from "./js/api.js";
+import {
+  fetchLatest,
+  fetchTeleopState,
+  fetchControllerConfig,
+  commandWithStatus,
+  saveTeleopConfig,
+  saveControllerConfig,
+  triggerTeleopMirror,
+} from "./js/api.js";
 import { renderSnapshot } from "./js/dashboard_render.js";
 import { renderTeleopState } from "./js/teleop_ui.js";
 import { initManualView } from "./js/views/manual_view.js";
@@ -58,7 +66,7 @@ async function refresh() {
 async function bootstrap() {
   await loadViewPartials();
   initNavigationView();
-  initPairingView(commandWithStatus, saveTeleopConfig, refresh);
+  initPairingView(commandWithStatus, saveTeleopConfig, fetchControllerConfig, saveControllerConfig, refresh);
   initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleopMirror, refresh);
   initManualView(commandWithStatus, hasPendingFollowerCommand, registerPendingCommand);
   setInterval(refresh, REFRESH_INTERVAL_MS);

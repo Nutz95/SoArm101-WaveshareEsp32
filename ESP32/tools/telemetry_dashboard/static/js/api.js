@@ -8,6 +8,11 @@ export async function fetchTeleopState() {
   return response.json();
 }
 
+export async function fetchControllerConfig() {
+  const response = await fetch("/api/controller/config", { cache: "no-store" });
+  return response.json();
+}
+
 export async function sendCommand(command, value = 0) {
   const response = await fetch("/api/command", {
     method: "POST",
@@ -56,6 +61,17 @@ export async function commandWithStatus(command, value, okText, failText) {
 
 export async function saveTeleopConfig(config) {
   const response = await fetch("/api/teleop/config", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(config),
+  });
+  return response.json();
+}
+
+export async function saveControllerConfig(config) {
+  const response = await fetch("/api/controller/config", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

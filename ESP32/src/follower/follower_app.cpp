@@ -241,6 +241,7 @@ CommandAckStatus FollowerApp::handleDebugEnable(uint32_t value) {
 CommandAckStatus FollowerApp::handleDebugDisable(uint32_t value) {
   (void)value;
   servoBusService_.setDebugManual(false);
+  servoBusService_.setTorqueEnabledForDetectedServos(false);
   Serial.println("[SERVO] debug manual disabled");
   return CommandAckStatus::Applied;
 }

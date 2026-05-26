@@ -159,6 +159,7 @@ bool ServoBusService::moveBatch(const uint8_t *ids, const int16_t *positions, ui
     positionBuffer[i] = positions[i];
     speedBuffer[i] = speed;
     accBuffer[i] = 0U;
+    driver.EnableTorque(idBuffer[i], 1U);
   }
 
   driver.SyncWritePosEx(idBuffer, clampedCount, positionBuffer, speedBuffer, accBuffer);
@@ -182,6 +183,11 @@ bool ServoBusService::moveTo(uint8_t id, int16_t position, uint16_t speed, uint8
   driver.End = 0;
   driver.pSerial = serial_;
   driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
+
+  if (driver.EnableTorque(id, 1U) <= 0) {
+    setSummary("torque enable failed");
+    return false;
+  }
 
   const int result = driver.WritePosEx(id, static_cast<int16_t>(position), speed, acceleration);
   if (result < 0) {
@@ -328,6 +334,76 @@ bool ServoBusService::setServoMode(uint8_t id, uint8_t mode) {
   }
 
   setSummary("mode updated");
+  return true;
+}
+
+bool ServoBusService::setTorqueEnabled(uint8_t id, bool enabled) {
+  if (!started_ || serial_ == nullptr) {
+    setSummary("not started");
+    return false;
+  }
+
+  ScopedBusLock guard(lockManager_, config::common::kServoBusLockTimeoutMs);
+  if (!guard.locked()) {
+    setSummary("bus busy");
+    return false;
+  }
+
+  SMS_STS driver;
+  driver.End = 0;
+  driver.pSerial = serial_;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
+
+  if (driver.EnableTorque(id, enabled ? 1U : 0U) <= 0) {
+    setSummary(enabled ? "torque on failed" : "torque off failed");
+    return false;
+  }
+
+  setSummary(enabled ? "torque enabled" : "torque released");
+  return true;
+}
+
+bool ServoBusService::setTorqueEnabledForDetectedServos(bool enabled) {
+  if (!started_ || serial_ == nullptr) {
+    setSummary("not started");
+    return false;
+  }
+
+  ScopedBusLock guard(lockManager_, config::common::kServoBusLockTimeoutMs);
+  if (!guard.locked()) {
+    setSummary("bus busy");
+    return false;
+  }
+
+  SMS_STS driver;
+  driver.End = 0;
+  driver.pSerial = serial_;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
+
+  bool detectedAny = false;
+  bool allOk = true;
+  for (uint8_t id = config_.firstId; id <= config_.lastId; ++id) {
+    if (driver.Ping(id) < 0) {
+      continue;
+    }
+
+    detectedAny = true;
+    if (driver.EnableTorque(id, enabled ? 1U : 0U) <= 0) {
+      allOk = false;
+    }
+  }
+
+  if (!detectedAny) {
+    setSummary("no servo found");
+    return false;
+  }
+
+  if (!allOk) {
+    setSummary(enabled ? "partial torque on" : "partial torque off");
+    return false;
+  }
+
+  setSummary(enabled ? "torque enabled" : "torque released");
   return true;
 }
 

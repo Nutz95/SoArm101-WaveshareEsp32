@@ -25,6 +25,7 @@ from dashboard_protocol import (
     ESP_CMD_TELEOP_MIRROR,
     ESP_CMD_TELEOP_TRANSPORT_SET,
 )
+from controller_runtime import ControllerConfigStore
 from dashboard_state import DashboardState
 from teleop_runtime import TeleopConfigStore, build_mirror_values, build_teleop_state
 
@@ -38,6 +39,7 @@ def build_dashboard_server(
     class DashboardHandler(BaseHTTPRequestHandler):
         static_dir = Path(os.path.join(os.path.dirname(__file__), "static")).resolve()
         teleop_store = TeleopConfigStore(Path(os.path.join(os.path.dirname(__file__), "teleop_config.json")))
+        controller_store = ControllerConfigStore(Path(os.path.join(os.path.dirname(__file__), "controller_config.json")))
 
         command_map: Dict[str, int] = {
             "start_stream": ESP_CMD_START_STREAM,
@@ -82,6 +84,11 @@ def build_dashboard_server(
                 self._send_bytes(200, "application/json", payload)
                 return
 
+            if request_path == "/api/controller/config":
+                payload = json.dumps(self._build_controller_payload()).encode("utf-8")
+                self._send_bytes(200, "application/json", payload)
+                return
+
             if request_path == "/":
                 request_path = "/index.html"
 
@@ -96,6 +103,10 @@ def build_dashboard_server(
 
             if parsed.path == "/api/teleop/mirror":
                 self._handle_teleop_mirror_post()
+                return
+
+            if parsed.path == "/api/controller/config":
+                self._handle_controller_config_post()
                 return
 
             if parsed.path != "/api/command":
@@ -168,10 +179,22 @@ def build_dashboard_server(
                 },
             )
 
+        def _handle_controller_config_post(self) -> None:
+            payload = self._read_json_body()
+            if payload is None:
+                self._send_json(400, {"ok": False, "error": "invalid_json"})
+                return
+
+            config = self.controller_store.update(payload)
+            self._send_json(200, {"ok": True, "config": config})
+
         def _build_teleop_payload(self) -> Dict[str, object]:
             snapshot = state.snapshot()
             config = self.teleop_store.snapshot()
             return build_teleop_state(snapshot, config)
+
+        def _build_controller_payload(self) -> Dict[str, object]:
+            return self.controller_store.state()
 
         def _read_json_body(self):
             content_length = int(self.headers.get("Content-Length", "0"))

@@ -187,6 +187,9 @@ bool LeaderApp::handleLeaderDebugCommand(
   beginCommandTracking(requestId, static_cast<uint8_t>(action));
   servoDebugManual_ = enable;
   servoBusService_.setDebugManual(enable);
+  if (!enable) {
+    servoBusService_.setTorqueEnabledForDetectedServos(false);
+  }
   setLeaderCommandStatus(CommandAckStatus::Applied);
   setFollowerCommandStatus(CommandAckStatus::None);
   setTransientStatus(statusText, config::leader::kDebugStatusHoldMs);

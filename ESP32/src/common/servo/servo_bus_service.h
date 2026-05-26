@@ -29,6 +29,8 @@ public:
   bool setServoId(uint8_t oldId, uint8_t newId);
   bool ping(uint8_t id);
   bool setServoMode(uint8_t id, uint8_t mode);
+  bool setTorqueEnabled(uint8_t id, bool enabled);
+  bool setTorqueEnabledForDetectedServos(bool enabled);
   void setDebugManual(bool enabled);
   bool isDebugManual() const;
   bool pollTemperatureAlarmSlow();
