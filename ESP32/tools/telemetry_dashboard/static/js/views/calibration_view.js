@@ -1,9 +1,16 @@
 export function initCalibrationView(commandWithStatus, saveTeleopConfig, refresh) {
-  let centerValidated = false;
+  function errorText(rawError) {
+    return rawError === "send_error" ? "leader stream disconnected" : (rawError || "send_error");
+  }
 
   function selectedCalibrationValue() {
     const value = String(document.getElementById("calibrationModeSelect")?.value || "calibration_leader");
     return value === "calibration_follower" ? 3 : 2;
+  }
+
+  function captureIsActive() {
+    const modeNode = document.getElementById("calibrationModeCurrent");
+    return String(modeNode?.dataset?.captureActive || "0") === "1";
   }
 
   document.getElementById("calibrationActivateBtn").addEventListener("click", async () => {
@@ -15,37 +22,35 @@ export function initCalibrationView(commandWithStatus, saveTeleopConfig, refresh
     );
     const statusNode = document.getElementById("calibrationStatus");
     if (!sent?.ok) {
-      statusNode.textContent = `Calibration activation failed (${sent?.error || "send_error"}).`;
+      statusNode.textContent = `Calibration activation failed (${errorText(sent?.error)}).`;
       return;
     }
 
     await saveTeleopConfig({ calibration_required: true });
-    centerValidated = false;
     statusNode.textContent = "Calibration mode active. Center servos first, then confirm center.";
     await refresh();
   });
 
   document.getElementById("calibrationValidateABtn").addEventListener("click", async () => {
     const statusNode = document.getElementById("calibrationStatus");
-    const commandValue = centerValidated ? 3 : 2;
+    const rangeActive = captureIsActive();
+    const commandValue = rangeActive ? 3 : 2;
     const sent = await commandWithStatus(
       "teleop_calibration_capture",
       commandValue,
-      centerValidated ? "Calibration committed." : "Calibration center confirmed.",
-      centerValidated ? "Failed to commit calibration." : "Failed to confirm calibration center."
+      rangeActive ? "Calibration committed." : "Calibration center confirmed.",
+      rangeActive ? "Failed to commit calibration." : "Failed to confirm calibration center."
     );
     if (!sent?.ok) {
-      statusNode.textContent = centerValidated
-        ? `Calibration commit failed (${sent?.error || "send_error"}).`
-        : `Center confirmation failed (${sent?.error || "send_error"}).`;
+      statusNode.textContent = rangeActive
+        ? `Calibration commit failed (${errorText(sent?.error)}).`
+        : `Center confirmation failed (${errorText(sent?.error)}).`;
       return;
     }
 
-    if (!centerValidated) {
-      centerValidated = true;
+    if (!rangeActive) {
       statusNode.textContent = "Center confirmed. Move all joints to explore min/max, then press Validate (A) again.";
     } else {
-      centerValidated = false;
       await saveTeleopConfig({ calibration_required: false, transport_mode: 0 });
       statusNode.textContent = "Calibration finished. Teleoperation ESP-NOW is active.";
     }
@@ -62,11 +67,10 @@ export function initCalibrationView(commandWithStatus, saveTeleopConfig, refresh
       "Failed to cancel calibration."
     );
     if (!sent?.ok) {
-      statusNode.textContent = `Calibration cancel failed (${sent?.error || "send_error"}).`;
+      statusNode.textContent = `Calibration cancel failed (${errorText(sent?.error)}).`;
       return;
     }
 
-    centerValidated = false;
     statusNode.textContent = "Calibration canceled. Stay in calibration mode or switch profile.";
     await refresh();
   });

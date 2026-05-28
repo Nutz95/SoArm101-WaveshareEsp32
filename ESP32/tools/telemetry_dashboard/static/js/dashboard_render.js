@@ -12,6 +12,14 @@ const calibrationStageState = {
   follower: "idle",
 };
 
+const calibrationProfileByMode = {
+  0: "idle",
+  1: "calibration_leader",
+  2: "calibration_follower",
+  3: "teleop_espnow",
+  4: "teleop_wifi",
+};
+
 function updateFollowerDebugButtons(debugEnabled) {
   const toggleBtn = document.getElementById("followerServoDebugToggleBtn");
   if (!toggleBtn) {
@@ -106,19 +114,8 @@ function updateCalibrationExtrema(role, rows, captureActive) {
 }
 
 function formatCalibrationProfile(modeValue) {
-  if (modeValue <= 0) {
-    return "idle";
-  }
-  if (modeValue === 1) {
-    return "calibration_leader";
-  }
-  if (modeValue === 2) {
-    return "calibration_follower";
-  }
-  if (modeValue === 3) {
-    return "teleop_espnow";
-  }
-  return "teleop_wifi";
+  const numericMode = Number(modeValue || 0);
+  return calibrationProfileByMode[numericMode] || "teleop_wifi";
 }
 
 function calibrationInstruction(role, captureActive) {
@@ -133,7 +130,17 @@ function calibrationInstruction(role, captureActive) {
   return `Move the ${role} servos across both extremes, then validate with A to save and exit, or B to cancel.`;
 }
 
-function renderCalibrationTable(tableBody, rows, extremaMap) {
+function nvsMin(nvsProfile, servoId) {
+  const idx = servoId - 1;
+  return (nvsProfile && Array.isArray(nvsProfile.min) && idx >= 0 && idx < nvsProfile.min.length) ? nvsProfile.min[idx] : 0;
+}
+
+function nvsMax(nvsProfile, servoId) {
+  const idx = servoId - 1;
+  return (nvsProfile && Array.isArray(nvsProfile.max) && idx >= 0 && idx < nvsProfile.max.length) ? nvsProfile.max[idx] : 4095;
+}
+
+function renderCalibrationTable(tableBody, rows, extremaMap, nvsProfile) {
   if (!tableBody) {
     return;
   }
@@ -147,15 +154,18 @@ function renderCalibrationTable(tableBody, rows, extremaMap) {
   }
 
   rows.forEach((row) => {
-    const extrema = extremaMap.get(row.id);
-    const minValue = extrema ? extrema.min : row.position;
-    const maxValue = extrema ? extrema.max : row.position;
+    const extrema = extremaMap ? extremaMap.get(row.id) : undefined;
+    const minValue = extrema ? extrema.min : nvsMin(nvsProfile, row.id);
+    const maxValue = extrema ? extrema.max : nvsMax(nvsProfile, row.id);
+    const atLimit = row.position <= minValue || row.position >= maxValue;
+    const inverted = maxValue < minValue;
+    const limitClass = (atLimit || inverted) ? "is-limit" : "";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${row.id}</td>
-      <td class="${row.position < 0 ? "is-negative" : ""}">${row.position}</td>
+      <td class="${row.position < 0 ? "is-negative" : ""} ${limitClass}">${row.position}</td>
       <td class="${minValue < 0 ? "is-negative" : ""}">${minValue}</td>
-      <td class="${maxValue < 0 ? "is-negative" : ""}">${maxValue}</td>
+      <td class="${maxValue < 0 ? "is-negative" : ""} ${inverted ? "is-limit" : ""}">${maxValue}</td>
     `;
     tableBody.appendChild(tr);
   });
@@ -172,6 +182,11 @@ function renderCalibrationPanel(data) {
   const telemetryText = displayRole === "follower" ? data.follower_servo_telemetry : data.leader_servo_telemetry;
   const rows = parseServoPositions(telemetryText);
 
+  // NVS calibration limits from firmware snapshot
+  const nvsProfile = displayRole === "follower"
+    ? { min: data.follower_calibration_min || [], max: data.follower_calibration_max || [] }
+    : { min: data.leader_calibration_min || [], max: data.leader_calibration_max || [] };
+
   updateCalibrationExtrema("leader", parseServoPositions(data.leader_servo_telemetry), activeRole === "leader" && captureActive);
   updateCalibrationExtrema("follower", parseServoPositions(data.follower_servo_telemetry), activeRole === "follower" && captureActive);
 
@@ -181,8 +196,9 @@ function renderCalibrationPanel(data) {
   }
 
   const pairingSelect = document.getElementById("pairingModeSelect");
-  if (pairingSelect && document.activeElement !== pairingSelect) {
-    pairingSelect.value = modeValue === 3 ? "teleop_espnow" : "teleop_wifi";
+  if (pairingSelect && document.activeElement !== pairingSelect && modeValue === 3) {
+    // Only update the select when in Teleoperation mode; use transport_mode to distinguish EspNow vs WiFi
+    pairingSelect.value = Number(data.teleop_transport_mode) === 1 ? "teleop_wifi" : "teleop_espnow";
   }
 
   if (selectedRoleNode && document.activeElement !== selectedRoleNode && activeRole) {
@@ -192,6 +208,8 @@ function renderCalibrationPanel(data) {
   const modeNode = document.getElementById("calibrationModeCurrent");
   if (modeNode) {
     modeNode.textContent = activeRole ? `${activeRole} ${captureActive ? "range" : "center"}` : "idle";
+    modeNode.dataset.captureActive = activeRole && captureActive ? "1" : "0";
+    modeNode.dataset.activeRole = activeRole || "";
   }
 
   const instructionNode = document.getElementById("calibrationInstruction");
@@ -207,7 +225,8 @@ function renderCalibrationPanel(data) {
   renderCalibrationTable(
     document.getElementById("calibrationTableBody"),
     rows,
-    calibrationExtrema[displayRole]
+    calibrationExtrema[displayRole],
+    nvsProfile
   );
 }
 

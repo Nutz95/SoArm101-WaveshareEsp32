@@ -54,6 +54,7 @@ void LeaderApp::handleControllerModeCycleEvents() {
 
     if (validatePressed) {
       cancelCalibrationRangeCapture();
+      applyControllerOperationProfile(kProfileTeleopEspNow); // exit cal mode so B never leaves user stuck
       setTransientStatus("calibration canceled", config::leader::kMoveStatusHoldMs);
     }
     return;

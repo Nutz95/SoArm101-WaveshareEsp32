@@ -66,6 +66,11 @@ class DashboardState:
             "status": "",
             "connected": False,
             "last_frame_ts": 0.0,
+            "controller_operation_profile": 2,
+            "leader_calibration_min": [0] * 6,
+            "leader_calibration_max": [4095] * 6,
+            "follower_calibration_min": [0] * 6,
+            "follower_calibration_max": [4095] * 6,
         }
 
     def snapshot(self) -> Dict[str, Any]:

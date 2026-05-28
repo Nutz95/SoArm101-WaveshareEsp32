@@ -36,6 +36,29 @@ namespace {
 constexpr uint16_t kCalibrationCenterPosition = 2048U;
 constexpr uint16_t kCalibrationCenterSpeed = 150U;
 
+uint8_t filterBatchToDetectedServos(
+    const uint8_t *idsIn, const int16_t *posIn, uint8_t countIn,
+    uint8_t *idsOut, int16_t *posOut, uint8_t maxOut,
+    const char *detectedText) {
+  if (detectedText == nullptr || detectedText[0] == '\0' || detectedText[0] == '-') { return 0U; }
+  uint8_t detected[32]{};
+  uint8_t detectedCount = 0U;
+  for (const char *c = detectedText; *c != '\0' && detectedCount < 32U;) {
+    unsigned int id = 0U;
+    if (sscanf(c, "%u", &id) == 1 && id > 0U && id <= 255U) { detected[detectedCount++] = static_cast<uint8_t>(id); }
+    while (*c != '\0' && *c != ',') { ++c; }
+    if (*c == ',') { ++c; }
+  }
+  uint8_t countOut = 0U;
+  for (uint8_t i = 0U; i < countIn && countOut < maxOut; ++i) {
+    for (uint8_t j = 0U; j < detectedCount; ++j) {
+      if (idsIn[i] != detected[j]) { continue; }
+      idsOut[countOut] = idsIn[i]; posOut[countOut] = posIn[i]; ++countOut; break;
+    }
+  }
+  return countOut;
+}
+
 bool moveDetectedServosToCenter(ServoBusService &servoBusService) {
   const char *idsText = servoBusService.lastIdsText();
   if (idsText == nullptr || idsText[0] == '\0' || idsText[0] == '-') {
@@ -53,7 +76,6 @@ bool moveDetectedServosToCenter(ServoBusService &servoBusService) {
       positions[count] = static_cast<int16_t>(kCalibrationCenterPosition);
       ++count;
     }
-
     while (*cursor != '\0' && *cursor != ',') {
       ++cursor;
     }
@@ -142,18 +164,21 @@ void FollowerApp::processIncomingTeleopWifiBatch() {
   uint16_t requestId = 0U;
 
   if (!teleopWifiBridge_.consumeBatch(
-          ids,
-          positions,
-          config::common::kTeleopBatchMaxServos,
-          count,
-            speedPercent,
-          requestId)) {
+          ids, positions, config::common::kTeleopBatchMaxServos,
+          count, speedPercent, requestId)) {
     return;
   }
 
   const uint16_t speed = static_cast<uint16_t>(
           (static_cast<uint32_t>(speedPercent) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
-  const bool ok = servoBusService_.moveBatch(ids, positions, count, speed);
+  uint8_t filteredIds[config::common::kTeleopBatchMaxServos]{};
+  int16_t filteredPositions[config::common::kTeleopBatchMaxServos]{};
+  const uint8_t filteredCount = filterBatchToDetectedServos(
+      ids, positions, count,
+      filteredIds, filteredPositions, config::common::kTeleopBatchMaxServos,
+      servoBusService_.lastIdsText());
+  if (filteredCount == 0U) { teleopWifiBridge_.sendAck(requestId, static_cast<uint8_t>(CommandAckStatus::Applied)); return; }
+  const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed);
   teleopWifiBridge_.sendAck(
       requestId,
       static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
@@ -178,7 +203,17 @@ void FollowerApp::processIncomingTeleopBatch() {
 
   const uint16_t speed = static_cast<uint16_t>(
           (static_cast<uint32_t>(speedPercent) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
-  const bool ok = servoBusService_.moveBatch(ids, positions, count, speed);
+  uint8_t filteredIds[config::common::kTeleopBatchMaxServos]{};
+  int16_t filteredPositions[config::common::kTeleopBatchMaxServos]{};
+  const uint8_t filteredCount = filterBatchToDetectedServos(
+      ids, positions, count,
+      filteredIds, filteredPositions, config::common::kTeleopBatchMaxServos,
+      servoBusService_.lastIdsText());
+  if (filteredCount == 0U) {
+    presenceService_->updateLastCommandAck(requestId, static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch), static_cast<uint8_t>(CommandAckStatus::Applied));
+    presenceService_->requestImmediatePresenceTx(); return;
+  }
+  const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed);
   presenceService_->updateLastCommandAck(
       requestId,
       static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch),

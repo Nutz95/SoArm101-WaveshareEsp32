@@ -20,7 +20,7 @@ from dashboard_state import DashboardState
 
 
 class TelemetryClient(threading.Thread):
-    STALE_STREAM_TIMEOUT_S = 3.0
+    STALE_STREAM_TIMEOUT_S = 10.0  # increased: calibration bus ops can temporarily stall telemetry
 
     def __init__(self, host: str, port: int, state: DashboardState):
         super().__init__(daemon=True)
@@ -170,5 +170,10 @@ class TelemetryClient(threading.Thread):
                 "leader_command_status": int(fields[54]),
                 "follower_command_status": int(fields[55]),
                 "status": decode_cstr(fields[56]),
+                "controller_operation_profile": int(fields[57]),
+                "leader_calibration_min": [int(fields[58 + i]) for i in range(6)],
+                "leader_calibration_max": [int(fields[64 + i]) for i in range(6)],
+                "follower_calibration_min": [int(fields[70 + i]) for i in range(6)],
+                "follower_calibration_max": [int(fields[76 + i]) for i in range(6)],
             }
         )

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../common/types/arm_runtime_state.h"
+#include "../common/types/calibration_profile.h"
 #include "../common/types/operation_mode.h"
 
 #include <cstdint>
@@ -65,6 +66,13 @@ struct LeaderTelemetrySnapshot {
   uint8_t leaderCommandStatus;
   uint8_t followerCommandStatus;
   char status[24];
+  // Controller operation profile: 0=cal_leader, 1=cal_follower, 2=teleop_espnow, 3=teleop_wifi
+  uint8_t controllerOperationProfile;
+  // NVS-stored calibration limits for both arms (transmitted so the dashboard can display them)
+  uint16_t leaderCalibrationMin[CalibrationProfile::kServoCount];
+  uint16_t leaderCalibrationMax[CalibrationProfile::kServoCount];
+  uint16_t followerCalibrationMin[CalibrationProfile::kServoCount];
+  uint16_t followerCalibrationMax[CalibrationProfile::kServoCount];
 } __attribute__((packed));
 
 } // namespace soarm

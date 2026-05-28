@@ -303,6 +303,13 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.commandCode = commandCode_;
   snapshot.leaderCommandStatus = static_cast<uint8_t>(leaderCommandStatus_);
   snapshot.followerCommandStatus = static_cast<uint8_t>(followerCommandStatus_);
+  snapshot.controllerOperationProfile = controllerOperationProfile_.load();
+  for (uint8_t i = 0U; i < CalibrationProfile::kServoCount; ++i) {
+    snapshot.leaderCalibrationMin[i] = leaderCalibrationProfile_.minPosition[i];
+    snapshot.leaderCalibrationMax[i] = leaderCalibrationProfile_.maxPosition[i];
+    snapshot.followerCalibrationMin[i] = followerCalibrationProfile_.minPosition[i];
+    snapshot.followerCalibrationMax[i] = followerCalibrationProfile_.maxPosition[i];
+  }
 }
 
 void LeaderApp::refreshOled(uint32_t uptimeMs) {
