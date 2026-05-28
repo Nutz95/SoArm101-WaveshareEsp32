@@ -27,8 +27,11 @@ namespace soarm {
 
 class LeaderApp {
 public:
+  // Construct leader runtime services and initialize default state.
   LeaderApp();
+  // Initialize hardware/services and start background tasks.
   void begin();
+  // Execute one leader control-loop tick.
   void tick();
 
 private:
@@ -58,12 +61,24 @@ private:
     bool handleTeleopMirrorValueCommand();
     bool handleTeleopContinuousValueCommand();
     bool handleTeleopTransportValueCommand();
+    bool handleXboxModeCycleButtonSetValueCommand();
+    bool handleTeleopCalibrationCaptureValueCommand();
   void handleServoMoveCommand(uint32_t value, uint16_t requestId);
   void handleServoSetIdCommand(uint32_t value, uint16_t requestId);
   void handleServoSetModeCommand(uint32_t value, uint16_t requestId);
   void handleTeleopMirrorCommand(uint32_t value, uint16_t requestId);
   void handleTeleopContinuousCommand(uint32_t value, uint16_t requestId);
   void handleTeleopTransportCommand(uint32_t value, uint16_t requestId);
+  void handleXboxModeCycleButtonSetCommand(uint32_t value, uint16_t requestId);
+  void handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t requestId);
+  ArmRole activeCalibrationRole() const;
+  void beginCalibrationRangeCapture();
+  bool sampleCalibrationRangeCapture();
+  bool commitCalibrationRangeCapture();
+  void cancelCalibrationRangeCapture();
+  void releaseCalibrationTorqueForActiveRole();
+  void handleControllerModeCycleEvents();
+  void applyControllerOperationProfile(uint8_t profile);
   void setTransientStatus(const char *text, uint32_t holdMs);
   void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
   void setLeaderCommandStatus(CommandAckStatus status);
@@ -90,6 +105,12 @@ private:
 
   ArmStateMachine     stateMachine_;
   NvsCalibrationStore calibrationStore_;
+  CalibrationProfile leaderCalibrationProfile_{};
+  CalibrationProfile followerCalibrationProfile_{};
+  CalibrationProfile leaderCalibrationProfileBackup_{};
+  CalibrationProfile followerCalibrationProfileBackup_{};
+  CalibrationProfile leaderCalibrationWorkingProfile_{};
+  CalibrationProfile followerCalibrationWorkingProfile_{};
   StatusLedService    statusLedService_;
   WifiOtaService      wifiOta_;
   CpuLoadService      cpuLoadService_;
@@ -127,6 +148,8 @@ private:
   std::atomic<uint8_t> teleopContinuousServoIdFilter_{0U};
   std::atomic<uint8_t> teleopContinuousSpeedPct_{35U};
   std::atomic<uint8_t> teleopTransportMode_{static_cast<uint8_t>(TeleopTransportMode::EspNow)};
+  std::atomic<uint8_t> controllerOperationProfile_{2U};
+  std::atomic<uint8_t> calibrationPhase_{0U};
   std::atomic<uint8_t> runtimeModeForTasks_{0U};
   TeleopMirrorLatencyMetrics teleopMirrorLatencyMetrics_{};
   LeaderTeleopWifiBridge teleopWifiBridge_{};

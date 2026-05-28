@@ -39,6 +39,7 @@ private:
     Adafruit_SSD1306 *display_;
 
     void applyTextStyle();
+    void printScrollableLine(const char *line, uint8_t y, uint8_t visibleChars, uint32_t nowMs);
     void printLines(
         const char *line1,
         const char *line2,

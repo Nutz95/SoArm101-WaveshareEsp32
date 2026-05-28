@@ -14,25 +14,6 @@ function metricText(data, emptyText = "-") {
   return `p${data.position} v${data.voltage} t${data.temperature} m${data.mode}`;
 }
 
-function syncPairingOperationProfile(config, transportMode) {
-  let operationProfile = "teleop_espnow";
-  if (config?.calibration_required) {
-    operationProfile = "calibration";
-  } else if (Number(transportMode) === 1) {
-    operationProfile = "teleop_wifi";
-  }
-
-  const profileNode = document.getElementById("pairingModeCurrent");
-  if (profileNode) {
-    profileNode.textContent = operationProfile;
-  }
-
-  const profileSelect = document.getElementById("pairingModeSelect");
-  if (profileSelect && document.activeElement !== profileSelect) {
-    profileSelect.value = operationProfile;
-  }
-}
-
 function syncControl(controlId, value, propertyName = "value") {
   const element = document.getElementById(controlId);
   if (!element) {
@@ -293,10 +274,8 @@ export function renderTeleopState(data) {
   if (transportNode) {
     transportNode.textContent = transportMode === 1 ? "Wi-Fi UDP" : "ESP-NOW";
   }
-  syncPairingOperationProfile(config, transportMode);
   syncControl("teleopEnabledInput", !!config.enabled, "checked");
   syncControl("teleopSameIdInput", !!config.same_id_mapping, "checked");
-  syncControl("teleopCalibrationInput", !!config.calibration_required, "checked");
   syncControl("teleopSpeedInput", `${config.speed_pct ?? 35}`);
   syncControl("teleopTransportInput", `${transportMode}`);
 

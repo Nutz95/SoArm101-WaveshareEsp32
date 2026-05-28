@@ -33,9 +33,12 @@ private:
   CommandAckStatus handleTeleopMirror(uint32_t value);
   CommandAckStatus handleSetId(uint32_t value);
   CommandAckStatus handleSetMode(uint32_t value);
+  CommandAckStatus handleCalibrationCapture(uint32_t value);
+  CommandAckStatus handleCenterAll(uint32_t value);
 
   ArmStateMachine     stateMachine_;
   NvsCalibrationStore calibrationStore_;
+  CalibrationProfile  calibrationProfile_{};
   StatusLedService    statusLedService_;
   WifiOtaService      wifiOta_;
   ServoBusService     servoBusService_;

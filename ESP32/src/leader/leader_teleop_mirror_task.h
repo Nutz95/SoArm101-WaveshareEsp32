@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../common/interfaces/i_leader_presence_service.h"
+#include "../common/types/calibration_profile.h"
 #include "../common/servo/servo_bus_service.h"
 #include "../common/teleop/teleop_transport_mode.h"
 #include "../common/types/operation_mode.h"
@@ -25,6 +26,8 @@ public:
       ServoBusService &servoBusService,
       ILeaderPresenceService &presenceService,
       LeaderTeleopWifiBridge &teleopWifiBridge,
+      const CalibrationProfile &leaderCalibrationProfile,
+      const CalibrationProfile &followerCalibrationProfile,
       const std::atomic<bool> &continuousEnabled,
       const std::atomic<uint8_t> &servoIdFilter,
       const std::atomic<uint8_t> &speedPct,

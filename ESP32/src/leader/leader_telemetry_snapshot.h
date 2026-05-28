@@ -31,6 +31,8 @@ struct LeaderTelemetrySnapshot {
   int16_t xboxAxisLeftY;
   int16_t xboxAxisRightX;
   int16_t xboxAxisRightY;
+  int16_t xboxDpadX;
+  int16_t xboxDpadY;
   uint8_t xboxTriggerLeft;
   uint8_t xboxTriggerRight;
   ArmRuntimeState leaderState;

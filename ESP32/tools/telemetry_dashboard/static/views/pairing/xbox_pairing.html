@@ -33,6 +33,51 @@
       <div class="card"><span>Right Stick (X,Y)</span><strong id="xboxRightStick">0, 0</strong></div>
       <div class="card"><span>Triggers (LT,RT)</span><strong id="xboxTriggers">0, 0</strong></div>
     </div>
+    <div class="xbox-stick-grid">
+      <div class="card">
+        <span>Left Stick Vector</span>
+        <div class="stick-surface" aria-hidden="true">
+          <span class="stick-crosshair stick-crosshair-x"></span>
+          <span class="stick-crosshair stick-crosshair-y"></span>
+          <span id="xboxLeftStickDot" class="stick-dot"></span>
+        </div>
+      </div>
+      <div class="card">
+        <span>Right Stick Vector</span>
+        <div class="stick-surface" aria-hidden="true">
+          <span class="stick-crosshair stick-crosshair-x"></span>
+          <span class="stick-crosshair stick-crosshair-y"></span>
+          <span id="xboxRightStickDot" class="stick-dot"></span>
+        </div>
+      </div>
+    </div>
+    <div class="xbox-button-grid">
+      <div class="card">
+        <span>Face Buttons</span>
+        <div class="xbox-state-row">
+          <span id="xboxBtnA" class="control-state">A</span>
+          <span id="xboxBtnB" class="control-state">B</span>
+          <span id="xboxBtnX" class="control-state">X</span>
+          <span id="xboxBtnY" class="control-state">Y</span>
+        </div>
+      </div>
+      <div class="card">
+        <span>Shoulders</span>
+        <div class="xbox-state-row">
+          <span id="xboxBtnLB" class="control-state">LB</span>
+          <span id="xboxBtnRB" class="control-state">RB</span>
+        </div>
+      </div>
+      <div class="card">
+        <span>D-pad Arrows</span>
+        <div class="xbox-state-row">
+          <span id="xboxDpadUp" class="control-state">UP</span>
+          <span id="xboxDpadDown" class="control-state">DOWN</span>
+          <span id="xboxDpadLeft" class="control-state">LEFT</span>
+          <span id="xboxDpadRight" class="control-state">RIGHT</span>
+        </div>
+      </div>
+    </div>
     <p>Manipulate buttons and sticks to verify incoming HID values before assigning teleoperation actions.</p>
   </section>
 
@@ -47,13 +92,13 @@
     <label>
       Operation Profile
       <select id="pairingModeSelect">
-        <option value="calibration">Calibration</option>
         <option value="teleop_espnow">Teleoperation ESP-NOW</option>
         <option value="teleop_wifi">Teleoperation Wi-Fi</option>
       </select>
     </label>
     <button id="pairingApplyModeBtn" type="button">Apply Operation Profile</button>
   </div>
+  <p>Calibration now lives in its own menu so pairing stays focused on controller runtime and mapping.</p>
   </section>
 
   <section class="xbox-step">

@@ -129,6 +129,30 @@ bool LeaderTelemetryStreamServer::consumeTeleopTransportRequested(uint32_t &valu
   return true;
 }
 
+bool LeaderTelemetryStreamServer::consumeXboxModeCycleButtonSetRequested(uint32_t &value, uint16_t &requestId) {
+  const bool pending = xboxModeCycleButtonSetRequested_;
+  if (!pending) {
+    return false;
+  }
+
+  value = xboxModeCycleButtonSetValue_;
+  requestId = xboxModeCycleButtonSetRequestId_;
+  xboxModeCycleButtonSetRequested_ = false;
+  return true;
+}
+
+bool LeaderTelemetryStreamServer::consumeTeleopCalibrationCaptureRequested(uint32_t &value, uint16_t &requestId) {
+  const bool pending = teleopCalibrationCaptureRequested_;
+  if (!pending) {
+    return false;
+  }
+
+  value = teleopCalibrationCaptureValue_;
+  requestId = teleopCalibrationCaptureRequestId_;
+  teleopCalibrationCaptureRequested_ = false;
+  return true;
+}
+
 void LeaderTelemetryStreamServer::tick() {
   if (!started_) {
     return;
@@ -209,6 +233,8 @@ void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action, uint3
       {LeaderCommandAction::TeleopMirror, &LeaderTelemetryStreamServer::teleopMirrorRequested_, &LeaderTelemetryStreamServer::teleopMirrorValue_, &LeaderTelemetryStreamServer::teleopMirrorRequestId_, 0U, false},
       {LeaderCommandAction::TeleopContinuousSet, &LeaderTelemetryStreamServer::teleopContinuousRequested_, &LeaderTelemetryStreamServer::teleopContinuousValue_, &LeaderTelemetryStreamServer::teleopContinuousRequestId_, 0U, false},
       {LeaderCommandAction::TeleopTransportSet, &LeaderTelemetryStreamServer::teleopTransportRequested_, &LeaderTelemetryStreamServer::teleopTransportValue_, &LeaderTelemetryStreamServer::teleopTransportRequestId_, 0U, false},
+      {LeaderCommandAction::XboxModeCycleButtonSet, &LeaderTelemetryStreamServer::xboxModeCycleButtonSetRequested_, &LeaderTelemetryStreamServer::xboxModeCycleButtonSetValue_, &LeaderTelemetryStreamServer::xboxModeCycleButtonSetRequestId_, 0U, false},
+      {LeaderCommandAction::TeleopCalibrationCapture, &LeaderTelemetryStreamServer::teleopCalibrationCaptureRequested_, &LeaderTelemetryStreamServer::teleopCalibrationCaptureValue_, &LeaderTelemetryStreamServer::teleopCalibrationCaptureRequestId_, 0U, false},
   };
 
   for (size_t i = 0; i < (sizeof(kFlagActions) / sizeof(kFlagActions[0])); ++i) {

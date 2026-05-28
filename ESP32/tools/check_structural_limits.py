@@ -11,6 +11,12 @@ FUNCTION_RE = re.compile(
 )
 CLASS_RE = re.compile(r"^\s*class\s+[A-Za-z_][\w]*\b[^;]*\{\s*$")
 PY_FUNCTION_RE = re.compile(r"^\s*def\s+[A-Za-z_][\w]*\s*\(")
+CPP_PUBLIC_FUNCTION_DECL_RE = re.compile(
+    r"^\s*(?:virtual\s+)?(?:[A-Za-z_][\w:<>,~\*&\s]*?)\s+[~A-Za-z_][\w:<>~]*\s*\([^;{}]*\)\s*(?:const\s*)?(?:noexcept\s*)?(?:override\s*)?(?:=\s*0\s*)?;\s*$"
+)
+CPP_PUBLIC_CTOR_DECL_RE = re.compile(
+    r"^\s*[~A-Za-z_][\w:<>~]*\s*\([^;{}]*\)\s*(?:noexcept\s*)?(?:=\s*0\s*)?;\s*$"
+)
 
 
 class FolderRule:
@@ -87,8 +93,25 @@ def iter_files_for_rule(project_root: Path, rule: FolderRule) -> List[Path]:
     return sorted(files)
 
 
-def count_non_empty_lines(lines: List[str]) -> int:
-    return sum(1 for line in lines if line.strip())
+def count_non_empty_lines(lines: List[str], suffix: str) -> int:
+    return sum(1 for line in lines if line.strip() and not is_comment_only_line(line, suffix))
+
+
+def is_comment_only_line(line: str, suffix: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+
+    if stripped.startswith("//"):
+        return True
+    if stripped.startswith("/*") or stripped.startswith("*/"):
+        return True
+    if stripped.startswith("*"):
+        return True
+    # Python files: ignore comment-only lines.
+    if suffix == ".py" and stripped.startswith("#"):
+        return True
+    return False
 
 
 def count_function_definitions(lines: List[str]) -> int:
@@ -117,11 +140,11 @@ def count_class_definitions(lines: List[str]) -> int:
 
 def check_file(path: Path, rule: FolderRule, rel_path: str) -> List[str]:
     lines = path.read_text(encoding="utf-8").splitlines()
-    line_count = count_non_empty_lines(lines)
+    suffix = path.suffix.lower()
+    line_count = count_non_empty_lines(lines, suffix)
 
     function_count = None
     class_count = None
-    suffix = path.suffix.lower()
     if suffix == ".cpp":
         function_count = count_function_definitions(lines)
         class_count = count_class_definitions(lines)
@@ -144,6 +167,55 @@ def check_file(path: Path, rule: FolderRule, rel_path: str) -> List[str]:
         errors.append(
             f"{rel_path}: {rule.name} file has {class_count} class definitions (max {rule.max_classes})"
         )
+
+    return errors
+
+
+def has_doc_comment_above(lines: List[str], index: int) -> bool:
+    lookback = index - 1
+    while lookback >= 0:
+        stripped = lines[lookback].strip()
+        if not stripped:
+            lookback -= 1
+            continue
+
+        if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
+            return True
+        return False
+
+    return False
+
+
+def check_public_function_docs(path: Path, rel_path: str) -> List[str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    errors: List[str] = []
+    in_public = False
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped == "public:":
+            in_public = True
+            continue
+        if stripped in ("private:", "protected:"):
+            in_public = False
+            continue
+        if not in_public:
+            continue
+
+        if "(" not in stripped or not stripped.endswith(";"):
+            continue
+        if stripped.startswith("using ") or stripped.startswith("typedef "):
+            continue
+
+        is_function_decl = CPP_PUBLIC_FUNCTION_DECL_RE.match(line) is not None
+        is_ctor_decl = CPP_PUBLIC_CTOR_DECL_RE.match(line) is not None and " " not in stripped.split("(", 1)[0]
+        if not (is_function_decl or is_ctor_decl):
+            continue
+
+        if not has_doc_comment_above(lines, i):
+            errors.append(
+                f"{rel_path}:{i + 1}: public function declaration missing doc comment"
+            )
 
     return errors
 
@@ -227,9 +299,23 @@ def main() -> int:
             rel_path = normalize_rel(path.relative_to(project_root))
             errors.extend(check_file(path, rule, rel_path))
 
+    changed_files = collect_changed_files(project_root)
+
     if not args.skip_index_sync:
-        changed_files = collect_changed_files(project_root)
         errors.extend(check_context_index_sync(project_root, changed_files))
+
+    if changed_files is not None:
+        for changed in changed_files:
+            normalized = changed.replace("\\", "/")
+            if not normalized.startswith("src/"):
+                continue
+            if not (normalized.endswith(".h") or normalized.endswith(".hpp")):
+                continue
+
+            header_path = project_root / normalized
+            if not header_path.is_file():
+                continue
+            errors.extend(check_public_function_docs(header_path, normalized))
 
     if errors:
         for error in errors:

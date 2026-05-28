@@ -157,7 +157,10 @@ bool LeaderApp::handleServoValueCommands() {
          handleServoSetIdValueCommand() ||
          handleServoSetModeValueCommand() ||
          handleTeleopMirrorValueCommand() ||
-         handleTeleopContinuousValueCommand() || handleTeleopTransportValueCommand();
+         handleTeleopContinuousValueCommand() ||
+         handleTeleopTransportValueCommand() ||
+         handleXboxModeCycleButtonSetValueCommand() ||
+         handleTeleopCalibrationCaptureValueCommand();
 }
 
 bool LeaderApp::handleFollowerDebugCommand(
@@ -250,9 +253,15 @@ void LeaderApp::handleServoMoveCommand(uint32_t value, uint16_t requestId) {
   const uint8_t speedPct = static_cast<uint8_t>((value >> 24U) & 0xFFU);
   const uint16_t speed = static_cast<uint16_t>(
       (static_cast<uint32_t>(speedPct) * config::leader::kTeleopServoMaxSpeedRaw) / 100U);
+  const bool leaderDebugEnabled = servoDebugManual_;
+  const bool followerDebugEnabled = presenceService_->followerServoDebugManual();
+
   bool ok = false;
-  if (servoDebugManual_) {
+  if (leaderDebugEnabled) {
     ok = servoBusService_.moveTo(id, position, speed, 0U);
+  }
+
+  if (followerDebugEnabled) {
     const bool followerSent = presenceService_->requestServoControl(
         static_cast<uint8_t>(ServoControlOpcode::Move),
         value,
@@ -267,8 +276,14 @@ void LeaderApp::handleServoMoveCommand(uint32_t value, uint16_t requestId) {
   } else {
     setFollowerCommandStatus(CommandAckStatus::Rejected);
   }
-  setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
-  setTransientStatus(ok ? "servo move sent" : "servo move blocked", config::leader::kMoveStatusHoldMs);
+  if (leaderDebugEnabled) {
+    setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
+  } else {
+    setLeaderCommandStatus(CommandAckStatus::None);
+  }
+  setTransientStatus(
+      (ok || followerDebugEnabled) ? "servo move sent" : "servo move blocked",
+      config::leader::kMoveStatusHoldMs);
 }
 
 void LeaderApp::handleServoSetIdCommand(uint32_t value, uint16_t requestId) {
@@ -321,9 +336,15 @@ void LeaderApp::handleServoSetIdCommand(uint32_t value, uint16_t requestId) {
 void LeaderApp::handleServoSetModeCommand(uint32_t value, uint16_t requestId) {
   const uint8_t id = static_cast<uint8_t>(value & 0xFFU);
   const uint8_t mode = static_cast<uint8_t>((value >> 8U) & 0xFFU);
+  const bool leaderDebugEnabled = servoDebugManual_;
+  const bool followerDebugEnabled = presenceService_->followerServoDebugManual();
+
   bool ok = false;
-  if (servoDebugManual_) {
+  if (leaderDebugEnabled) {
     ok = servoBusService_.setServoMode(id, mode);
+  }
+
+  if (followerDebugEnabled) {
     const bool followerSent = presenceService_->requestServoControl(
         static_cast<uint8_t>(ServoControlOpcode::SetMode),
         value,
@@ -338,8 +359,14 @@ void LeaderApp::handleServoSetModeCommand(uint32_t value, uint16_t requestId) {
   } else {
     setFollowerCommandStatus(CommandAckStatus::Rejected);
   }
-  setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
-  setTransientStatus(ok ? "servo mode updated" : "servo mode blocked", config::leader::kSetModeStatusHoldMs);
+  if (leaderDebugEnabled) {
+    setLeaderCommandStatus(ok ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
+  } else {
+    setLeaderCommandStatus(CommandAckStatus::None);
+  }
+  setTransientStatus(
+      (ok || followerDebugEnabled) ? "servo mode updated" : "servo mode blocked",
+      config::leader::kSetModeStatusHoldMs);
 }
 
 void LeaderApp::handleTeleopMirrorCommand(uint32_t value, uint16_t requestId) {

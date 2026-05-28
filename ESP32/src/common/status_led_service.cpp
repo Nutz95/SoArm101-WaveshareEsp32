@@ -21,7 +21,7 @@ struct LedStateStyle {
 constexpr LedStateStyle kStateStyles[] = {
     {ArmRuntimeState::PairingOrUnpaired,   0U,  0U, 40U, true },
     {ArmRuntimeState::Paired,              0U,  0U, 60U, false},
-    {ArmRuntimeState::WaitingCalibration, 60U,  0U,  0U, true },
+    {ArmRuntimeState::WaitingCalibration, 60U, 25U,  0U, true },
     {ArmRuntimeState::WaitingEspNow,       0U, 40U,  0U, true },
     {ArmRuntimeState::Ready,               0U, 60U,  0U, false},
     {ArmRuntimeState::ServoFault,         70U,  0U,  0U, true },

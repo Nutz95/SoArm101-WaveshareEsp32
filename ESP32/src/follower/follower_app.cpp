@@ -1,5 +1,6 @@
 #include "follower_app.h"
 #include "follower_presence_service.h"
+#include "../common/calibration/calibration_profile_utils.h"
 #include "../Config/common_runtime_config.h"
 #include "../Config/follower_runtime_config.h"
 #include "../common/command/command_ack_status.h"
@@ -30,6 +31,42 @@
 
 namespace soarm {
 
+namespace {
+
+constexpr uint16_t kCalibrationCenterPosition = 2048U;
+constexpr uint16_t kCalibrationCenterSpeed = 150U;
+
+bool moveDetectedServosToCenter(ServoBusService &servoBusService) {
+  const char *idsText = servoBusService.lastIdsText();
+  if (idsText == nullptr || idsText[0] == '\0' || idsText[0] == '-') {
+    return false;
+  }
+
+  uint8_t ids[CalibrationProfile::kServoCount]{};
+  int16_t positions[CalibrationProfile::kServoCount]{};
+  uint8_t count = 0U;
+  const char *cursor = idsText;
+  while (*cursor != '\0' && count < CalibrationProfile::kServoCount) {
+    unsigned int id = 0U;
+    if (sscanf(cursor, "%u", &id) == 1 && id > 0U && id <= 255U) {
+      ids[count] = static_cast<uint8_t>(id);
+      positions[count] = static_cast<int16_t>(kCalibrationCenterPosition);
+      ++count;
+    }
+
+    while (*cursor != '\0' && *cursor != ',') {
+      ++cursor;
+    }
+    if (*cursor == ',') {
+      ++cursor;
+    }
+  }
+
+  return count > 0U && servoBusService.moveBatch(ids, positions, count, kCalibrationCenterSpeed);
+}
+
+} // namespace
+
 FollowerApp::FollowerApp()
     : statusLedService_(STATUS_LED_PIN, STATUS_LED_COUNT),
       wifiOta_(WIFI_SSID, WIFI_PASS, "soarm-follower"),
@@ -42,10 +79,10 @@ void FollowerApp::begin() {
   statusLedService_.begin();
 
   const bool nvsReady = calibrationStore_.begin();
-  CalibrationProfile followerProfile{};
-  if (!nvsReady || !calibrationStore_.load(ArmRole::Follower, followerProfile)) {
+  if (!nvsReady || !calibrationStore_.load(ArmRole::Follower, calibrationProfile_)) {
     const CalibrationProfile defaults = calibrationStore_.buildDefaultProfile();
     calibrationStore_.save(ArmRole::Follower, defaults);
+    calibrationProfile_ = defaults;
   }
 
   WifiOtaCallbacks cb;
@@ -221,6 +258,8 @@ CommandAckStatus FollowerApp::executeServoControl(uint8_t op, uint32_t value) {
       {static_cast<uint8_t>(ServoControlOpcode::TeleopMirror), &FollowerApp::handleTeleopMirror},
       {static_cast<uint8_t>(ServoControlOpcode::SetId), &FollowerApp::handleSetId},
       {static_cast<uint8_t>(ServoControlOpcode::SetMode), &FollowerApp::handleSetMode},
+      {static_cast<uint8_t>(ServoControlOpcode::CalibrationCapture), &FollowerApp::handleCalibrationCapture},
+        {static_cast<uint8_t>(ServoControlOpcode::CenterAll), &FollowerApp::handleCenterAll},
   };
 
   for (size_t i = 0; i < (sizeof(kServoDispatchTable) / sizeof(kServoDispatchTable[0])); ++i) {
@@ -243,6 +282,16 @@ CommandAckStatus FollowerApp::handleDebugDisable(uint32_t value) {
   servoBusService_.setDebugManual(false);
   servoBusService_.setTorqueEnabledForDetectedServos(false);
   Serial.println("[SERVO] debug manual disabled");
+  return CommandAckStatus::Applied;
+}
+
+CommandAckStatus FollowerApp::handleCenterAll(uint32_t value) {
+  (void)value;
+  if (!moveDetectedServosToCenter(servoBusService_)) {
+    return CommandAckStatus::Failed;
+  }
+
+  Serial.println("[SERVO] center-all move sent");
   return CommandAckStatus::Applied;
 }
 
@@ -301,6 +350,24 @@ CommandAckStatus FollowerApp::handleSetMode(uint32_t value) {
   const bool ok = servoBusService_.setServoMode(id, mode);
   Serial.printf("[SERVO] set-mode %s id=%u mode=%u\n", ok ? "ok" : "fail", id, mode);
   return ok ? CommandAckStatus::Applied : CommandAckStatus::Failed;
+}
+
+CommandAckStatus FollowerApp::handleCalibrationCapture(uint32_t value) {
+  const bool captureMin = (value & 0x01U) == 0U;
+  servoBusService_.refreshKnownTelemetryFast();
+  const bool updated = updateCalibrationProfileFromTelemetry(
+      calibrationProfile_,
+      servoBusService_.lastTelemetryText(),
+      captureMin);
+  if (!updated) {
+    return CommandAckStatus::Rejected;
+  }
+
+  const bool saved = calibrationStore_.save(ArmRole::Follower, calibrationProfile_);
+  Serial.printf("[CAL] follower capture %s %s\n",
+                captureMin ? "min" : "max",
+                saved ? "saved" : "save_failed");
+  return saved ? CommandAckStatus::Applied : CommandAckStatus::Failed;
 }
 
 } // namespace soarm

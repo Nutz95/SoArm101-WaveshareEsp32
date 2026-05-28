@@ -1,0 +1,43 @@
+<section class="panel view-panel" data-view-panel="calibration">
+  <h2>Calibration Workflow</h2>
+  <p>Use one arm at a time. Start in center mode, validate the rough center, then sweep both extremes before saving.</p>
+
+  <div class="grid pairing-grid">
+    <div class="card"><span>Live Calibration Mode</span><strong id="calibrationModeCurrent">idle</strong></div>
+    <div class="card"><span>Current Telemetry Target</span><strong id="calibrationTelemetryCurrent">-</strong></div>
+  </div>
+
+  <div class="command-grid calibration-command-grid">
+    <label>
+      Calibration Target
+      <select id="calibrationModeSelect">
+        <option value="calibration_leader">Calibration Leader</option>
+        <option value="calibration_follower">Calibration Follower</option>
+      </select>
+    </label>
+    <button id="calibrationActivateBtn" type="button">Activate Calibration</button>
+    <button id="calibrationValidateABtn" type="button">Validate (A)</button>
+    <button id="calibrationCancelBBtn" type="button">Cancel (B)</button>
+  </div>
+
+  <p id="calibrationInstruction" class="calibration-instruction">Choose a calibration target, release the torque on that side, then start the workflow.</p>
+  <p id="calibrationStatus">Calibration idle.</p>
+
+  <div class="card calibration-table-card">
+    <table class="calibration-table">
+      <thead>
+        <tr>
+          <th>Servo</th>
+          <th>Current</th>
+          <th>Min</th>
+          <th>Max</th>
+        </tr>
+      </thead>
+      <tbody id="calibrationTableBody">
+        <tr>
+          <td colspan="4">No live servo telemetry yet.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

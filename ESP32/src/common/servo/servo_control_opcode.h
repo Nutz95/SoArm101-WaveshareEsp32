@@ -13,7 +13,9 @@ enum class ServoControlOpcode : uint8_t {
   SetId = 5,
   SetMode = 6,
   TeleopMirror = 7,
-  TeleopMirrorBatch = 8
+  TeleopMirrorBatch = 8,
+  CalibrationCapture = 9,
+  CenterAll = 10
 };
 
 } // namespace soarm

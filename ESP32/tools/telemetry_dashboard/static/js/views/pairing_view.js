@@ -6,6 +6,24 @@ function clampPercent(value, fallback) {
   return Math.max(0, Math.min(100, Math.round(numeric)));
 }
 
+function modeCycleButtonValue(key) {
+  const normalized = String(key || "").trim().toLowerCase();
+  const modeCycleByKey = {
+    view: 1,
+    menu: 2,
+    share: 3,
+    left_stick: 4,
+    right_stick: 5,
+    none: 0,
+  };
+
+  if (Object.prototype.hasOwnProperty.call(modeCycleByKey, normalized)) {
+    return modeCycleByKey[normalized];
+  }
+
+  return 0;
+}
+
 function syncXboxConfigControls(config = {}) {
   const enabledInput = document.getElementById("xboxControllerEnabledInput");
   const nameInput = document.getElementById("xboxPreferredControllerInput");
@@ -111,20 +129,25 @@ export function initPairingView(commandWithStatus, saveTeleopConfig, fetchContro
       return;
     }
 
+    const modeCycleValue = modeCycleButtonValue(payload.mode_cycle_button);
+    const modeCycleSent = await commandWithStatus(
+      "xbox_mode_cycle_button_set",
+      modeCycleValue,
+      "Xbox mode-cycle button sent to leader firmware.",
+      "Failed to send Xbox mode-cycle button to leader firmware."
+    );
+    if (!modeCycleSent?.ok) {
+      statusNode.textContent = `Xbox config saved, but firmware update failed (${modeCycleSent?.error || "send_error"}).`;
+      return;
+    }
+
     syncXboxConfigControls(result.config || payload);
-    statusNode.textContent = "Xbox config saved for Phase 3 controller integration.";
+    statusNode.textContent = "Xbox config saved and mode-cycle button applied on leader.";
   });
 
   document.getElementById("pairingApplyModeBtn").addEventListener("click", async () => {
     const statusNode = document.getElementById("xboxPairingStatus");
     const profile = String(document.getElementById("pairingModeSelect").value || "teleop_espnow");
-
-    if (profile === "calibration") {
-      await saveTeleopConfig({ calibration_required: true });
-      statusNode.textContent = "Calibration profile applied.";
-      await refresh();
-      return;
-    }
 
     const transportMode = profile === "teleop_wifi" ? 1 : 0;
     const sent = await commandWithStatus(

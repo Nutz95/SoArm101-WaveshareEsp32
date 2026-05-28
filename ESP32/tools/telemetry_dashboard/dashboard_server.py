@@ -22,8 +22,10 @@ from dashboard_protocol import (
     ESP_CMD_START_STREAM,
     ESP_CMD_STOP_STREAM,
     ESP_CMD_TELEOP_CONTINUOUS_SET,
+    ESP_CMD_TELEOP_CALIBRATION_CAPTURE,
     ESP_CMD_TELEOP_MIRROR,
     ESP_CMD_TELEOP_TRANSPORT_SET,
+    ESP_CMD_XBOX_MODE_CYCLE_BUTTON_SET,
 )
 from controller_runtime import ControllerConfigStore
 from dashboard_state import DashboardState
@@ -59,6 +61,8 @@ def build_dashboard_server(
             "teleop_mirror": ESP_CMD_TELEOP_MIRROR,
             "teleop_continuous_set": ESP_CMD_TELEOP_CONTINUOUS_SET,
             "teleop_transport_set": ESP_CMD_TELEOP_TRANSPORT_SET,
+            "teleop_calibration_capture": ESP_CMD_TELEOP_CALIBRATION_CAPTURE,
+            "xbox_mode_cycle_button_set": ESP_CMD_XBOX_MODE_CYCLE_BUTTON_SET,
         }
         next_request_id: int = 1
 

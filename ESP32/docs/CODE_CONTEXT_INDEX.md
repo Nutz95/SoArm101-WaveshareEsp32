@@ -15,6 +15,8 @@ Use it when implementing changes to avoid broad code searches.
 
 - `src/leader/leader_app.cpp`
   - Main orchestration loop, snapshot production, task startup.
+- `src/leader/leader_app_mode.cpp`
+  - Operation-mode selection, follower state synthesis, and status LED rendering for normal and calibration phases.
 - `src/leader/leader_app_tasks.cpp`
   - Background task creation and task entrypoints.
 - `src/leader/leader_app_ack_tracking.cpp`
@@ -24,7 +26,9 @@ Use it when implementing changes to avoid broad code searches.
 - `src/leader/leader_app_commands_teleop_continuous.cpp`
   - Continuous teleoperation command parsing, speed update, and enable/disable handling.
 - `src/leader/leader_app_commands_teleop_transport.cpp`
-  - Runtime teleop transport mode command handling (ESP-NOW/Wi-Fi UDP).
+  - Runtime teleop transport mode command handling (ESP-NOW/Wi-Fi UDP) and calibration-profile activation bridge.
+- `src/leader/leader_app_commands_calibration.cpp`
+  - Leader-side teleop calibration capture, local NVS persistence, and follower capture forwarding.
 - `src/leader/leader_presence_service.cpp`
   - ESP-NOW pairing, frame ingest, and follower state updates.
 - `src/leader/leader_presence_transport.cpp`
@@ -33,10 +37,14 @@ Use it when implementing changes to avoid broad code searches.
   - Background servo telemetry refresh and scan gating.
 - `src/leader/leader_teleop_mirror_task.cpp`
   - Continuous teleop mirroring logic, batch sends, and send-to-ACK latency metrics.
+- `src/leader/leader_teleop_mirror_task_internal.cpp`
+  - Teleop mirror parsing, pending-batch bookkeeping, and latency/ACK helper logic extracted from the main loop file.
 - `src/leader/leader_teleop_wifi_bridge.cpp`
   - Leader-side Wi-Fi UDP teleop batch sender and ACK polling.
 - `src/leader/leader_xbox_controller_service.cpp`
-  - NimBLE Xbox scan/connect/subscribe runtime service and controller telemetry state.
+  - NimBLE Xbox scan/connect/subscribe runtime service, telemetry snapshot, and logical button edge events.
+- `src/leader/leader_xbox_controller_input.cpp`
+  - Table-driven HID report decoding for buttons/D-pad/axes with controller-specific hat and analog normalization.
 
 ## Follower Firmware
 
@@ -67,6 +75,8 @@ Use it when implementing changes to avoid broad code searches.
   - Presence message type IDs.
 - `src/common/servo/servo_control_opcode.h`
   - Shared servo opcode IDs.
+- `src/common/calibration/calibration_profile_utils.cpp`
+  - Shared calibration profile capture from live telemetry and leader-to-follower position remapping helpers.
 - `src/common/teleop/teleop_transport_mode.h`
   - Teleop transport mode enum shared by firmware modules.
 - `src/common/teleop/teleop_wifi_packet.h`

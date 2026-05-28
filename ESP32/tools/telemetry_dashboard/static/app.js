@@ -9,6 +9,7 @@ import {
 } from "./js/api.js";
 import { renderSnapshot } from "./js/dashboard_render.js";
 import { renderTeleopState } from "./js/teleop_ui.js";
+import { initCalibrationView } from "./js/views/calibration_view.js";
 import { initManualView } from "./js/views/manual_view.js";
 import { initNavigationView } from "./js/views/navigation_view.js";
 import { initPairingView } from "./js/views/pairing_view.js";
@@ -23,6 +24,7 @@ const REFRESH_INTERVAL_MS = 100;
 const VIEW_PARTIALS = [
   "views/pairing/pairing_control.html",
   "views/pairing/xbox_pairing.html",
+  "views/calibration/workflow.html",
   "views/overview/command_ack.html",
   "views/overview/transport_diagnostics.html",
   "views/overview/runtime.html",
@@ -67,6 +69,7 @@ async function bootstrap() {
   await loadViewPartials();
   initNavigationView();
   initPairingView(commandWithStatus, saveTeleopConfig, fetchControllerConfig, saveControllerConfig, refresh);
+  initCalibrationView(commandWithStatus, saveTeleopConfig, refresh);
   initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleopMirror, refresh);
   initManualView(commandWithStatus, hasPendingFollowerCommand, registerPendingCommand);
   setInterval(refresh, REFRESH_INTERVAL_MS);

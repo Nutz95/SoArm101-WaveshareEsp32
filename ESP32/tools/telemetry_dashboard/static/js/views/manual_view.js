@@ -18,20 +18,20 @@ export function initManualView(commandWithStatus, hasPendingFollowerCommand, reg
     registerPendingCommand(result, "leader", isEnabled ? "leader debug disable" : "leader debug enable");
   });
 
-  document.getElementById("followerServoDebugEnableBtn").addEventListener("click", async () => {
+  document.getElementById("followerServoDebugToggleBtn").addEventListener("click", async (event) => {
     if (hasPendingFollowerCommand()) {
       return;
     }
-    const result = await commandWithStatus("servo_debug_enable_follower", 0, "Follower servo debug/manual enabled.", "Enable follower debug failed.");
-    registerPendingCommand(result, "follower", "follower debug enable");
-  });
-
-  document.getElementById("followerServoDebugDisableBtn").addEventListener("click", async () => {
-    if (hasPendingFollowerCommand()) {
-      return;
-    }
-    const result = await commandWithStatus("servo_debug_disable_follower", 0, "Follower servo debug/manual disabled.", "Disable follower debug failed.");
-    registerPendingCommand(result, "follower", "follower debug disable");
+    const toggleButton = event.currentTarget;
+    const isEnabled = String(toggleButton?.dataset?.enabled || "0") === "1";
+    const command = isEnabled ? "servo_debug_disable_follower" : "servo_debug_enable_follower";
+    const result = await commandWithStatus(
+      command,
+      0,
+      isEnabled ? "Follower servo debug/manual disabled." : "Follower servo debug/manual enabled.",
+      isEnabled ? "Disable follower debug failed." : "Enable follower debug failed."
+    );
+    registerPendingCommand(result, "follower", isEnabled ? "follower debug disable" : "follower debug enable");
   });
 
   document.getElementById("servoMoveBtn").addEventListener("click", async () => {

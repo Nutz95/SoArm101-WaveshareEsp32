@@ -27,6 +27,8 @@ constexpr CommandEntry kCommandEntries[] = {
     {15U, soarm::LeaderCommandAction::TeleopMirror},
     {16U, soarm::LeaderCommandAction::TeleopContinuousSet},
     {17U, soarm::LeaderCommandAction::TeleopTransportSet},
+    {18U, soarm::LeaderCommandAction::XboxModeCycleButtonSet},
+    {19U, soarm::LeaderCommandAction::TeleopCalibrationCapture},
 };
 
 } // namespace

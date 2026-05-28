@@ -25,6 +25,8 @@ enum class LeaderCommandAction : uint8_t {
   TeleopMirror = 15,
   TeleopContinuousSet = 16,
   TeleopTransportSet = 17,
+  XboxModeCycleButtonSet = 18,
+  TeleopCalibrationCapture = 19,
 };
 
 class LeaderCommandProcessor {

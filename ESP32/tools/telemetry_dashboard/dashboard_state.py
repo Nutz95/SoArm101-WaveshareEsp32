@@ -30,6 +30,8 @@ class DashboardState:
             "xbox_axis_left_y": 0,
             "xbox_axis_right_x": 0,
             "xbox_axis_right_y": 0,
+            "xbox_dpad_x": 0,
+            "xbox_dpad_y": 0,
             "xbox_trigger_left": 0,
             "xbox_trigger_right": 0,
             "xbox_link_encrypted": False,

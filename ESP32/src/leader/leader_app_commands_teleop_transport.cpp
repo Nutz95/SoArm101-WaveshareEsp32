@@ -19,6 +19,25 @@ bool LeaderApp::handleTeleopTransportValueCommand() {
 void LeaderApp::handleTeleopTransportCommand(uint32_t value, uint16_t requestId) {
   (void)requestId;
 
+  static constexpr uint32_t kTransportCalibrationLeaderProfile = 2U;
+  static constexpr uint32_t kTransportCalibrationFollowerProfile = 3U;
+
+  if (value == kTransportCalibrationLeaderProfile) {
+    applyControllerOperationProfile(0U);
+    setLeaderCommandStatus(CommandAckStatus::Applied);
+    setFollowerCommandStatus(CommandAckStatus::None);
+    setTransientStatus("profile cal leader", config::leader::kMoveStatusHoldMs);
+    return;
+  }
+
+  if (value == kTransportCalibrationFollowerProfile) {
+    applyControllerOperationProfile(1U);
+    setLeaderCommandStatus(CommandAckStatus::Applied);
+    setFollowerCommandStatus(CommandAckStatus::None);
+    setTransientStatus("profile cal follower", config::leader::kMoveStatusHoldMs);
+    return;
+  }
+
   if (value > static_cast<uint32_t>(TeleopTransportMode::WifiUdp)) {
     setLeaderCommandStatus(CommandAckStatus::Rejected);
     setFollowerCommandStatus(CommandAckStatus::None);
@@ -26,6 +45,7 @@ void LeaderApp::handleTeleopTransportCommand(uint32_t value, uint16_t requestId)
     return;
   }
 
+  applyControllerOperationProfile(value == static_cast<uint32_t>(TeleopTransportMode::WifiUdp) ? 3U : 2U);
   teleopTransportMode_.store(static_cast<uint8_t>(value));
   setLeaderCommandStatus(CommandAckStatus::Applied);
   setFollowerCommandStatus(CommandAckStatus::None);

@@ -9,13 +9,11 @@ function nowMs() {
 }
 
 function setFollowerDebugButtonsDisabled(disabled) {
-  const enableBtn = document.getElementById("followerServoDebugEnableBtn");
-  const disableBtn = document.getElementById("followerServoDebugDisableBtn");
-  if (!enableBtn || !disableBtn) {
+  const toggleBtn = document.getElementById("followerServoDebugToggleBtn");
+  if (!toggleBtn) {
     return;
   }
-  enableBtn.disabled = disabled;
-  disableBtn.disabled = disabled;
+  toggleBtn.disabled = disabled;
 }
 
 function clearPendingCommand() {

@@ -2,15 +2,27 @@ import { modeLabel, stateLabel, uptimeLabel, boolLabel } from "./formatters.js";
 import { renderServoChips } from "./servo_ui.js";
 import { commandAckLabel } from "./ack_status.js";
 
+const calibrationExtrema = {
+  leader: new Map(),
+  follower: new Map(),
+};
+
+const calibrationStageState = {
+  leader: "idle",
+  follower: "idle",
+};
+
 function updateFollowerDebugButtons(debugEnabled) {
-  const enableBtn = document.getElementById("followerServoDebugEnableBtn");
-  const disableBtn = document.getElementById("followerServoDebugDisableBtn");
-  if (!enableBtn || !disableBtn) {
+  const toggleBtn = document.getElementById("followerServoDebugToggleBtn");
+  if (!toggleBtn) {
     return;
   }
 
-  enableBtn.classList.toggle("state-on", !!debugEnabled);
-  disableBtn.classList.toggle("state-on", !debugEnabled);
+  toggleBtn.dataset.enabled = debugEnabled ? "1" : "0";
+  toggleBtn.classList.toggle("state-on", !!debugEnabled);
+  toggleBtn.textContent = debugEnabled
+    ? "Disable Debug Manual (Follower)"
+    : "Enable Debug Manual (Follower)";
 }
 
 function updateLeaderDebugToggleButton(debugEnabled) {
@@ -40,6 +52,200 @@ function xboxRuntimeLabel(stateValue) {
   return "disconnected";
 }
 
+function setControlState(id, pressed) {
+  const node = document.getElementById(id);
+  if (!node) {
+    return;
+  }
+
+  node.classList.toggle("is-active", !!pressed);
+}
+
+function servoPositionsSummary(telemetryText) {
+  const source = String(telemetryText || "");
+  const matches = [...source.matchAll(/#(\d+)\s+p(-?\d+)/g)];
+  if (!matches.length) {
+    return "-";
+  }
+
+  return matches.map((entry) => `S${entry[1]}:${entry[2]}`).join(" | ");
+}
+
+function parseServoPositions(telemetryText) {
+  const source = String(telemetryText || "");
+  return [...source.matchAll(/#(\d+)\s+p(-?\d+)/g)].map((entry) => ({
+    id: Number(entry[1]),
+    position: Number(entry[2]),
+  }));
+}
+
+function resetCalibrationRole(role) {
+  calibrationExtrema[role].clear();
+  calibrationStageState[role] = "center";
+}
+
+function updateCalibrationExtrema(role, rows, captureActive) {
+  if (!captureActive) {
+    if (calibrationStageState[role] !== "center") {
+      resetCalibrationRole(role);
+    }
+    return;
+  }
+
+  calibrationStageState[role] = "range";
+  rows.forEach((row) => {
+    const previous = calibrationExtrema[role].get(row.id);
+    if (!previous) {
+      calibrationExtrema[role].set(row.id, { min: row.position, max: row.position });
+      return;
+    }
+
+    previous.min = Math.min(previous.min, row.position);
+    previous.max = Math.max(previous.max, row.position);
+  });
+}
+
+function formatCalibrationProfile(modeValue) {
+  if (modeValue <= 0) {
+    return "idle";
+  }
+  if (modeValue === 1) {
+    return "calibration_leader";
+  }
+  if (modeValue === 2) {
+    return "calibration_follower";
+  }
+  if (modeValue === 3) {
+    return "teleop_espnow";
+  }
+  return "teleop_wifi";
+}
+
+function calibrationInstruction(role, captureActive) {
+  if (!role) {
+    return "Choose a calibration target, release the torque on that side, then start the workflow.";
+  }
+
+  if (!captureActive) {
+    return `Center the ${role} servos by hand, then validate center with A or the UI button.`;
+  }
+
+  return `Move the ${role} servos across both extremes, then validate with A to save and exit, or B to cancel.`;
+}
+
+function renderCalibrationTable(tableBody, rows, extremaMap) {
+  if (!tableBody) {
+    return;
+  }
+
+  tableBody.innerHTML = "";
+  if (!rows.length) {
+    const emptyRow = document.createElement("tr");
+    emptyRow.innerHTML = '<td colspan="4">No live servo telemetry yet.</td>';
+    tableBody.appendChild(emptyRow);
+    return;
+  }
+
+  rows.forEach((row) => {
+    const extrema = extremaMap.get(row.id);
+    const minValue = extrema ? extrema.min : row.position;
+    const maxValue = extrema ? extrema.max : row.position;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.id}</td>
+      <td class="${row.position < 0 ? "is-negative" : ""}">${row.position}</td>
+      <td class="${minValue < 0 ? "is-negative" : ""}">${minValue}</td>
+      <td class="${maxValue < 0 ? "is-negative" : ""}">${maxValue}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+function renderCalibrationPanel(data) {
+  const modeValue = Number(data.mode || 0);
+  const activeRole = modeValue === 1 ? "leader" : modeValue === 2 ? "follower" : "";
+  const statusText = String(data.status || "").toLowerCase();
+  const captureActive = statusText.includes("range");
+  const selectedRoleNode = document.getElementById("calibrationModeSelect");
+  const selectedRole = selectedRoleNode?.value === "calibration_follower" ? "follower" : "leader";
+  const displayRole = activeRole || selectedRole;
+  const telemetryText = displayRole === "follower" ? data.follower_servo_telemetry : data.leader_servo_telemetry;
+  const rows = parseServoPositions(telemetryText);
+
+  updateCalibrationExtrema("leader", parseServoPositions(data.leader_servo_telemetry), activeRole === "leader" && captureActive);
+  updateCalibrationExtrema("follower", parseServoPositions(data.follower_servo_telemetry), activeRole === "follower" && captureActive);
+
+  const currentNode = document.getElementById("pairingModeCurrent");
+  if (currentNode) {
+    currentNode.textContent = formatCalibrationProfile(modeValue);
+  }
+
+  const pairingSelect = document.getElementById("pairingModeSelect");
+  if (pairingSelect && document.activeElement !== pairingSelect) {
+    pairingSelect.value = modeValue === 3 ? "teleop_espnow" : "teleop_wifi";
+  }
+
+  if (selectedRoleNode && document.activeElement !== selectedRoleNode && activeRole) {
+    selectedRoleNode.value = activeRole === "follower" ? "calibration_follower" : "calibration_leader";
+  }
+
+  const modeNode = document.getElementById("calibrationModeCurrent");
+  if (modeNode) {
+    modeNode.textContent = activeRole ? `${activeRole} ${captureActive ? "range" : "center"}` : "idle";
+  }
+
+  const instructionNode = document.getElementById("calibrationInstruction");
+  if (instructionNode) {
+    instructionNode.textContent = calibrationInstruction(displayRole, activeRole === displayRole && captureActive);
+  }
+
+  const telemetryNode = document.getElementById("calibrationTelemetryCurrent");
+  if (telemetryNode) {
+    telemetryNode.textContent = telemetryText || "-";
+  }
+
+  renderCalibrationTable(
+    document.getElementById("calibrationTableBody"),
+    rows,
+    calibrationExtrema[displayRole]
+  );
+}
+
+function setStickVector(id, axisX, axisY) {
+  const node = document.getElementById(id);
+  if (!node) {
+    return;
+  }
+
+  const deadzoneInput = document.getElementById("xboxDeadzoneInput");
+  const deadzonePct = Number(deadzoneInput?.value ?? 12);
+  const deadzoneRatio = Number.isFinite(deadzonePct)
+    ? Math.max(0, Math.min(0.95, deadzonePct / 100))
+    : 0.12;
+
+  const maxAbs = 32768;
+  const rawNormalizedX = Math.max(-1, Math.min(1, Number(axisX || 0) / maxAbs));
+  const rawNormalizedY = Math.max(-1, Math.min(1, Number(axisY || 0) / maxAbs));
+
+  function applyDeadzone(value) {
+    const magnitude = Math.abs(value);
+    if (magnitude <= deadzoneRatio) {
+      return 0;
+    }
+
+    const scale = (magnitude - deadzoneRatio) / (1 - deadzoneRatio);
+    return Math.sign(value) * Math.max(0, Math.min(1, scale));
+  }
+
+  const normalizedX = applyDeadzone(rawNormalizedX);
+  const normalizedY = applyDeadzone(rawNormalizedY);
+  const travel = 76;
+  const offsetX = normalizedX * travel;
+  const offsetY = normalizedY * travel;
+
+  node.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+}
+
 function updateXboxRuntime(data) {
   const runtimeLabel = xboxRuntimeLabel(data.xbox_runtime_state);
   const paired = !!data.xbox_controller_paired;
@@ -52,6 +258,8 @@ function updateXboxRuntime(data) {
   const leftY = Number(data.xbox_axis_left_y || 0);
   const rightX = Number(data.xbox_axis_right_x || 0);
   const rightY = Number(data.xbox_axis_right_y || 0);
+  const dpadX = Number(data.xbox_dpad_x || 0);
+  const dpadY = Number(data.xbox_dpad_y || 0);
   const triggerLeft = Number(data.xbox_trigger_left || 0);
   const triggerRight = Number(data.xbox_trigger_right || 0);
   const name = data.xbox_controller_name || "-";
@@ -105,16 +313,29 @@ function updateXboxRuntime(data) {
   if (rightStickNode) {
     rightStickNode.textContent = `${rightX}, ${rightY}`;
   }
+  setStickVector("xboxLeftStickDot", leftX, leftY);
+  setStickVector("xboxRightStickDot", rightX, rightY);
 
   const triggerNode = document.getElementById("xboxTriggers");
   if (triggerNode) {
     triggerNode.textContent = `${triggerLeft}, ${triggerRight}`;
   }
 
+  setControlState("xboxBtnA", (buttonsMask & (1 << 0)) !== 0);
+  setControlState("xboxBtnB", (buttonsMask & (1 << 1)) !== 0);
+  setControlState("xboxBtnX", (buttonsMask & (1 << 2)) !== 0);
+  setControlState("xboxBtnY", (buttonsMask & (1 << 3)) !== 0);
+  setControlState("xboxBtnLB", (buttonsMask & (1 << 4)) !== 0);
+  setControlState("xboxBtnRB", (buttonsMask & (1 << 5)) !== 0);
+  setControlState("xboxDpadUp", dpadY < 0);
+  setControlState("xboxDpadDown", dpadY > 0);
+  setControlState("xboxDpadLeft", dpadX < 0);
+  setControlState("xboxDpadRight", dpadX > 0);
+
   const runtimeDot = document.getElementById("xboxRuntimeDot");
   if (runtimeDot) {
     runtimeDot.classList.remove("state-green", "state-red", "state-amber");
-    if (runtimeLabel === "connected" && paired && encrypted && subscribed) {
+    if (paired && encrypted && subscribed) {
       runtimeDot.classList.add("state-green");
     } else if (runtimeLabel === "scanning" || runtimeLabel === "pairing") {
       runtimeDot.classList.add("state-amber");
@@ -151,6 +372,7 @@ export function renderSnapshot(data) {
   updateLeaderDebugToggleButton(!!data.leader_servo_debug_manual);
   updateFollowerDebugButtons(!!data.follower_servo_debug_manual);
   updateXboxRuntime(data);
+  renderCalibrationPanel(data);
 
   document.getElementById("cmdRequestId").textContent = `${data.command_request_id || 0}`;
   document.getElementById("cmdCode").textContent = `${data.command_code || 0}`;

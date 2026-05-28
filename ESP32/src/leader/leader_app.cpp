@@ -73,10 +73,15 @@ void LeaderApp::begin() {
   oled_.showConnecting(followerIpHint_);
 
   const bool nvsReady = calibrationStore_.begin();
-  CalibrationProfile leaderProfile{};
-  if (!nvsReady || !calibrationStore_.load(ArmRole::Leader, leaderProfile)) {
+  if (!nvsReady || !calibrationStore_.load(ArmRole::Leader, leaderCalibrationProfile_)) {
     const CalibrationProfile defaults = calibrationStore_.buildDefaultProfile();
     calibrationStore_.save(ArmRole::Leader, defaults);
+    leaderCalibrationProfile_ = defaults;
+  }
+  if (!nvsReady || !calibrationStore_.load(ArmRole::Follower, followerCalibrationProfile_)) {
+    const CalibrationProfile defaults = calibrationStore_.buildDefaultProfile();
+    calibrationStore_.save(ArmRole::Follower, defaults);
+    followerCalibrationProfile_ = defaults;
   }
 
   WifiOtaCallbacks cb;
@@ -140,6 +145,10 @@ void LeaderApp::tick() {
   runStartupServoScans(uptimeMs);
   updateFollowerAckTracking(uptimeMs);
   updateLocalInputs(uptimeMs);
+  handleControllerModeCycleEvents();
+  if (calibrationPhase_.load() == 1U) {
+    (void)sampleCalibrationRangeCapture();
+  }
   updateServoHealthFlags();
   computeModeAndStatus();
   runtimeModeForTasks_.store(static_cast<uint8_t>(mode_));
@@ -212,80 +221,15 @@ void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
   (void)uptimeMs;
   xboxControllerService_.tick();
   localInputs_.joystickPaired = xboxControllerService_.isControllerPaired();
-  localInputs_.calibrationDone = !config::leader::kCalibrationRequired ||
-                                 uptimeMs > config::leader::kCalibrationReadyMs;
+  const uint8_t profile = controllerOperationProfile_.load();
+  const bool profileCalibration = profile <= 1U;
+  if (profileCalibration) {
+    localInputs_.calibrationDone = false;
+  } else {
+    localInputs_.calibrationDone = !config::leader::kCalibrationRequired ||
+                                   uptimeMs > config::leader::kCalibrationReadyMs;
+  }
   localInputs_.espNowLinked    = presenceService_->isFollowerLinked();
-}
-
-void LeaderApp::computeModeAndStatus() {
-  const bool followerIpValid = presenceService_->hasValidFollowerIp();
-
-  if (millis() < commandStatusHoldUntilMs_) {
-    mode_ = localInputs_.espNowLinked ? OperationMode::Teleoperation : OperationMode::Idle;
-    return;
-  }
-
-  if (leaderServoFault_ || followerServoFault_) {
-    mode_ = localInputs_.espNowLinked ? OperationMode::Teleoperation : OperationMode::Idle;
-    snprintf(
-        statusLine_,
-        sizeof(statusLine_),
-        "servo mismatch L:%u F:%u",
-        static_cast<unsigned>(servoBusService_.lastScanCount()),
-        static_cast<unsigned>(presenceService_->followerServoCount()));
-    statusLine_[sizeof(statusLine_) - 1] = '\0';
-    return;
-  }
-
-  if (!localInputs_.joystickPaired) {
-    mode_ = OperationMode::Idle;
-    strncpy(statusLine_, "pair joystick", sizeof(statusLine_) - 1);
-  } else if (!localInputs_.calibrationDone) {
-    mode_ = OperationMode::CalibrationLeader;
-    strncpy(statusLine_, "calibration", sizeof(statusLine_) - 1);
-  } else if (!localInputs_.espNowLinked) {
-    mode_ = OperationMode::Idle;
-    if (presenceService_->followerIp()[0] != '\0' && !followerIpValid) {
-      strncpy(statusLine_, "follower wifi down", sizeof(statusLine_) - 1);
-    } else {
-      strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
-    }
-  } else {
-    mode_ = OperationMode::Teleoperation;
-    strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
-  }
-  statusLine_[sizeof(statusLine_) - 1] = '\0';
-}
-
-void LeaderApp::updateFollowerState() {
-  if (localInputs_.espNowLinked) {
-    followerState_ = followerServoFault_ ? ArmRuntimeState::ServoFault : ArmRuntimeState::Ready;
-    strncpy(followerIpHint_, presenceService_->followerIp(), sizeof(followerIpHint_) - 1);
-    followerIpHint_[sizeof(followerIpHint_) - 1] = '\0';
-  } else {
-    followerState_ = ArmRuntimeState::WaitingEspNow;
-    if (!presenceService_->hasValidFollowerIp()) {
-      strncpy(followerIpHint_, "0.0.0.0", sizeof(followerIpHint_) - 1);
-      followerIpHint_[sizeof(followerIpHint_) - 1] = '\0';
-    }
-  }
-}
-
-void LeaderApp::renderStatusLeds() {
-  ArmRuntimeState localState = stateMachine_.computeState(localInputs_);
-  if (leaderServoFault_) {
-    localState = ArmRuntimeState::ServoFault;
-  }
-
-  ArmRuntimeState followerLedState = followerState_;
-  if (followerServoFault_) {
-    followerLedState = ArmRuntimeState::ServoFault;
-  }
-
-  statusLedService_.render(0, localState);
-  if (STATUS_LED_COUNT > 1U) {
-    statusLedService_.render(1, followerLedState);
-  }
 }
 
 void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs) {
@@ -315,6 +259,8 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.xboxAxisLeftY = xboxRuntime.axisLeftY;
   snapshot.xboxAxisRightX = xboxRuntime.axisRightX;
   snapshot.xboxAxisRightY = xboxRuntime.axisRightY;
+  snapshot.xboxDpadX = xboxRuntime.dpadX;
+  snapshot.xboxDpadY = xboxRuntime.dpadY;
   snapshot.xboxTriggerLeft = xboxRuntime.triggerLeft;
   snapshot.xboxTriggerRight = xboxRuntime.triggerRight;
   snapshot.xboxLinkEncrypted = xboxRuntime.linkEncrypted;

@@ -109,6 +109,17 @@ Enforcement guidance:
   - test-only code.
 - When refactoring code that already has hardcoded values, migrate them to config rather than duplicating or reusing unnamed literals.
 
+**11. Dispatch tables over long condition chains**
+- Avoid long `switch` blocks and long `if/else` chains for value-to-action/value-to-value mapping.
+- Prefer a dispatch table (`std::array`, static table, map-like lookup) keyed by meaningful symbols (enum/typed key), not by opaque integer indexes.
+- Keep protocol integer values at system boundaries only. Convert them once to a typed key/enum, then route behavior using the typed key.
+- Add a short comment when the table reflects an external protocol layout (for example HID report bit layout) and reference the source field.
+
+**12. Public API documentation (headers)**
+- Every public function declaration in headers must have a concise doc comment immediately above it.
+- The comment must describe purpose and side effects/contract at a high level.
+- This rule is enforced by structural checks on changed header files.
+
 ---
 
 If you want, I can add a pre-commit hook or an editorconfig snippet to help enforce the indentation and newline rules automatically.

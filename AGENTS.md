@@ -29,3 +29,19 @@ Before changing the firmware, command flow, telemetry, or dashboard UI, read the
 - [ESP32/docs/CODE_CONTEXT_INDEX.md](ESP32/docs/CODE_CONTEXT_INDEX.md)
 
 Use the architecture README and diagram to understand how messages move between the dashboard, leader board, and follower board.
+
+## Structural Check Execution Paths
+
+To avoid path mistakes and wasted iterations, always run structural checks with an explicit project root.
+
+- From repository root (`SoArm101-WaveshareEsp32/`):
+	- `python ESP32/tools/check_structural_limits.py --project-root ESP32`
+- From firmware root (`SoArm101-WaveshareEsp32/ESP32`):
+	- `python tools/check_structural_limits.py --project-root .`
+
+Do not run `python tools/check_structural_limits.py` from repository root.
+
+When validating a multi-file change in firmware/dashboard:
+- Run structural checks first.
+- Then run `pio run -e leader` and `pio run -e follower`.
+- Then run dashboard Python syntax checks.

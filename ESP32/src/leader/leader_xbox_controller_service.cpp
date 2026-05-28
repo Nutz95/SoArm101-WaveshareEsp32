@@ -166,6 +166,8 @@ void LeaderXboxControllerService::snapshot(XboxRuntimeSnapshot &out) const {
   out.axisLeftY = axisLeftY_.load();
   out.axisRightX = axisRightX_.load();
   out.axisRightY = axisRightY_.load();
+  out.dpadX = dpadX_.load();
+  out.dpadY = dpadY_.load();
   out.triggerLeft = triggerLeft_.load();
   out.triggerRight = triggerRight_.load();
 
@@ -323,28 +325,6 @@ void LeaderXboxControllerService::onDeviceFound(const char *name) {
   controllerName_[sizeof(controllerName_) - 1U] = '\0';
 }
 
-void LeaderXboxControllerService::updateInputState(const uint8_t *data, size_t length) {
-  if (data == nullptr || length < config::controller::kMinHidReportLength) {
-    return;
-  }
-
-  const uint16_t buttonsMask = static_cast<uint16_t>(
-      ((static_cast<uint16_t>(data[14]) << 8) | static_cast<uint16_t>(data[15])) & 0x7FFFU);
-  buttonsMask_.store(buttonsMask);
-
-  const int16_t leftX = static_cast<int16_t>(static_cast<uint16_t>(data[0]) | (static_cast<uint16_t>(data[1]) << 8));
-  const int16_t leftY = static_cast<int16_t>(static_cast<uint16_t>(data[2]) | (static_cast<uint16_t>(data[3]) << 8));
-  const int16_t rightX = static_cast<int16_t>(static_cast<uint16_t>(data[4]) | (static_cast<uint16_t>(data[5]) << 8));
-  const int16_t rightY = static_cast<int16_t>(static_cast<uint16_t>(data[6]) | (static_cast<uint16_t>(data[7]) << 8));
-  axisLeftX_.store(leftX);
-  axisLeftY_.store(leftY);
-  axisRightX_.store(rightX);
-  axisRightY_.store(rightY);
-
-  triggerLeft_.store(data[8]);
-  triggerRight_.store(data[10]);
-}
-
 bool LeaderXboxControllerService::waitForSecureLink(uint32_t timeoutMs) {
   const uint32_t startedAt = millis();
   while ((millis() - startedAt) < timeoutMs) {
@@ -366,6 +346,40 @@ bool LeaderXboxControllerService::waitForSecureLink(uint32_t timeoutMs) {
 
 bool LeaderXboxControllerService::isReadyForTeleop() const {
   return linkEncrypted_.load() && inputSubscribed_.load();
+}
+
+void LeaderXboxControllerService::setModeCycleButton(XboxLogicalButton button) {
+  modeCycleButton_.store(static_cast<uint8_t>(button));
+  modeCyclePressedLast_.store(false);
+}
+
+bool LeaderXboxControllerService::consumeModeCycleRequest() {
+  uint8_t pending = modeCyclePendingCount_.load();
+  if (pending == 0U) {
+    return false;
+  }
+
+  modeCyclePendingCount_.store(static_cast<uint8_t>(pending - 1U));
+  return true;
+}
+
+bool LeaderXboxControllerService::consumeButtonPress(XboxLogicalButton button) {
+  std::atomic<uint8_t> *pendingCounter = nullptr;
+  if (button == XboxLogicalButton::A) {
+    pendingCounter = &buttonAPendingCount_;
+  } else if (button == XboxLogicalButton::B) {
+    pendingCounter = &buttonBPendingCount_;
+  } else {
+    return false;
+  }
+
+  uint8_t pending = pendingCounter->load();
+  if (pending == 0U) {
+    return false;
+  }
+
+  pendingCounter->store(static_cast<uint8_t>(pending - 1U));
+  return true;
 }
 
 void LeaderXboxControllerService::taskEntry(void *context) {

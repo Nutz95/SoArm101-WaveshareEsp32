@@ -46,6 +46,8 @@ const char *shortIpTail(const char *ip) {
 constexpr int kScreenWidth  = 128;
 constexpr int kScreenHeight = 64;
 constexpr int kOledReset    = -1; // Share Arduino reset pin.
+constexpr uint32_t kScrollStepMs = 250U;
+constexpr uint8_t kScrollHoldSteps = 4U;
 
 } // namespace
 
@@ -206,6 +208,37 @@ void OledPresenter::applyTextStyle() {
     }
 }
 
+void OledPresenter::printScrollableLine(const char *line, uint8_t y, uint8_t visibleChars, uint32_t nowMs) {
+    if (display_ == nullptr) {
+        return;
+    }
+
+    const char *safeLine = (line != nullptr) ? line : "";
+    const size_t lineLength = strlen(safeLine);
+    display_->setCursor(0, y);
+    if (lineLength <= visibleChars || visibleChars == 0U) {
+        display_->println(safeLine);
+        return;
+    }
+
+    const size_t maxOffset = lineLength - visibleChars;
+    const uint32_t step = nowMs / kScrollStepMs;
+    const uint32_t cycleLength = static_cast<uint32_t>(maxOffset + kScrollHoldSteps + 1U);
+    size_t offset = 0U;
+    if (cycleLength > 0U) {
+        const uint32_t cycleIndex = step % cycleLength;
+        offset = cycleIndex > kScrollHoldSteps ? static_cast<size_t>(cycleIndex - kScrollHoldSteps) : 0U;
+        if (offset > maxOffset) {
+            offset = maxOffset;
+        }
+    }
+
+    char visibleBuffer[32]{};
+    strncpy(visibleBuffer, safeLine + offset, visibleChars);
+    visibleBuffer[visibleChars] = '\0';
+    display_->println(visibleBuffer);
+}
+
 void OledPresenter::printLines(const char *line1,
                                                                 const char *line2,
                                                                 const char *line3,
@@ -236,14 +269,19 @@ void OledPresenter::printLines(const char *line1,
         }
     }
 
-    display_->setCursor(0, y0);
-    display_->println(line1);
-    display_->setCursor(0, y1);
-    display_->println(line2);
-    display_->setCursor(0, y2);
-    display_->println(line3);
-    display_->setCursor(0, y3);
-    display_->println(line4);
+    uint8_t visibleChars = 21U;
+    if (config_.textStyle == OledTextStyle::Large) {
+        visibleChars = 10U;
+    } else if (config_.textStyle == OledTextStyle::Medium && config_.screenHeight >= 48U) {
+        visibleChars = 14U;
+    }
+
+    const uint32_t nowMs = millis();
+
+    printScrollableLine(line1, y0, visibleChars, nowMs);
+    printScrollableLine(line2, y1, visibleChars, nowMs);
+    printScrollableLine(line3, y2, visibleChars, nowMs);
+    printScrollableLine(line4, y3, visibleChars, nowMs);
 
     display_->display();
 }

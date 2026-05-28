@@ -4,7 +4,6 @@ export function initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleo
   const controlIds = [
     "teleopEnabledInput",
     "teleopSameIdInput",
-    "teleopCalibrationInput",
     "teleopSpeedInput",
     "teleopTransportInput",
   ];
@@ -23,7 +22,7 @@ export function initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleo
     return {
       enabled: document.getElementById("teleopEnabledInput").checked,
       same_id_mapping: document.getElementById("teleopSameIdInput").checked,
-      calibration_required: document.getElementById("teleopCalibrationInput").checked,
+      calibration_required: false,
       speed_pct: clampU8(Number(document.getElementById("teleopSpeedInput").value)),
       transport_mode: Number(document.getElementById("teleopTransportInput").value) === 1 ? 1 : 0,
     };
@@ -69,10 +68,6 @@ export function initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleo
   });
 
   document.getElementById("teleopSameIdInput").addEventListener("change", async () => {
-    await applyConfigFromControls();
-  });
-
-  document.getElementById("teleopCalibrationInput").addEventListener("change", async () => {
     await applyConfigFromControls();
   });
 
