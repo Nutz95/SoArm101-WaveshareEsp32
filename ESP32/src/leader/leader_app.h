@@ -72,7 +72,7 @@ private:
   void handleXboxModeCycleButtonSetCommand(uint32_t value, uint16_t requestId);
   void handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t requestId);
   ArmRole activeCalibrationRole() const;
-  void beginCalibrationRangeCapture();
+  bool beginCalibrationRangeCapture();
   bool sampleCalibrationRangeCapture();
   bool commitCalibrationRangeCapture();
   void cancelCalibrationRangeCapture();
@@ -165,6 +165,7 @@ private:
   uint32_t            followerStartupScanRetryMs_{0U};
   bool                leaderServoFault_{false};
   bool                followerServoFault_{false};
+  uint32_t            lastTelemetrySnapshotMs_{0U};
   uint32_t            lastOledRefreshMs_;
 };
 

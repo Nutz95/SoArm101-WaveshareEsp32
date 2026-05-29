@@ -171,9 +171,14 @@ class TelemetryClient(threading.Thread):
                 "follower_command_status": int(fields[55]),
                 "status": decode_cstr(fields[56]),
                 "controller_operation_profile": int(fields[57]),
-                "leader_calibration_min": [int(fields[58 + i]) for i in range(6)],
-                "leader_calibration_max": [int(fields[64 + i]) for i in range(6)],
-                "follower_calibration_min": [int(fields[70 + i]) for i in range(6)],
-                "follower_calibration_max": [int(fields[76 + i]) for i in range(6)],
+                "calibration_phase": int(fields[58]),
+                "leader_calibration_min": [int(fields[59 + i]) for i in range(6)],
+                "leader_calibration_max": [int(fields[65 + i]) for i in range(6)],
+                "follower_calibration_min": [int(fields[71 + i]) for i in range(6)],
+                "follower_calibration_max": [int(fields[77 + i]) for i in range(6)],
+                "leader_working_calibration_min": [int(fields[83 + i]) for i in range(6)],
+                "leader_working_calibration_max": [int(fields[89 + i]) for i in range(6)],
+                "follower_working_calibration_min": [int(fields[95 + i]) for i in range(6)],
+                "follower_working_calibration_max": [int(fields[101 + i]) for i in range(6)],
             }
         )

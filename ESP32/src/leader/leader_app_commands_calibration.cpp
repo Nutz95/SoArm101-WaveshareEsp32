@@ -39,11 +39,30 @@ void LeaderApp::releaseCalibrationTorqueForActiveRole() {
       requestId);
 }
 
-void LeaderApp::beginCalibrationRangeCapture() {
+bool LeaderApp::beginCalibrationRangeCapture() {
+  const ArmRole role = activeCalibrationRole();
+  if (role == ArmRole::Leader) {
+    if (!servoBusService_.calibrateOffsetsForDetectedServos()) {
+      return false;
+    }
+  } else {
+    if (!presenceService_->isFollowerLinked()) {
+      return false;
+    }
+    const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
+    teleopContinuousRequestCounter_ = requestId;
+    if (!presenceService_->requestServoControl(
+            static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter),
+            0U,
+            requestId)) {
+      return false;
+    }
+  }
+
   calibrationPhase_.store(1U);
   releaseCalibrationTorqueForActiveRole();
 
-  if (activeCalibrationRole() == ArmRole::Leader) {
+  if (role == ArmRole::Leader) {
     leaderCalibrationProfileBackup_ = leaderCalibrationProfile_;
     resetWorkingProfile(leaderCalibrationWorkingProfile_);
   } else {
@@ -51,7 +70,7 @@ void LeaderApp::beginCalibrationRangeCapture() {
     resetWorkingProfile(followerCalibrationWorkingProfile_);
   }
 
-  (void)sampleCalibrationRangeCapture();
+  return role == ArmRole::Leader ? sampleCalibrationRangeCapture() : true;
 }
 
 bool LeaderApp::sampleCalibrationRangeCapture() {
@@ -132,7 +151,12 @@ bool LeaderApp::handleTeleopCalibrationCaptureValueCommand() {
 
 void LeaderApp::handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t requestId) {
   if (value == kCalibrationConfirmCenter) {
-    beginCalibrationRangeCapture();
+    if (!beginCalibrationRangeCapture()) {
+      setLeaderCommandStatus(CommandAckStatus::Rejected);
+      setFollowerCommandStatus(CommandAckStatus::Rejected);
+      setTransientStatus("cal center failed", config::leader::kMoveStatusHoldMs);
+      return;
+    }
 
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);

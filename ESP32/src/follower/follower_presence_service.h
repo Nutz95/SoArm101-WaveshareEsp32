@@ -49,6 +49,14 @@ private:
     uint8_t sequence;
   };
 
+  struct PendingTeleopBatch {
+    uint8_t count;
+    uint8_t speedPct;
+    uint16_t requestId;
+    uint8_t ids[config::common::kTeleopBatchMaxServos];
+    int16_t positions[config::common::kTeleopBatchMaxServos];
+  };
+
   void onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) override;
   void handlePairResetMessage(const uint8_t *mac, const PresencePacket &packet);
   void handleServoScanMessage(const uint8_t *mac, const PresencePacket &packet);
@@ -65,6 +73,8 @@ private:
   bool hasPairedLeader() const;
   bool enqueueServoControl(uint8_t op, uint32_t value, uint16_t requestId, uint8_t sequence);
   bool dequeueServoControl(uint8_t &op, uint32_t &value, uint16_t &requestId, uint8_t &sequence);
+  void enqueueTeleopBatch(const PendingTeleopBatch &batch);
+  bool dequeueTeleopBatch(PendingTeleopBatch &batch);
   bool isDuplicateControlFrame(uint8_t op, uint32_t value, uint16_t requestId, uint8_t sequence) const;
   void sendCommandAck(uint16_t requestId, uint8_t op, uint8_t status, uint8_t sequence);
   void sendPairRequest(const char *localIp);
@@ -89,12 +99,10 @@ private:
   uint16_t lastAckRequestId_{0U};
   uint8_t lastAckCommandOp_{0U};
   uint8_t lastAckStatus_{0U};
-  bool teleopBatchPending_{false};
-  uint8_t teleopBatchCount_{0U};
-  uint8_t teleopBatchSpeedPct_{0U};
-  uint16_t teleopBatchRequestId_{0U};
-  uint8_t teleopBatchIds_[config::common::kTeleopBatchMaxServos]{};
-  int16_t teleopBatchPositions_[config::common::kTeleopBatchMaxServos]{};
+  PendingTeleopBatch teleopBatchQueue_[config::follower::kTeleopBatchQueueCapacity]{};
+  uint8_t teleopBatchQueueHead_{0U};
+  uint8_t teleopBatchQueueTail_{0U};
+  uint8_t teleopBatchQueueCount_{0U};
   uint8_t servoCount_{0U};
   bool servoDebugManual_{false};
   bool servoTemperatureAlarm_{false};

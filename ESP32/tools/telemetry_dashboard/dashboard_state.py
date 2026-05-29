@@ -67,10 +67,15 @@ class DashboardState:
             "connected": False,
             "last_frame_ts": 0.0,
             "controller_operation_profile": 2,
+            "calibration_phase": 0,
             "leader_calibration_min": [0] * 6,
             "leader_calibration_max": [4095] * 6,
             "follower_calibration_min": [0] * 6,
             "follower_calibration_max": [4095] * 6,
+            "leader_working_calibration_min": [4095] * 6,
+            "leader_working_calibration_max": [0] * 6,
+            "follower_working_calibration_min": [4095] * 6,
+            "follower_working_calibration_max": [0] * 6,
         }
 
     def snapshot(self) -> Dict[str, Any]:

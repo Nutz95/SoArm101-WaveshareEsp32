@@ -1,4 +1,18 @@
 <section class="panel view-panel" data-view-panel="calibration">
+  <section class="card calibration-scan-card">
+    <div class="calibration-scan-header">
+      <div>
+        <h3>Servo Scan</h3>
+        <p>Run a fresh scan before calibration so the workflow and teleoperation target the currently detected servos.</p>
+      </div>
+      <div class="actions calibration-scan-actions">
+        <button id="servoScanBtn" type="button">Servo Scan (Both)</button>
+        <button id="servoScanLeaderBtn" type="button">Servo Scan (Leader)</button>
+        <button id="servoScanFollowerBtn" type="button">Servo Scan (Follower)</button>
+      </div>
+    </div>
+  </section>
+
   <h2>Calibration Workflow</h2>
   <p>Use one arm at a time. Start in center mode, validate the rough center, then sweep both extremes before saving.</p>
 
@@ -21,6 +35,7 @@
   </div>
 
   <p id="calibrationInstruction" class="calibration-instruction">Choose a calibration target, release the torque on that side, then start the workflow.</p>
+  <p id="calibrationWizardHint" class="calibration-wizard-hint">Validate center launches an automatic sequential check across the detected servos. Positions close to 2048 are accepted; the UI does not require a manual confirmation servo by servo.</p>
   <p id="calibrationStatus">Calibration idle.</p>
 
   <div class="card calibration-table-card">

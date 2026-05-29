@@ -3,11 +3,11 @@
 #include <cstdint>
 
 #ifndef EXPECTED_LEADER_SERVO_COUNT
-#define EXPECTED_LEADER_SERVO_COUNT 1U
+#define EXPECTED_LEADER_SERVO_COUNT 6U
 #endif
 
 #ifndef EXPECTED_FOLLOWER_SERVO_COUNT
-#define EXPECTED_FOLLOWER_SERVO_COUNT 1U
+#define EXPECTED_FOLLOWER_SERVO_COUNT 6U
 #endif
 
 namespace soarm {
@@ -18,6 +18,8 @@ constexpr uint32_t kStatusLedBlinkPeriodMs = 450U;
 constexpr uint8_t kServoBusIoTimeoutMs = 20U;
 constexpr uint32_t kServoBusLockTimeoutMs = 20U;
 constexpr uint8_t kTeleopBatchMaxServos = 6U;
+constexpr int16_t kTeleopPositionClampMin = -32767;
+constexpr int16_t kTeleopPositionClampMax = 32767;
 constexpr uint32_t kServoTemperaturePollIntervalMs = 3000U;
 constexpr int16_t kServoTemperatureAlarmThresholdC = 70;
 constexpr int16_t kServoTemperatureAlarmClearThresholdC = 65;

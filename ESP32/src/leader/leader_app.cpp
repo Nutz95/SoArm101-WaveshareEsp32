@@ -155,9 +155,16 @@ void LeaderApp::tick() {
   updateFollowerState();
   renderStatusLeds();
 
-  LeaderTelemetrySnapshot snapshot{};
-  buildTelemetrySnapshot(snapshot, uptimeMs);
-  telemetryState_.update(snapshot);
+  const uint32_t snapshotPeriodMs =
+      mode_ == OperationMode::Teleoperation
+          ? config::leader::kTelemetrySnapshotTeleopPeriodMs
+          : config::leader::kTelemetrySnapshotIdlePeriodMs;
+  if ((uptimeMs - lastTelemetrySnapshotMs_) >= snapshotPeriodMs) {
+    lastTelemetrySnapshotMs_ = uptimeMs;
+    LeaderTelemetrySnapshot snapshot{};
+    buildTelemetrySnapshot(snapshot, uptimeMs);
+    telemetryState_.update(snapshot);
+  }
 
   refreshOled(uptimeMs);
 
@@ -304,11 +311,16 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.leaderCommandStatus = static_cast<uint8_t>(leaderCommandStatus_);
   snapshot.followerCommandStatus = static_cast<uint8_t>(followerCommandStatus_);
   snapshot.controllerOperationProfile = controllerOperationProfile_.load();
+  snapshot.calibrationPhase = calibrationPhase_.load();
   for (uint8_t i = 0U; i < CalibrationProfile::kServoCount; ++i) {
     snapshot.leaderCalibrationMin[i] = leaderCalibrationProfile_.minPosition[i];
     snapshot.leaderCalibrationMax[i] = leaderCalibrationProfile_.maxPosition[i];
     snapshot.followerCalibrationMin[i] = followerCalibrationProfile_.minPosition[i];
     snapshot.followerCalibrationMax[i] = followerCalibrationProfile_.maxPosition[i];
+    snapshot.leaderWorkingCalibrationMin[i] = leaderCalibrationWorkingProfile_.minPosition[i];
+    snapshot.leaderWorkingCalibrationMax[i] = leaderCalibrationWorkingProfile_.maxPosition[i];
+    snapshot.followerWorkingCalibrationMin[i] = followerCalibrationWorkingProfile_.minPosition[i];
+    snapshot.followerWorkingCalibrationMax[i] = followerCalibrationWorkingProfile_.maxPosition[i];
   }
 }
 

@@ -13,6 +13,8 @@ constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
 constexpr uint32_t kPairRequestIntervalMs = 5000U;
 constexpr uint8_t kServoControlQueueCapacity = 8U;
 constexpr uint8_t kCommandAckSendBurstCount = 3U;
+constexpr uint8_t kTeleopBatchQueueCapacity = 8U;
+constexpr uint32_t kServoTelemetryPublishPeriodMs = 20U;
 
 } // namespace follower
 } // namespace config

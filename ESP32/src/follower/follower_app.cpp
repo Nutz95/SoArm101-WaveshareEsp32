@@ -8,6 +8,7 @@
 #include "../common/servo/servo_control_opcode.h"
 
 #include <Arduino.h>
+#include <esp_system.h>
 #include <cstddef>
 
 // WiFi credentials injected from environment variables at build time.
@@ -35,29 +36,6 @@ namespace {
 
 constexpr uint16_t kCalibrationCenterPosition = 2048U;
 constexpr uint16_t kCalibrationCenterSpeed = 150U;
-
-uint8_t filterBatchToDetectedServos(
-    const uint8_t *idsIn, const int16_t *posIn, uint8_t countIn,
-    uint8_t *idsOut, int16_t *posOut, uint8_t maxOut,
-    const char *detectedText) {
-  if (detectedText == nullptr || detectedText[0] == '\0' || detectedText[0] == '-') { return 0U; }
-  uint8_t detected[32]{};
-  uint8_t detectedCount = 0U;
-  for (const char *c = detectedText; *c != '\0' && detectedCount < 32U;) {
-    unsigned int id = 0U;
-    if (sscanf(c, "%u", &id) == 1 && id > 0U && id <= 255U) { detected[detectedCount++] = static_cast<uint8_t>(id); }
-    while (*c != '\0' && *c != ',') { ++c; }
-    if (*c == ',') { ++c; }
-  }
-  uint8_t countOut = 0U;
-  for (uint8_t i = 0U; i < countIn && countOut < maxOut; ++i) {
-    for (uint8_t j = 0U; j < detectedCount; ++j) {
-      if (idsIn[i] != detected[j]) { continue; }
-      idsOut[countOut] = idsIn[i]; posOut[countOut] = posIn[i]; ++countOut; break;
-    }
-  }
-  return countOut;
-}
 
 bool moveDetectedServosToCenter(ServoBusService &servoBusService) {
   const char *idsText = servoBusService.lastIdsText();
@@ -97,6 +75,7 @@ FollowerApp::FollowerApp()
 
 void FollowerApp::begin() {
   Serial.begin(115200);
+  Serial.printf("[BOOT] reset reason=%d\n", static_cast<int>(esp_reset_reason()));
 
   statusLedService_.begin();
 
@@ -127,6 +106,7 @@ void FollowerApp::begin() {
   }
 
   const uint8_t startupScanCount = servoBusService_.scan();
+  memset(teleopPreparedById_, 0, sizeof(teleopPreparedById_));
   Serial.printf("[SERVO] follower startup scan: %u servo(s)\n", startupScanCount);
 
   const bool espNowReady = presenceService_->begin();
@@ -142,6 +122,7 @@ void FollowerApp::begin() {
 }
 
 void FollowerApp::tick() {
+  const uint32_t nowMs = millis();
   wifiOta_.tick();
   presenceService_->tick(wifiOta_.ipAddress());
 
@@ -149,76 +130,14 @@ void FollowerApp::tick() {
   processIncomingTeleopBatch();
   processIncomingServoControl();
   processIncomingServoScan();
-  publishServoTelemetry();
+  if ((nowMs - lastServoTelemetryPublishMs_) >= config::follower::kServoTelemetryPublishPeriodMs) {
+    lastServoTelemetryPublishMs_ = nowMs;
+    publishServoTelemetry();
+  }
 
-  updateStateAndLeds(millis());
+  updateStateAndLeds(nowMs);
 
   delay(config::follower::kTickDelayMs);
-}
-
-void FollowerApp::processIncomingTeleopWifiBatch() {
-  uint8_t ids[config::common::kTeleopBatchMaxServos]{};
-  int16_t positions[config::common::kTeleopBatchMaxServos]{};
-  uint8_t count = 0U;
-  uint8_t speedPercent = 0U;
-  uint16_t requestId = 0U;
-
-  if (!teleopWifiBridge_.consumeBatch(
-          ids, positions, config::common::kTeleopBatchMaxServos,
-          count, speedPercent, requestId)) {
-    return;
-  }
-
-  const uint16_t speed = static_cast<uint16_t>(
-          (static_cast<uint32_t>(speedPercent) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
-  uint8_t filteredIds[config::common::kTeleopBatchMaxServos]{};
-  int16_t filteredPositions[config::common::kTeleopBatchMaxServos]{};
-  const uint8_t filteredCount = filterBatchToDetectedServos(
-      ids, positions, count,
-      filteredIds, filteredPositions, config::common::kTeleopBatchMaxServos,
-      servoBusService_.lastIdsText());
-  if (filteredCount == 0U) { teleopWifiBridge_.sendAck(requestId, static_cast<uint8_t>(CommandAckStatus::Applied)); return; }
-  const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed);
-  teleopWifiBridge_.sendAck(
-      requestId,
-      static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
-}
-
-void FollowerApp::processIncomingTeleopBatch() {
-  uint8_t ids[config::common::kTeleopBatchMaxServos]{};
-  int16_t positions[config::common::kTeleopBatchMaxServos]{};
-  uint8_t count = 0U;
-  uint8_t speedPercent = 0U;
-  uint16_t requestId = 0U;
-
-  if (!presenceService_->consumeTeleopMirrorBatch(
-          ids,
-          positions,
-          config::common::kTeleopBatchMaxServos,
-          count,
-            speedPercent,
-          requestId)) {
-    return;
-  }
-
-  const uint16_t speed = static_cast<uint16_t>(
-          (static_cast<uint32_t>(speedPercent) * config::follower::kTeleopServoMaxSpeedRaw) / 100U);
-  uint8_t filteredIds[config::common::kTeleopBatchMaxServos]{};
-  int16_t filteredPositions[config::common::kTeleopBatchMaxServos]{};
-  const uint8_t filteredCount = filterBatchToDetectedServos(
-      ids, positions, count,
-      filteredIds, filteredPositions, config::common::kTeleopBatchMaxServos,
-      servoBusService_.lastIdsText());
-  if (filteredCount == 0U) {
-    presenceService_->updateLastCommandAck(requestId, static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch), static_cast<uint8_t>(CommandAckStatus::Applied));
-    presenceService_->requestImmediatePresenceTx(); return;
-  }
-  const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed);
-  presenceService_->updateLastCommandAck(
-      requestId,
-      static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch),
-      static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
-  presenceService_->requestImmediatePresenceTx();
 }
 
 void FollowerApp::processIncomingServoControl() {
@@ -245,6 +164,7 @@ void FollowerApp::processIncomingServoScan() {
 
   const uint32_t scanStartMs = millis();
   const uint8_t foundCount = servoBusService_.scan();
+  memset(teleopPreparedById_, 0, sizeof(teleopPreparedById_));
   const uint32_t scanDurationMs = millis() - scanStartMs;
   Serial.printf("[SERVO] scan complete: %u servo(s) found in %lu ms (%s)\n",
                 foundCount,
@@ -294,7 +214,8 @@ CommandAckStatus FollowerApp::executeServoControl(uint8_t op, uint32_t value) {
       {static_cast<uint8_t>(ServoControlOpcode::SetId), &FollowerApp::handleSetId},
       {static_cast<uint8_t>(ServoControlOpcode::SetMode), &FollowerApp::handleSetMode},
       {static_cast<uint8_t>(ServoControlOpcode::CalibrationCapture), &FollowerApp::handleCalibrationCapture},
-        {static_cast<uint8_t>(ServoControlOpcode::CenterAll), &FollowerApp::handleCenterAll},
+      {static_cast<uint8_t>(ServoControlOpcode::CenterAll), &FollowerApp::handleCenterAll},
+      {static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter), &FollowerApp::handleCalibrationCenter},
   };
 
   for (size_t i = 0; i < (sizeof(kServoDispatchTable) / sizeof(kServoDispatchTable[0])); ++i) {
@@ -328,6 +249,23 @@ CommandAckStatus FollowerApp::handleCenterAll(uint32_t value) {
 
   Serial.println("[SERVO] center-all move sent");
   return CommandAckStatus::Applied;
+}
+
+CommandAckStatus FollowerApp::handleCalibrationCenter(uint32_t value) {
+  (void)value;
+  const uint32_t startMs = millis();
+  Serial.println("[CAL] follower center start");
+  const bool ok = servoBusService_.calibrateOffsetsForDetectedServos();
+  if (ok) {
+    (void)servoBusService_.scan();
+    servoBusService_.refreshKnownTelemetryFast();
+  }
+  const uint32_t durationMs = millis() - startMs;
+  Serial.printf("[CAL] follower center %s (%lu ms) summary=%s\n",
+                ok ? "ok" : "fail",
+                static_cast<unsigned long>(durationMs),
+                servoBusService_.lastScanSummary());
+  return ok ? CommandAckStatus::Applied : CommandAckStatus::Failed;
 }
 
 CommandAckStatus FollowerApp::handleMove(uint32_t value) {

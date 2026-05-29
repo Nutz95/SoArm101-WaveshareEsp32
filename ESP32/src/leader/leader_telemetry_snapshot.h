@@ -68,11 +68,16 @@ struct LeaderTelemetrySnapshot {
   char status[24];
   // Controller operation profile: 0=cal_leader, 1=cal_follower, 2=teleop_espnow, 3=teleop_wifi
   uint8_t controllerOperationProfile;
+  uint8_t calibrationPhase;
   // NVS-stored calibration limits for both arms (transmitted so the dashboard can display them)
   uint16_t leaderCalibrationMin[CalibrationProfile::kServoCount];
   uint16_t leaderCalibrationMax[CalibrationProfile::kServoCount];
   uint16_t followerCalibrationMin[CalibrationProfile::kServoCount];
   uint16_t followerCalibrationMax[CalibrationProfile::kServoCount];
+  uint16_t leaderWorkingCalibrationMin[CalibrationProfile::kServoCount];
+  uint16_t leaderWorkingCalibrationMax[CalibrationProfile::kServoCount];
+  uint16_t followerWorkingCalibrationMin[CalibrationProfile::kServoCount];
+  uint16_t followerWorkingCalibrationMax[CalibrationProfile::kServoCount];
 } __attribute__((packed));
 
 } // namespace soarm

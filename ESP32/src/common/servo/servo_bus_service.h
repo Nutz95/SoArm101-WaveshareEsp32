@@ -31,6 +31,7 @@ public:
   bool setServoMode(uint8_t id, uint8_t mode);
   bool setTorqueEnabled(uint8_t id, bool enabled);
   bool setTorqueEnabledForDetectedServos(bool enabled);
+  bool calibrateOffsetsForDetectedServos();
   void setDebugManual(bool enabled);
   bool isDebugManual() const;
   bool pollTemperatureAlarmSlow();

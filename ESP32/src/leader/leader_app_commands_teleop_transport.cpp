@@ -26,7 +26,7 @@ void LeaderApp::handleTeleopTransportCommand(uint32_t value, uint16_t requestId)
     applyControllerOperationProfile(0U);
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
-    setTransientStatus("profile cal leader", config::leader::kMoveStatusHoldMs);
+    setTransientStatus("cal leader place near ctr", config::leader::kMoveStatusHoldMs);
     return;
   }
 
@@ -34,7 +34,7 @@ void LeaderApp::handleTeleopTransportCommand(uint32_t value, uint16_t requestId)
     applyControllerOperationProfile(1U);
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
-    setTransientStatus("profile cal follower", config::leader::kMoveStatusHoldMs);
+    setTransientStatus("cal follower place ctr", config::leader::kMoveStatusHoldMs);
     return;
   }
 

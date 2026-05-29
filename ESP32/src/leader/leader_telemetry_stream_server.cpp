@@ -1,5 +1,7 @@
 #include "leader_telemetry_stream_server.h"
 
+#include "../Config/leader_runtime_config.h"
+
 namespace soarm {
 
 LeaderTelemetryStreamServer::LeaderTelemetryStreamServer(LeaderTelemetryState &telemetryState)
@@ -176,7 +178,7 @@ void LeaderTelemetryStreamServer::tick() {
   }
 
   const uint32_t nowMs = millis();
-  if ((nowMs - lastStreamMs_) < 50U) {
+  if ((nowMs - lastStreamMs_) < config::leader::kTelemetryStreamPeriodMs) {
     return;
   }
 

@@ -161,20 +161,44 @@ bool FollowerPresenceService::consumeTeleopMirrorBatch(
     uint8_t &count,
     uint8_t &speedPct,
     uint16_t &requestId) {
-  if (ids == nullptr || positions == nullptr || capacity == 0U || !teleopBatchPending_) {
+  if (ids == nullptr || positions == nullptr || capacity == 0U) {
     return false;
   }
 
-  const uint8_t copyCount = (teleopBatchCount_ < capacity) ? teleopBatchCount_ : capacity;
+  PendingTeleopBatch batch{};
+  if (!dequeueTeleopBatch(batch)) {
+    return false;
+  }
+
+  const uint8_t copyCount = (batch.count < capacity) ? batch.count : capacity;
   for (uint8_t i = 0U; i < copyCount; ++i) {
-    ids[i] = teleopBatchIds_[i];
-    positions[i] = teleopBatchPositions_[i];
+    ids[i] = batch.ids[i];
+    positions[i] = batch.positions[i];
   }
 
   count = copyCount;
-  speedPct = teleopBatchSpeedPct_;
-  requestId = teleopBatchRequestId_;
-  teleopBatchPending_ = false;
+  speedPct = batch.speedPct;
+  requestId = batch.requestId;
+  return true;
+}
+
+void FollowerPresenceService::enqueueTeleopBatch(const PendingTeleopBatch &batch) {
+  if (teleopBatchQueueCount_ >= config::follower::kTeleopBatchQueueCapacity) {
+    teleopBatchQueueHead_ = static_cast<uint8_t>((teleopBatchQueueHead_ + 1U) % config::follower::kTeleopBatchQueueCapacity);
+    --teleopBatchQueueCount_;
+  }
+  teleopBatchQueue_[teleopBatchQueueTail_] = batch;
+  teleopBatchQueueTail_ = static_cast<uint8_t>((teleopBatchQueueTail_ + 1U) % config::follower::kTeleopBatchQueueCapacity);
+  ++teleopBatchQueueCount_;
+}
+
+bool FollowerPresenceService::dequeueTeleopBatch(PendingTeleopBatch &batch) {
+  if (teleopBatchQueueCount_ == 0U) {
+    return false;
+  }
+  batch = teleopBatchQueue_[teleopBatchQueueHead_];
+  teleopBatchQueueHead_ = static_cast<uint8_t>((teleopBatchQueueHead_ + 1U) % config::follower::kTeleopBatchQueueCapacity);
+  --teleopBatchQueueCount_;
   return true;
 }
 
@@ -340,23 +364,24 @@ void FollowerPresenceService::handleServoControlBatchFrame(const PresencePacket 
     return;
   }
 
+  PendingTeleopBatch batch{};
   const uint8_t rawCount = static_cast<uint8_t>(packet.servoTelemetry[0]);
   const uint8_t clampedCount = (rawCount > config::common::kTeleopBatchMaxServos)
                                    ? config::common::kTeleopBatchMaxServos
                                    : rawCount;
-  teleopBatchCount_ = clampedCount;
-  teleopBatchSpeedPct_ = static_cast<uint8_t>(packet.servoTelemetry[1]);
-  teleopBatchRequestId_ = packet.reserved2;
+  batch.count = clampedCount;
+  batch.speedPct = static_cast<uint8_t>(packet.servoTelemetry[1]);
+  batch.requestId = packet.reserved2;
 
   for (uint8_t i = 0U; i < clampedCount; ++i) {
     const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));
-    teleopBatchIds_[i] = static_cast<uint8_t>(packet.servoTelemetry[offset]);
+    batch.ids[i] = static_cast<uint8_t>(packet.servoTelemetry[offset]);
     const uint16_t lo = static_cast<uint8_t>(packet.servoTelemetry[offset + 1U]);
     const uint16_t hi = static_cast<uint8_t>(packet.servoTelemetry[offset + 2U]);
-    teleopBatchPositions_[i] = static_cast<int16_t>((hi << 8U) | lo);
+    batch.positions[i] = static_cast<int16_t>((hi << 8U) | lo);
   }
 
-  teleopBatchPending_ = true;
+  enqueueTeleopBatch(batch);
 }
 
 void FollowerPresenceService::handlePairAckFrame(const uint8_t *mac) {

@@ -20,6 +20,7 @@ public:
   void tick();
 
 private:
+  bool ensureTeleopServosReady(const uint8_t *ids, uint8_t count);
   void processIncomingTeleopBatch();
   void processIncomingTeleopWifiBatch();
   void processIncomingServoControl();
@@ -35,6 +36,7 @@ private:
   CommandAckStatus handleSetMode(uint32_t value);
   CommandAckStatus handleCalibrationCapture(uint32_t value);
   CommandAckStatus handleCenterAll(uint32_t value);
+  CommandAckStatus handleCalibrationCenter(uint32_t value);
 
   ArmStateMachine     stateMachine_;
   NvsCalibrationStore calibrationStore_;
@@ -45,6 +47,8 @@ private:
   FollowerTeleopWifiBridge teleopWifiBridge_;
   std::unique_ptr<IFollowerPresenceService> presenceService_;
   ArmStateInputs      localInputs_;
+  uint32_t            lastServoTelemetryPublishMs_{0U};
+  bool                teleopPreparedById_[256]{};
 };
 
 } // namespace soarm

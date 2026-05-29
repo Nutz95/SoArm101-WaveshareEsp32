@@ -36,10 +36,13 @@ void LeaderApp::handleControllerModeCycleEvents() {
 
   if (profile <= kProfileCalibrationFollower) {
     if (confirmPressed && calibrationPhase_.load() == 0U) {
-      beginCalibrationRangeCapture();
-      setTransientStatus(
-          profile == kProfileCalibrationLeader ? "cal leader move extremes" : "cal follower move extremes",
-          config::leader::kMoveStatusHoldMs);
+      if (beginCalibrationRangeCapture()) {
+        setTransientStatus(
+            profile == kProfileCalibrationLeader ? "cal leader move extremes" : "cal follower move extremes",
+            config::leader::kMoveStatusHoldMs);
+      } else {
+        setTransientStatus("cal center failed", config::leader::kMoveStatusHoldMs);
+      }
     }
 
     if (confirmPressed && calibrationPhase_.load() != 0U) {

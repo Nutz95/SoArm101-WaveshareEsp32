@@ -9,9 +9,18 @@ namespace soarm {
 
 void LeaderApp::computeModeAndStatus() {
   const bool followerIpValid = presenceService_->hasValidFollowerIp();
+  const uint8_t profile = controllerOperationProfile_.load();
+  const bool rangeCaptureActive = calibrationPhase_.load() != 0U;
+  const bool calibrationProfileActive = profile <= 1U;
 
   if (millis() < commandStatusHoldUntilMs_) {
-    mode_ = localInputs_.espNowLinked ? OperationMode::Teleoperation : OperationMode::Idle;
+    if (profile == 1U && localInputs_.espNowLinked) {
+      mode_ = OperationMode::CalibrationFollower;
+    } else if (calibrationProfileActive || !localInputs_.calibrationDone) {
+      mode_ = OperationMode::CalibrationLeader;
+    } else {
+      mode_ = localInputs_.espNowLinked ? OperationMode::Teleoperation : OperationMode::Idle;
+    }
     return;
   }
 
@@ -30,22 +39,23 @@ void LeaderApp::computeModeAndStatus() {
   if (!localInputs_.joystickPaired) {
     mode_ = OperationMode::Idle;
     strncpy(statusLine_, "pair joystick", sizeof(statusLine_) - 1);
-  } else if (!localInputs_.calibrationDone) {
-    const uint8_t profile = controllerOperationProfile_.load();
-    const bool rangeCaptureActive = calibrationPhase_.load() != 0U;
-    if (profile == 1U && localInputs_.espNowLinked) {
+  } else if (profile == 1U) {
+    if (localInputs_.espNowLinked) {
       mode_ = OperationMode::CalibrationFollower;
       strncpy(
           statusLine_,
           rangeCaptureActive ? "cal follower range" : "cal follower center",
           sizeof(statusLine_) - 1);
     } else {
-      mode_ = OperationMode::CalibrationLeader;
-      strncpy(
-          statusLine_,
-          rangeCaptureActive ? "cal leader range" : "cal leader center",
-          sizeof(statusLine_) - 1);
+      mode_ = OperationMode::Idle;
+      strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
     }
+  } else if (profile == 0U || !localInputs_.calibrationDone) {
+    mode_ = OperationMode::CalibrationLeader;
+    strncpy(
+        statusLine_,
+        rangeCaptureActive ? "cal leader range" : "cal leader center",
+        sizeof(statusLine_) - 1);
   } else if (!localInputs_.espNowLinked) {
     mode_ = OperationMode::Idle;
     if (presenceService_->followerIp()[0] != '\0' && !followerIpValid) {

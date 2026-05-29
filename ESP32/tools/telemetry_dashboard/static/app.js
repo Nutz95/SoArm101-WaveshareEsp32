@@ -20,7 +20,8 @@ import {
   syncPendingCommandStatus,
 } from "./js/pending_command.js";
 
-const REFRESH_INTERVAL_MS = 100;
+const TELEOP_REFRESH_INTERVAL_MS = 100;
+const DEFAULT_REFRESH_INTERVAL_MS = 250;
 const VIEW_PARTIALS = [
   "views/pairing/pairing_control.html",
   "views/pairing/xbox_pairing.html",
@@ -65,6 +66,18 @@ async function refresh() {
   }
 }
 
+function refreshIntervalMs() {
+  const activeTab = document.querySelector("[data-view-tab].is-active")?.dataset?.viewTab;
+  return activeTab === "teleop" ? TELEOP_REFRESH_INTERVAL_MS : DEFAULT_REFRESH_INTERVAL_MS;
+}
+
+function scheduleRefresh() {
+  window.setTimeout(async () => {
+    await refresh();
+    scheduleRefresh();
+  }, refreshIntervalMs());
+}
+
 async function bootstrap() {
   await loadViewPartials();
   initNavigationView();
@@ -72,8 +85,8 @@ async function bootstrap() {
   initCalibrationView(commandWithStatus, saveTeleopConfig, refresh);
   initTeleopView(commandWithStatus, saveTeleopConfig, triggerTeleopMirror, refresh);
   initManualView(commandWithStatus, hasPendingFollowerCommand, registerPendingCommand);
-  setInterval(refresh, REFRESH_INTERVAL_MS);
   refresh();
+  scheduleRefresh();
 }
 
 bootstrap().catch(() => {

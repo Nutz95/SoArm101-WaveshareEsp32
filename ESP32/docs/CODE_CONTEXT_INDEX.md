@@ -29,6 +29,8 @@ Use it when implementing changes to avoid broad code searches.
   - Runtime teleop transport mode command handling (ESP-NOW/Wi-Fi UDP) and calibration-profile activation bridge.
 - `src/leader/leader_app_commands_calibration.cpp`
   - Leader-side teleop calibration capture, local NVS persistence, and follower capture forwarding.
+- `src/leader/leader_calibration_workflow.cpp`
+  - Pure calibration parsing helpers extracted for host-side unit tests.
 - `src/leader/leader_presence_service.cpp`
   - ESP-NOW pairing, frame ingest, and follower state updates.
 - `src/leader/leader_presence_transport.cpp`
@@ -63,6 +65,8 @@ Use it when implementing changes to avoid broad code searches.
 
 - `src/common/servo/servo_bus_service.cpp`
   - Servo scan/read/write operations and SyncWrite batch move.
+- `src/common/servo/servo_bus_service_calibration.cpp`
+  - Current-position-as-center calibration for detected STS servos with post-write verification.
 - `src/common/servo/servo_bus_service_torque.cpp`
   - Servo torque enable/release operations extracted from ServoBusService core file.
 - `src/common/servo/servo_bus_service_temperature.cpp`
@@ -105,13 +109,25 @@ Use it when implementing changes to avoid broad code searches.
 ## Dashboard UI (Web)
 
 - `tools/telemetry_dashboard/static/index.html`
-  - Dashboard structure and teleop panel layout.
+  - Dashboard structure, top-level tabs, and panel layout.
+- `tools/telemetry_dashboard/static/views/pairing/pairing_control.html`
+  - ESP pairing-only panel and pairing reset actions.
+- `tools/telemetry_dashboard/static/views/pairing/xbox_pairing.html`
+  - Dedicated Xbox runtime/configuration panel separated from ESP pairing.
+- `tools/telemetry_dashboard/static/views/calibration/workflow.html`
+  - Calibration workflow panel, isolated scan controls, and live calibration table.
 - `tools/telemetry_dashboard/static/js/teleop_ui.js`
   - Teleop card rendering, position chart, and lag/tracking-error estimation.
 - `tools/telemetry_dashboard/static/js/lag_metrics.js`
   - Lag search and tracking error statistics computed from leader/follower histories.
 - `tools/telemetry_dashboard/static/js/dashboard_render.js`
-  - Overview rendering, including temperature alarm indicators.
+  - Overview rendering, including temperature alarm indicators and calibration table state colors.
+- `tools/telemetry_dashboard/static/js/calibration_render.js`
+  - Calibration instruction text and table color-state rendering helpers.
+- `tools/telemetry_dashboard/static/js/views/pairing_view.js`
+  - Pairing and Xbox panel actions, controller-config persistence, and profile switching.
+- `tools/telemetry_dashboard/static/js/views/calibration_view.js`
+  - Calibration-panel actions, isolated scan handlers, and workflow status messaging.
 - `tools/telemetry_dashboard/static/js/views/teleop_view.js`
   - Teleop actions and event handlers.
 - `tools/telemetry_dashboard/static/css/teleop.css`

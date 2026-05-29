@@ -16,6 +16,9 @@ constexpr uint32_t kServoTelemetryTaskActiveDelayMs = 5U;
 constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
 constexpr uint32_t kTeleopMirrorTaskActiveDelayMs = 1U;
 constexpr uint32_t kTeleopMirrorTaskIdleDelayMs = 1U;
+constexpr uint32_t kTelemetryStreamPeriodMs = 10U;
+constexpr uint32_t kTelemetrySnapshotTeleopPeriodMs = 10U;
+constexpr uint32_t kTelemetrySnapshotIdlePeriodMs = 100U;
 
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
 constexpr uint8_t kFollowerCommandMaxRetries = 6U;

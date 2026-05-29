@@ -29,10 +29,9 @@ ESP_TLM_TYPE = 1
 
 CMD_STRUCT = struct.Struct("<HBBHI")
 TLM_HEADER_STRUCT = struct.Struct("<HBB")
-# Layout (packed, little-endian): base fields + controllerOperationProfile (B) +
-# leaderCalibrationMin[6] + leaderCalibrationMax[6] +
-# followerCalibrationMin[6] + followerCalibrationMax[6]  (24 x uint16 = H)
-SNAPSHOT_STRUCT = struct.Struct("<I15BHHH6h2B3B11?2B16s16s18s18s48s48s96s96s32sHBBB24sB24H")
+# Layout (packed, little-endian): base fields + controllerOperationProfile (B) + calibrationPhase (B) +
+# stored calibration limits (24H) + working calibration limits (24H)
+SNAPSHOT_STRUCT = struct.Struct("<I15BHHH6h2B3B11?2B16s16s18s18s48s48s96s96s32sHBBB24sBB48H")
 
 
 def decode_cstr(raw: bytes) -> str:

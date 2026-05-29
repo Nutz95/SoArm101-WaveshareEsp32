@@ -2,6 +2,7 @@
 
 #include "leader_teleop_mirror_task_internal.h"
 
+#include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
 #include "../common/calibration/calibration_profile_utils.h"
 
@@ -45,7 +46,7 @@ void tryAppendBatchItem(
     const CalibrationProfile &followerCalibrationProfile,
     uint8_t &batchCount,
     uint8_t filterId) {
-  if (id == 0U || (filterId != 0U && id != filterId) || !state.hasFollowerIds || !state.followerIds[id]) {
+  if (id == 0U || (filterId != 0U && id != filterId)) {
     return;
   }
 
@@ -63,10 +64,14 @@ void tryAppendBatchItem(
   state.unwrappedById[id] = unwrapped;
   state.hasPreviousById[id] = true;
 
-  const int32_t bounded = (unwrapped > 32767) ? 32767 : ((unwrapped < -32767) ? -32767 : unwrapped);
+  const int32_t bounded =
+      (unwrapped > config::common::kTeleopPositionClampMax)
+          ? config::common::kTeleopPositionClampMax
+          : ((unwrapped < config::common::kTeleopPositionClampMin)
+                 ? config::common::kTeleopPositionClampMin
+                 : unwrapped);
   const int16_t boundedPosition = static_cast<int16_t>(bounded);
-  const bool changed = !state.hasLastSentPositionById[id] || state.lastSentPositionById[id] != boundedPosition;
-  if (!changed || batchCount >= 6U) {
+  if (batchCount >= config::common::kTeleopBatchMaxServos) {
     return;
   }
 
@@ -168,7 +173,6 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
       continue;
     }
 
-    refreshFollowerIds(state, presenceService);
     const uint8_t batchCount = buildMirrorBatch(
         state,
         servoBusService,

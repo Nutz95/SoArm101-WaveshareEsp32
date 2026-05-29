@@ -13,6 +13,18 @@ export function initCalibrationView(commandWithStatus, saveTeleopConfig, refresh
     return String(modeNode?.dataset?.captureActive || "0") === "1";
   }
 
+  document.getElementById("servoScanBtn").addEventListener("click", async () => {
+    await commandWithStatus("servo_scan", 0, "Servo scan (both) command sent.", "Servo scan failed (not connected).");
+  });
+
+  document.getElementById("servoScanLeaderBtn").addEventListener("click", async () => {
+    await commandWithStatus("servo_scan_leader", 0, "Leader scan command sent.", "Leader scan failed.");
+  });
+
+  document.getElementById("servoScanFollowerBtn").addEventListener("click", async () => {
+    await commandWithStatus("servo_scan_follower", 0, "Follower scan command sent.", "Follower scan failed.");
+  });
+
   document.getElementById("calibrationActivateBtn").addEventListener("click", async () => {
     const sent = await commandWithStatus(
       "teleop_transport_set",
@@ -27,7 +39,7 @@ export function initCalibrationView(commandWithStatus, saveTeleopConfig, refresh
     }
 
     await saveTeleopConfig({ calibration_required: true });
-    statusNode.textContent = "Calibration mode active. Center servos first, then confirm center.";
+    statusNode.textContent = "Calibration mode active. Place all servos near 2048, then validate center. The firmware will verify the detected servos automatically.";
     await refresh();
   });
 
@@ -35,6 +47,9 @@ export function initCalibrationView(commandWithStatus, saveTeleopConfig, refresh
     const statusNode = document.getElementById("calibrationStatus");
     const rangeActive = captureIsActive();
     const commandValue = rangeActive ? 3 : 2;
+    statusNode.textContent = rangeActive
+      ? "Saving min/max ranges from the current sweep."
+      : "Center validation running. The firmware is checking the detected servos sequentially and accepts positions close to 2048.";
     const sent = await commandWithStatus(
       "teleop_calibration_capture",
       commandValue,
@@ -49,7 +64,7 @@ export function initCalibrationView(commandWithStatus, saveTeleopConfig, refresh
     }
 
     if (!rangeActive) {
-      statusNode.textContent = "Center confirmed. Move all joints to explore min/max, then press Validate (A) again.";
+      statusNode.textContent = "Center confirmed. Move all joints together to explore min/max, then press Validate (A) again once for the whole arm.";
     } else {
       await saveTeleopConfig({ calibration_required: false, transport_mode: 0 });
       statusNode.textContent = "Calibration finished. Teleoperation ESP-NOW is active.";
