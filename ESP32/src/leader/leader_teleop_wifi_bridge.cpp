@@ -1,6 +1,14 @@
 #include "leader_teleop_wifi_bridge.h"
 
+#include "../Config/common_runtime_config.h"
+#include "../Config/leader_runtime_config.h"
+#include "../common/teleop/teleop_follower_endpoint.h"
+#include "../common/teleop/teleop_packet_flags.h"
+
+#include <Arduino.h>
 #include <WiFi.h>
+#include <cerrno>
+#include <cstring>
 
 namespace soarm {
 
@@ -14,21 +22,35 @@ bool LeaderTeleopWifiBridge::sendBatch(
     const uint8_t *ids,
     const int16_t *positions,
     uint8_t count,
-  uint8_t speedPercent,
-    uint16_t requestId) {
-  if (!started_ || followerIp == nullptr || ids == nullptr || positions == nullptr || count == 0U) {
+    uint8_t speedPercent,
+    uint16_t requestId,
+    uint8_t flags) {
+  if (!started_ || ids == nullptr || positions == nullptr || count == 0U) {
+    return false;
+  }
+
+  const uint32_t nowMs = millis();
+  if (nowMs < sendBackoffUntilMs_) {
+    return false;
+  }
+
+  char resolvedIp[16]{};
+  if (!resolveFollowerEndpoint(followerIp, resolvedIp, sizeof(resolvedIp))) {
     return false;
   }
 
   IPAddress remoteIp;
-  if (!remoteIp.fromString(followerIp)) {
+  if (!remoteIp.fromString(resolvedIp)) {
     return false;
   }
 
-  const uint8_t clampedCount = (count > 6U) ? 6U : count;
+  const uint8_t clampedCount = (count > config::common::kTeleopBatchMaxServos)
+                                  ? config::common::kTeleopBatchMaxServos
+                                  : count;
   teleop_wifi::BatchPacket packet{};
   packet.magic = teleop_wifi::kMagic;
   packet.version = teleop_wifi::kVersion;
+  packet.flags = flags;
   packet.type = teleop_wifi::kTypeBatch;
   packet.requestId = requestId;
   packet.count = clampedCount;
@@ -39,16 +61,27 @@ bool LeaderTeleopWifiBridge::sendBatch(
   }
 
   if (udp_.beginPacket(remoteIp, teleop_wifi::kFollowerListenPort) != 1) {
+    sendBackoffUntilMs_ = nowMs + config::leader::kTeleopWifiSendBackoffMs;
     return false;
   }
 
   const size_t written = udp_.write(reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
   if (written != sizeof(packet)) {
     udp_.endPacket();
+    sendBackoffUntilMs_ = nowMs + config::leader::kTeleopWifiSendBackoffMs;
+    logSendErrorThrottled(nowMs, errno, requestId, clampedCount, resolvedIp, "write");
     return false;
   }
 
-  return udp_.endPacket() == 1;
+  const bool sent = udp_.endPacket() == 1;
+  if (!sent) {
+    sendBackoffUntilMs_ = nowMs + config::leader::kTeleopWifiSendBackoffMs;
+    logSendErrorThrottled(nowMs, errno, requestId, clampedCount, resolvedIp, "endPacket");
+    return false;
+  }
+
+  sendBackoffUntilMs_ = 0U;
+  return true;
 }
 
 bool LeaderTeleopWifiBridge::pollAck(uint16_t &requestId, uint8_t &status) {
@@ -76,6 +109,25 @@ bool LeaderTeleopWifiBridge::pollAck(uint16_t &requestId, uint8_t &status) {
   requestId = ack.requestId;
   status = ack.status;
   return true;
+}
+
+void LeaderTeleopWifiBridge::logSendErrorThrottled(
+    uint32_t nowMs,
+    int errorCode,
+    uint16_t requestId,
+    uint8_t count,
+    const char *ip,
+    const char *stage) {
+  if ((nowMs - lastSendErrorLogMs_) < config::leader::kTeleopWifiSendErrorLogIntervalMs) {
+    return;
+  }
+  lastSendErrorLogMs_ = nowMs;
+  Serial.printf("[TELEOP][WIFI] %s fail errno=%d id=%u count=%u ip=%s\n",
+                stage,
+                errorCode,
+                requestId,
+                count,
+                ip);
 }
 
 } // namespace soarm

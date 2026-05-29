@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../lock_manager.h"
+#include "servo_position_snapshot.h"
 
 #include <cstdint>
 
@@ -24,7 +25,15 @@ public:
   bool begin(const ServoBusConfig &config);
   uint8_t scan();
   uint8_t refreshKnownTelemetryFast();
+  uint8_t refreshKnownTelemetrySync();
+  bool copyPositionSnapshot(ServoPositionSnapshot &out) const;
   bool moveBatch(const uint8_t *ids, const int16_t *positions, uint8_t count, uint16_t speed);
+  bool moveBatch(
+      const uint8_t *ids,
+      const int16_t *positions,
+      uint8_t count,
+      uint16_t speed,
+      bool enableTorqueBeforeWrite);
   bool moveTo(uint8_t id, int16_t position, uint16_t speed, uint8_t acceleration);
   bool setServoId(uint8_t oldId, uint8_t newId);
   bool ping(uint8_t id);
@@ -44,6 +53,7 @@ public:
 
 private:
   void setSummary(const char *text);
+  void updatePositionSnapshot(const ServoPositionSnapshot &snapshot);
 
   ServoBusConfig config_{};
   HardwareSerial *serial_{nullptr};
@@ -56,6 +66,7 @@ private:
   char lastScanSummary_[64]{};
   char lastIdsText_[48]{};
   char lastTelemetryText_[96]{};
+  ServoPositionSnapshot positionSnapshot_{};
   LockManager lockManager_{};
 };
 

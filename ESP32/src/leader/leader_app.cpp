@@ -255,6 +255,10 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.teleopMirrorLatencyP95Ms = teleopMirrorLatencyMetrics_.p95Ms.load();
   snapshot.teleopMirrorPendingCount = teleopMirrorLatencyMetrics_.pendingCount.load();
   snapshot.teleopMirrorTimeoutCount = teleopMirrorLatencyMetrics_.timeoutCount.load();
+  if (static_cast<TeleopTransportMode>(teleopTransportMode_.load()) == TeleopTransportMode::WifiUdp &&
+      !config::leader::kTeleopWifiRequireAck) {
+    snapshot.teleopMirrorPendingCount = teleopMirrorLatencyMetrics_.sendFailCount.load();
+  }
   snapshot.teleopContinuousEnabled = teleopContinuousEnabled_.load() ? 1U : 0U;
   snapshot.teleopContinuousServoId = teleopContinuousServoIdFilter_.load();
   snapshot.teleopTransportMode = teleopTransportMode_.load();
@@ -277,7 +281,11 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
   snapshot.xboxControllerName[sizeof(snapshot.xboxControllerName) - 1U] = '\0';
   strncpy(snapshot.leaderIp, wifiOta_.ipAddress(), sizeof(snapshot.leaderIp) - 1);
   snapshot.leaderIp[sizeof(snapshot.leaderIp) - 1] = '\0';
-  strncpy(snapshot.followerIp, followerIpHint_, sizeof(snapshot.followerIp) - 1);
+  if (presenceService_->hasValidFollowerIp()) {
+    strncpy(snapshot.followerIp, presenceService_->followerIp(), sizeof(snapshot.followerIp) - 1);
+  } else {
+    strncpy(snapshot.followerIp, followerIpHint_, sizeof(snapshot.followerIp) - 1);
+  }
   snapshot.followerIp[sizeof(snapshot.followerIp) - 1] = '\0';
   snapshot.leaderState = leaderServoFault_ ? ArmRuntimeState::ServoFault : stateMachine_.computeState(localInputs_);
   snapshot.followerState = followerState_;

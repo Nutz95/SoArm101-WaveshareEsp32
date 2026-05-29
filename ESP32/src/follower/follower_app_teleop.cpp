@@ -4,6 +4,7 @@
 #include "../Config/follower_runtime_config.h"
 #include "../common/command/command_ack_status.h"
 #include "../common/servo/servo_control_opcode.h"
+#include "../common/teleop/teleop_packet_flags.h"
 
 #include <Arduino.h>
 
@@ -35,19 +36,28 @@ bool FollowerApp::ensureTeleopServosReady(const uint8_t *ids, uint8_t count) {
     return false;
   }
 
+  bool hasCandidate = false;
+
   for (uint8_t i = 0U; i < count; ++i) {
     const uint8_t id = ids[i];
-    if (id == 0U || teleopPreparedById_[id]) {
+    if (id == 0U) {
       continue;
     }
-    if (!servoBusService_.setServoMode(id, 0U) || !servoBusService_.setTorqueEnabled(id, true)) {
+
+    hasCandidate = true;
+    if (teleopPreparedById_[id]) {
+      continue;
+    }
+    const bool modeOk = servoBusService_.setServoMode(id, 0U);
+    const bool torqueOk = servoBusService_.setTorqueEnabled(id, true);
+    if (!(modeOk && torqueOk)) {
       Serial.printf("[SERVO] teleop prepare fail id=%u\n", id);
-      return false;
+      continue;
     }
     teleopPreparedById_[id] = true;
   }
 
-  return true;
+  return hasCandidate;
 }
 
 void FollowerApp::processIncomingTeleopWifiBatch() {
@@ -56,8 +66,10 @@ void FollowerApp::processIncomingTeleopWifiBatch() {
   uint8_t count = 0U;
   uint8_t speedPercent = 0U;
   uint16_t requestId = 0U;
+  uint8_t flags = 0U;
 
-  if (!teleopWifiBridge_.consumeBatch(ids, positions, config::common::kTeleopBatchMaxServos, count, speedPercent, requestId)) {
+  if (!teleopWifiBridge_.consumeBatch(
+          ids, positions, config::common::kTeleopBatchMaxServos, count, speedPercent, requestId, flags)) {
     return;
   }
 
@@ -69,16 +81,23 @@ void FollowerApp::processIncomingTeleopWifiBatch() {
       ids, positions, count,
       filteredIds, filteredPositions, config::common::kTeleopBatchMaxServos,
       servoBusService_.lastIdsText());
+  const bool requireAck = (flags & teleop::kFlagRequireAck) != 0U;
   if (filteredCount == 0U) {
-    teleopWifiBridge_.sendAck(requestId, static_cast<uint8_t>(CommandAckStatus::Applied));
+    if (requireAck) {
+      teleopWifiBridge_.sendAck(requestId, static_cast<uint8_t>(CommandAckStatus::Applied));
+    }
     return;
   }
   if (!ensureTeleopServosReady(filteredIds, filteredCount)) {
-    teleopWifiBridge_.sendAck(requestId, static_cast<uint8_t>(CommandAckStatus::Failed));
+    if (requireAck) {
+      teleopWifiBridge_.sendAck(requestId, static_cast<uint8_t>(CommandAckStatus::Failed));
+    }
     return;
   }
-  const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed);
-  teleopWifiBridge_.sendAck(requestId, static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
+  const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed, false);
+  if (requireAck) {
+    teleopWifiBridge_.sendAck(requestId, static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
+  }
 }
 
 void FollowerApp::processIncomingTeleopBatch() {
@@ -117,7 +136,7 @@ void FollowerApp::processIncomingTeleopBatch() {
     presenceService_->requestImmediatePresenceTx();
     return;
   }
-  const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed);
+  const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed, false);
   presenceService_->updateLastCommandAck(
       requestId,
       static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch),

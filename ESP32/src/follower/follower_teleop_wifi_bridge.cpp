@@ -1,5 +1,7 @@
 #include "follower_teleop_wifi_bridge.h"
 
+#include "../common/teleop/teleop_packet_flags.h"
+
 namespace soarm {
 
 bool FollowerTeleopWifiBridge::begin(uint16_t localPort) {
@@ -12,8 +14,9 @@ bool FollowerTeleopWifiBridge::consumeBatch(
     int16_t *positions,
     uint8_t capacity,
     uint8_t &count,
-  uint8_t &speedPercent,
-    uint16_t &requestId) {
+    uint8_t &speedPercent,
+    uint16_t &requestId,
+    uint8_t &flags) {
   if (!started_ || ids == nullptr || positions == nullptr || capacity == 0U) {
     return false;
   }
@@ -44,6 +47,7 @@ bool FollowerTeleopWifiBridge::consumeBatch(
   count = copyCount;
   speedPercent = packet.speedPercent;
   requestId = packet.requestId;
+  flags = packet.flags;
 
   leaderAckIp_ = udp_.remoteIP();
   leaderAckPort_ = udp_.remotePort();

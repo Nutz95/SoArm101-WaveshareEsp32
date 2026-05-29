@@ -9,7 +9,7 @@ namespace soarm {
 namespace teleop_wifi {
 
 constexpr uint16_t kMagic = 0x5457U;
-constexpr uint8_t kVersion = 1U;
+constexpr uint8_t kVersion = 2U;
 constexpr uint8_t kTypeBatch = 1U;
 constexpr uint8_t kTypeAck = 2U;
 constexpr uint16_t kFollowerListenPort = 29110U;
@@ -22,6 +22,7 @@ struct BatchEntry {
 struct BatchPacket {
   uint16_t magic;
   uint8_t version;
+  uint8_t flags;
   uint8_t type;
   uint16_t requestId;
   uint8_t count;

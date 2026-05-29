@@ -16,7 +16,8 @@ public:
       uint8_t capacity,
       uint8_t &count,
       uint8_t &speedPercent,
-      uint16_t &requestId);
+      uint16_t &requestId,
+      uint8_t &flags);
   bool sendAck(uint16_t requestId, uint8_t status);
 
 private:

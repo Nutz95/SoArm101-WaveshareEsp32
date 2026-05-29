@@ -10,6 +10,7 @@ The current message flow, board responsibilities, and telemetry path are documen
 
 - [docs/architecture/README.md](docs/architecture/README.md)
 - [docs/architecture/message-flow.svg](docs/architecture/message-flow.svg)
+- [docs/teleop_performance.md](docs/teleop_performance.md) — teleop cadence, ESP-NOW vs Wi-Fi, LeRobot alignment
 
 If you are changing command routing, pairing, or dashboard integration, read that architecture note first.
 

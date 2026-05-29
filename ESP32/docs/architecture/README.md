@@ -2,6 +2,10 @@
 
 This document describes the current runtime architecture of the SoArm ESP32 firmware, the telemetry dashboard, and the message flow between the two boards.
 
+## Teleoperation performance
+
+For mirroring cadence, transport choice (ESP-NOW vs Wi-Fi UDP), LeRobot alignment, and salon checklist, see [teleop_performance.md](../teleop_performance.md).
+
 ## Overview
 
 The project is split into three main runtime actors:

@@ -129,6 +129,15 @@ uint8_t ServoBusService::scan() {
 }
 
 bool ServoBusService::moveBatch(const uint8_t *ids, const int16_t *positions, uint8_t count, uint16_t speed) {
+  return moveBatch(ids, positions, count, speed, true);
+}
+
+bool ServoBusService::moveBatch(
+    const uint8_t *ids,
+    const int16_t *positions,
+    uint8_t count,
+    uint16_t speed,
+    bool enableTorqueBeforeWrite) {
   if (!started_ || serial_ == nullptr || ids == nullptr || positions == nullptr || count == 0U) {
     setSummary("batch invalid");
     return false;
@@ -159,12 +168,23 @@ bool ServoBusService::moveBatch(const uint8_t *ids, const int16_t *positions, ui
     positionBuffer[i] = positions[i];
     speedBuffer[i] = speed;
     accBuffer[i] = 0U;
-    driver.EnableTorque(idBuffer[i], 1U);
+    if (enableTorqueBeforeWrite) {
+      driver.EnableTorque(idBuffer[i], 1U);
+    }
   }
 
   driver.SyncWritePosEx(idBuffer, clampedCount, positionBuffer, speedBuffer, accBuffer);
   setSummary("batch move sent");
   return true;
+}
+
+void ServoBusService::updatePositionSnapshot(const ServoPositionSnapshot &snapshot) {
+  positionSnapshot_ = snapshot;
+}
+
+bool ServoBusService::copyPositionSnapshot(ServoPositionSnapshot &out) const {
+  out = positionSnapshot_;
+  return out.count > 0U;
 }
 
 bool ServoBusService::moveTo(uint8_t id, int16_t position, uint16_t speed, uint8_t acceleration) {
