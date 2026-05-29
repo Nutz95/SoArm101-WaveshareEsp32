@@ -255,7 +255,9 @@ CommandAckStatus FollowerApp::handleCalibrationCenter(uint32_t value) {
   (void)value;
   const uint32_t startMs = millis();
   Serial.println("[CAL] follower center start");
+  presenceService_->sendLinkKeepalive(wifiOta_.ipAddress());
   const bool ok = servoBusService_.calibrateOffsetsForDetectedServos();
+  presenceService_->sendLinkKeepalive(wifiOta_.ipAddress());
   if (ok) {
     (void)servoBusService_.scan();
     servoBusService_.refreshKnownTelemetryFast();

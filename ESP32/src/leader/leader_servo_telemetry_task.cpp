@@ -19,9 +19,15 @@ void LeaderServoTelemetryTask::runLoop(
     const OperationMode mode = static_cast<OperationMode>(runtimeMode.load());
     const uint32_t nowMs = millis();
 
-    const bool allowDiscoveryScan = mode != OperationMode::Teleoperation &&
-                                    mode != OperationMode::CalibrationLeader &&
-                                    mode != OperationMode::CalibrationFollower;
+    const bool calibrationMode =
+        mode == OperationMode::CalibrationLeader || mode == OperationMode::CalibrationFollower;
+
+    if (calibrationMode) {
+      vTaskDelay(pdMS_TO_TICKS(50U));
+      continue;
+    }
+
+    const bool allowDiscoveryScan = mode != OperationMode::Teleoperation;
 
     if (allowDiscoveryScan &&
         ((nowMs - lastDiscoveryScanMs) >= config::leader::kFollowerScanRetryIntervalMs ||

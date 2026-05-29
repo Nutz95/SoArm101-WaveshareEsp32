@@ -135,6 +135,9 @@ void LeaderApp::begin() {
 
 void LeaderApp::tick() {
   wifiOta_.tick();
+  const uint8_t profile = controllerOperationProfile_.load();
+  presenceService_->setPairingWatchdogSuspended(
+      profile <= 1U || calibrationPhase_.load() != 0U);
   presenceService_->tick();
   telemetryStreamServer_.tick();
 

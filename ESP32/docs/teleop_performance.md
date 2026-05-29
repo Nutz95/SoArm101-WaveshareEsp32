@@ -94,6 +94,43 @@ cd ESP32
 pio test -e native
 ```
 
+## ESP-NOW airtime (teleop vs presence)
+
+During continuous teleop the follower must **not** send a dedicated command ACK and a full presence frame for every mirror batch (~60 Hz). That previously saturated the radio and caused:
+
+- Serial log flood (`Presence`, `RX msgType=8` = `ServoControlBatch`)
+- Stuttering / stepped follower curves on the dashboard
+- Leader `[PAIR] Timeout` and follower IP `0.0.0.0`
+
+Current behaviour:
+
+| Traffic | Teleop active | Idle / commands |
+|---------|---------------|-----------------|
+| Mirror batch ACK | Staged into next periodic presence only | Full ACK burst (3×) for scans/moves |
+| Presence period | 1000 ms | 250 ms |
+| PairRequest while paired | 30 s | 5 s |
+
+Leader re-pairs when it receives **Presence** or **PairRequest** from a follower after a timeout (no more `PairReset` on stale presence). Pairing timeout is **45 s** without presence when the watchdog is active.
+
+During **calibration** (leader or follower profile, or range-capture phase), the pairing watchdog is **suspended** so a long min–max session does not drop the link. The follower sends **link keepalives** before and after `CalibrationCenter` (offset + grouped move).
+
+### Leader center calibration (vs follower)
+
+Leader center uses the same `calibrateOffsetsForDetectedServos()` as the follower, but the leader used to fail more often because:
+
+1. `moveBatch()` was called while the bus lock was still held → move silently failed (`bus busy`).
+2. The servo telemetry task kept polling the bus every ~17 ms during calibration modes.
+
+Current behaviour: offsets for all reachable servos → **unlock** → one `SyncWrite` center move → relaxed verify (±400 counts, 25 attempts). Telemetry polling is **paused** on both boards during calibration modes.
+
+## Planned: rest pose and leader “zero-G”
+
+Not implemented in firmware yet; proposed workflow:
+
+1. After min–max calibration, prompt **rest pose** capture (all servos) and store in NVS per arm (extend `CalibrationProfile`).
+2. On teleop stop (dashboard **B** or UI stop): move both arms to **center** (`SyncWrite` batch), then to **rest** when within tolerance.
+3. While teleop runs, monitor leader **present load / current** (STS register) — when user releases the leader and load drops, reduce follower torque or hold last pose to avoid the follower “falling”.
+
 ## Operating checklist (salon)
 
 1. Both boards on the same portable router (AP isolation off).

@@ -14,6 +14,7 @@ constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
 constexpr uint8_t kTeleopContinuousSpeedPct = 100U;
 // ~60 Hz teleop loop (LeRobot-aligned target).
 constexpr uint32_t kTeleopTargetPeriodMs = 17U;
+constexpr int16_t kTeleopMirrorMinPositionDelta = 3;
 constexpr uint32_t kServoTelemetryTaskActiveDelayMs = kTeleopTargetPeriodMs;
 constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
 constexpr uint32_t kTeleopMirrorTaskActiveDelayMs = kTeleopTargetPeriodMs;
@@ -55,7 +56,7 @@ constexpr uint32_t kSetIdStatusHoldMs = 2200U;
 constexpr uint32_t kSetModeStatusHoldMs = 1800U;
 
 // Pairing management.
-constexpr uint32_t kPairingTimeoutMs = 15000U;        // no contact from follower → expire pairing
+constexpr uint32_t kPairingTimeoutMs = 45000U;        // no presence from follower → expire pairing
 constexpr uint32_t kResetBroadcastIntervalMs = 100U;  // delay between scheduled PairReset broadcasts
 
 } // namespace leader

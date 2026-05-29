@@ -4,6 +4,8 @@
 
 #include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
+
+#include <cstdlib>
 #include "../common/calibration/calibration_profile_utils.h"
 #include "../common/servo/servo_position_snapshot.h"
 #include "../common/teleop/teleop_follower_endpoint.h"
@@ -78,6 +80,14 @@ void tryAppendBatchItem(
                  ? config::common::kTeleopPositionClampMin
                  : unwrapped);
   const int16_t boundedPosition = static_cast<int16_t>(bounded);
+  if (state.hasLastSentPositionById[id]) {
+    const int32_t delta = boundedPosition - state.lastSentPositionById[id];
+    const int32_t absDelta = (delta < 0) ? -delta : delta;
+    if (absDelta < config::leader::kTeleopMirrorMinPositionDelta) {
+      return;
+    }
+  }
+
   if (batchCount >= config::common::kTeleopBatchMaxServos) {
     return;
   }

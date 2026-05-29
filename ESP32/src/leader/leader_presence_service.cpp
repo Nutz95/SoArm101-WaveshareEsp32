@@ -43,8 +43,12 @@ bool LeaderPresenceService::begin() {
   return true;
 }
 
+void LeaderPresenceService::setPairingWatchdogSuspended(bool suspended) {
+  pairingWatchdogSuspended_ = suspended;
+}
+
 void LeaderPresenceService::tick() {
-  if (hasPairedMac_ && lastFollowerSeenMs_ > 0U) {
+  if (!pairingWatchdogSuspended_ && hasPairedMac_ && lastFollowerSeenMs_ > 0U) {
     const uint32_t nowMs = millis();
     if ((nowMs - lastFollowerSeenMs_) >= config::leader::kPairingTimeoutMs) {
       Serial.printf("[PAIR] Timeout: no contact from follower for %lu ms, expiring pairing\n",
@@ -260,6 +264,7 @@ void LeaderPresenceService::handlePairRequest(const uint8_t *mac, const Presence
     sendPairAck(mac);
     Serial.printf("[PAIR] PairAck sent to %02X:%02X:%02X:%02X:%02X:%02X\n",
                   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    lastFollowerSeenMs_ = millis();
     return;
   }
 
@@ -268,6 +273,7 @@ void LeaderPresenceService::handlePairRequest(const uint8_t *mac, const Presence
     sendPairAck(mac);
     Serial.printf("[PAIR] PairAck sent to paired peer %02X:%02X:%02X:%02X:%02X:%02X\n",
                   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    lastFollowerSeenMs_ = millis();
   } else {
     Serial.printf("[PAIR] Reject PairRequest from unknown peer %02X:%02X:%02X:%02X:%02X:%02X (paired=%d)\n",
                   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
@@ -278,10 +284,10 @@ void LeaderPresenceService::handlePairRequest(const uint8_t *mac, const Presence
 
 void LeaderPresenceService::handlePresenceData(const uint8_t *mac, const PresencePacket &packet) {
   if (!hasPairedMac_) {
-    Serial.printf("[PAIR] RX Presence from stale peer while unpaired: %02X:%02X:%02X:%02X:%02X:%02X\n",
-                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    sendPairResetTo(mac);
-    return;
+    handlePairRequest(mac, packet);
+    if (!hasPairedMac_) {
+      return;
+    }
   }
 
   if (!isPairedMac(mac)) {

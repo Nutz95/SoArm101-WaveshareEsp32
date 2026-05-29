@@ -20,45 +20,35 @@ FollowerPresenceService::FollowerPresenceService()
 }
 
 bool FollowerPresenceService::begin() {
-  Serial.println("[FOLLOWER] === begin() ===");
-
   if (!initEspNow()) {
-    Serial.println("[FOLLOWER] ESP-NOW init FAILED");
+    Serial.println("[FOLLOWER] ESP-NOW init failed");
     return false;
   }
-  Serial.println("[FOLLOWER] ESP-NOW init OK");
 
   hasPairedLeaderMac_ = pairingStore_.load(pairedLeaderMac_);
   if (hasPairedLeaderMac_) {
     formatMacAddress(pairedLeaderMac_, pairedLeaderMacText_);
-    Serial.printf("[FOLLOWER] NVS: loaded paired leader MAC %s\n", pairedLeaderMacText_);
   } else {
     strncpy(pairedLeaderMacText_, "unpaired", sizeof(pairedLeaderMacText_) - 1);
     pairedLeaderMacText_[sizeof(pairedLeaderMacText_) - 1] = '\0';
-    Serial.println("[FOLLOWER] NVS: no paired leader (unpaired)");
   }
 
   const String localMac = WiFi.macAddress();
   strncpy(localMacText_, localMac.c_str(), sizeof(localMacText_) - 1);
   localMacText_[sizeof(localMacText_) - 1] = '\0';
-  Serial.printf("[FOLLOWER] Local MAC: %s\n", localMacText_);
 
   if (!addBroadcastPeer()) {
-    Serial.println("[FOLLOWER] addBroadcastPeer FAILED");
     return false;
   }
-  Serial.println("[FOLLOWER] Broadcast peer added OK");
 
-  if (hasPairedLeaderMac_) {
-    if (!addPeer(pairedLeaderMac_)) {
-      Serial.printf("[FOLLOWER] addPeer(%s) FAILED\n", pairedLeaderMacText_);
-      return false;
-    }
-    Serial.printf("[FOLLOWER] Paired leader peer added: %s\n", pairedLeaderMacText_);
+  if (hasPairedLeaderMac_ && !addPeer(pairedLeaderMac_)) {
+    return false;
   }
 
   started_ = true;
-  Serial.println("[FOLLOWER] === begin() DONE ===");
+  Serial.printf("[FOLLOWER] presence ready paired=%d mac=%s\n",
+                static_cast<int>(hasPairedLeaderMac_),
+                pairedLeaderMacText_);
   return true;
 }
 
@@ -73,28 +63,29 @@ void FollowerPresenceService::tick(const char *localIp) {
   }
 
   const uint32_t nowMs = millis();
-  if (!forcePresenceTx_ && ((nowMs - lastTxMs_) < kPresenceTxPeriodMs)) {
+  const bool teleopActive =
+      lastTeleopBatchRxMs_ > 0U && ((nowMs - lastTeleopBatchRxMs_) < config::follower::kTeleopTrafficRecentMs);
+  const uint32_t presencePeriodMs =
+      teleopActive ? config::follower::kPresenceTxPeriodTeleopMs : kPresenceTxPeriodMs;
+
+  if (!forcePresenceTx_ && ((nowMs - lastTxMs_) < presencePeriodMs)) {
     return;
   }
 
   forcePresenceTx_ = false;
   lastTxMs_ = nowMs;
   if (hasPairedLeader()) {
-    Serial.printf("[FOLLOWER] tick: sending Presence to %s\n", pairedLeaderMacText_);
     sendPresence(localIp);
 
-    // Send PairRequest periodically even when paired.
-    // This forces re-negotiation if leader reset but follower didn't receive the reset message.
-    if ((nowMs - lastPairRequestMs_) >= config::follower::kPairRequestIntervalMs) {
+    const uint32_t pairRequestIntervalMs =
+        teleopActive ? config::follower::kPairRequestIntervalTeleopMs : config::follower::kPairRequestIntervalMs;
+    if ((nowMs - lastPairRequestMs_) >= pairRequestIntervalMs) {
       lastPairRequestMs_ = nowMs;
-      Serial.printf("[FOLLOWER] tick: sending periodic PairRequest to %s\n", pairedLeaderMacText_);
       sendPairRequest(localIp);
     }
   } else {
-    // Unpaired: send PairRequest every tick for fast re-pairing.
-    Serial.printf("[FOLLOWER] tick: sending PairRequest (unpaired)\n");
     sendPairRequest(localIp);
-    lastPairRequestMs_ = nowMs; // Reset interval so we don't double-send
+    lastPairRequestMs_ = nowMs;
   }
 }
 
@@ -183,13 +174,10 @@ bool FollowerPresenceService::consumeTeleopMirrorBatch(
 }
 
 void FollowerPresenceService::enqueueTeleopBatch(const PendingTeleopBatch &batch) {
-  if (teleopBatchQueueCount_ >= config::follower::kTeleopBatchQueueCapacity) {
-    teleopBatchQueueHead_ = static_cast<uint8_t>((teleopBatchQueueHead_ + 1U) % config::follower::kTeleopBatchQueueCapacity);
-    --teleopBatchQueueCount_;
-  }
-  teleopBatchQueue_[teleopBatchQueueTail_] = batch;
-  teleopBatchQueueTail_ = static_cast<uint8_t>((teleopBatchQueueTail_ + 1U) % config::follower::kTeleopBatchQueueCapacity);
-  ++teleopBatchQueueCount_;
+  teleopBatchQueue_[0] = batch;
+  teleopBatchQueueHead_ = 0U;
+  teleopBatchQueueTail_ = 1U;
+  teleopBatchQueueCount_ = 1U;
 }
 
 bool FollowerPresenceService::dequeueTeleopBatch(PendingTeleopBatch &batch) {
@@ -214,8 +202,22 @@ void FollowerPresenceService::updateLastCommandAck(uint16_t requestId, uint8_t o
   sendCommandAck(requestId, op, status, lastConsumedControlSequence_);
 }
 
+void FollowerPresenceService::stageTeleopBatchAck(uint16_t requestId, uint8_t status) {
+  lastAckRequestId_ = requestId;
+  lastAckCommandOp_ = static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch);
+  lastAckStatus_ = status;
+}
+
 void FollowerPresenceService::requestImmediatePresenceTx() {
   forcePresenceTx_ = true;
+}
+
+void FollowerPresenceService::sendLinkKeepalive(const char *localIp) {
+  if (!started_ || !hasPairedLeaderMac_) {
+    return;
+  }
+  sendPresence(localIp);
+  lastTxMs_ = millis();
 }
 
 void FollowerPresenceService::updateServoTelemetry(
@@ -235,181 +237,6 @@ void FollowerPresenceService::updateServoTelemetry(
   if (servoTelemetry != nullptr) {
     strncpy(servoTelemetryText_, servoTelemetry, sizeof(servoTelemetryText_) - 1);
     servoTelemetryText_[sizeof(servoTelemetryText_) - 1] = '\0';
-  }
-}
-
-void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) {
-  if (len != static_cast<int>(sizeof(PresencePacket))) {
-    return;
-  }
-
-  PresencePacket packet{};
-  memcpy(&packet, data, sizeof(packet));
-
-  if (packet.magic != kPresenceMagic || packet.version != kPresenceVersion) {
-    return;
-  }
-
-  const PresenceMessageType msgType = static_cast<PresenceMessageType>(packet.messageType);
-  Serial.printf("[FOLLOWER] RX msgType=%u from %02X:%02X:%02X:%02X:%02X:%02X\n",
-                static_cast<unsigned>(msgType),
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-  using FrameHandler = void (FollowerPresenceService::*)(const uint8_t *, const PresencePacket &);
-  struct DispatchEntry {
-    PresenceMessageType messageType;
-    FrameHandler handler;
-  };
-
-  static const DispatchEntry kDispatchTable[] = {
-      {PresenceMessageType::PairReset, &FollowerPresenceService::handlePairResetMessage},
-      {PresenceMessageType::ServoScan, &FollowerPresenceService::handleServoScanMessage},
-      {PresenceMessageType::ServoControl, &FollowerPresenceService::handleServoControlMessage},
-      {PresenceMessageType::ServoControlBatch, &FollowerPresenceService::handleServoControlBatchMessage},
-      {PresenceMessageType::PairAck, &FollowerPresenceService::handlePairAckMessage},
-  };
-
-  for (const DispatchEntry &entry : kDispatchTable) {
-    if (entry.messageType == msgType) {
-      (this->*entry.handler)(mac, packet);
-      return;
-    }
-  }
-
-  Serial.printf("[FOLLOWER] Ignored msgType=%u\n", static_cast<unsigned>(msgType));
-}
-
-void FollowerPresenceService::handlePairResetMessage(const uint8_t *mac, const PresencePacket &packet) {
-  (void)mac;
-  (void)packet;
-  handlePairResetFrame();
-}
-
-void FollowerPresenceService::handleServoScanMessage(const uint8_t *mac, const PresencePacket &packet) {
-  (void)mac;
-  (void)packet;
-  Serial.println("[FOLLOWER] >>> ServoScan requested");
-  servoScanRequested_ = true;
-}
-
-void FollowerPresenceService::handleServoControlMessage(const uint8_t *mac, const PresencePacket &packet) {
-  (void)mac;
-  handleServoControlFrame(packet);
-}
-
-void FollowerPresenceService::handleServoControlBatchMessage(const uint8_t *mac, const PresencePacket &packet) {
-  (void)mac;
-  handleServoControlBatchFrame(packet);
-}
-
-void FollowerPresenceService::handlePairAckMessage(const uint8_t *mac, const PresencePacket &packet) {
-  (void)packet;
-  handlePairAckFrame(mac);
-}
-
-void FollowerPresenceService::handlePairResetFrame() {
-  Serial.println("[FOLLOWER] >>> PairReset received - clearing pairing");
-  resetPairing();
-  Serial.println("[FOLLOWER] PairReset complete - now unpaired");
-}
-
-void FollowerPresenceService::handleServoControlFrame(const PresencePacket &packet) {
-  Serial.printf("[FOLLOWER] >>> ServoControl op=%u val=%u req=%u seq=%u\n",
-                static_cast<unsigned>(packet.controlOp),
-                packet.controlValue,
-                static_cast<unsigned>(packet.reserved2),
-                static_cast<unsigned>(packet.reserved));
-
-  if (isDuplicateControlFrame(packet.controlOp, packet.controlValue, packet.reserved2, packet.reserved)) {
-    if (lastAckRequestId_ == packet.reserved2 && lastAckCommandOp_ == packet.controlOp) {
-      sendCommandAck(lastAckRequestId_, lastAckCommandOp_, lastAckStatus_, packet.reserved);
-    }
-    return;
-  }
-
-  if (packet.controlOp == static_cast<uint8_t>(ServoControlOpcode::Scan)) {
-    const bool duplicatePending =
-        servoScanRequested_ &&
-        pendingServoScanRequestId_ == packet.reserved2 &&
-        pendingServoScanSequence_ == packet.reserved;
-    const bool duplicateProcessed =
-        hasLastProcessedScan_ &&
-        lastProcessedScanRequestId_ == packet.reserved2 &&
-        lastProcessedScanSequence_ == packet.reserved;
-    if (duplicatePending || duplicateProcessed) {
-      if (lastAckRequestId_ == packet.reserved2 &&
-          lastAckCommandOp_ == static_cast<uint8_t>(ServoControlOpcode::Scan)) {
-        sendCommandAck(lastAckRequestId_, lastAckCommandOp_, lastAckStatus_, packet.reserved);
-      }
-      return;
-    }
-
-    servoScanRequested_ = true;
-    pendingServoScanRequestId_ = packet.reserved2;
-    pendingServoScanSequence_ = packet.reserved;
-    return;
-  }
-
-  const bool queued = enqueueServoControl(packet.controlOp, packet.controlValue, packet.reserved2, packet.reserved);
-  if (!queued) {
-    sendCommandAck(packet.reserved2,
-                   packet.controlOp,
-                   static_cast<uint8_t>(CommandAckStatus::Rejected),
-                   packet.reserved);
-  }
-}
-
-void FollowerPresenceService::handleServoControlBatchFrame(const PresencePacket &packet) {
-  if (packet.controlOp != static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch)) {
-    return;
-  }
-
-  PendingTeleopBatch batch{};
-  const uint8_t rawCount = static_cast<uint8_t>(packet.servoTelemetry[0]);
-  const uint8_t clampedCount = (rawCount > config::common::kTeleopBatchMaxServos)
-                                   ? config::common::kTeleopBatchMaxServos
-                                   : rawCount;
-  batch.count = clampedCount;
-  batch.speedPct = static_cast<uint8_t>(packet.servoTelemetry[1]);
-  batch.requestId = packet.reserved2;
-
-  for (uint8_t i = 0U; i < clampedCount; ++i) {
-    const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));
-    batch.ids[i] = static_cast<uint8_t>(packet.servoTelemetry[offset]);
-    const uint16_t lo = static_cast<uint8_t>(packet.servoTelemetry[offset + 1U]);
-    const uint16_t hi = static_cast<uint8_t>(packet.servoTelemetry[offset + 2U]);
-    batch.positions[i] = static_cast<int16_t>((hi << 8U) | lo);
-  }
-
-  enqueueTeleopBatch(batch);
-}
-
-void FollowerPresenceService::handlePairAckFrame(const uint8_t *mac) {
-  Serial.printf("[FOLLOWER] >>> PairAck received from %02X:%02X:%02X:%02X:%02X:%02X\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-  if (!hasPairedLeaderMac_) {
-    Serial.printf("[FOLLOWER] PairAck: was unpaired, now pairing with %02X:%02X:%02X:%02X:%02X:%02X\n",
-                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    memcpy(pairedLeaderMac_, mac, sizeof(pairedLeaderMac_));
-    hasPairedLeaderMac_ = pairingStore_.save(pairedLeaderMac_);
-    if (hasPairedLeaderMac_) {
-      formatMacAddress(pairedLeaderMac_, pairedLeaderMacText_);
-      Serial.printf("[FOLLOWER] Pairing saved to NVS: %s\n", pairedLeaderMacText_);
-      addPeer(pairedLeaderMac_);
-      Serial.printf("[FOLLOWER] Peer added to ESP-NOW: %s\n", pairedLeaderMacText_);
-    } else {
-      Serial.println("[FOLLOWER] Pairing FAILED: NVS save error");
-    }
-    return;
-  }
-
-  const bool macChanged = memcmp(pairedLeaderMac_, mac, sizeof(pairedLeaderMac_)) != 0;
-  if (!PairingPolicy::shouldAcceptFollowerPairAck(hasPairedLeaderMac_, !macChanged)) {
-    Serial.printf("[FOLLOWER] PairAck: rejected different leader MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
-                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  } else {
-    Serial.printf("[FOLLOWER] PairAck: already paired with same leader, ignoring\n");
   }
 }
 

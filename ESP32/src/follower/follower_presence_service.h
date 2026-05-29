@@ -33,7 +33,9 @@ public:
       uint8_t &speedPct,
       uint16_t &requestId) override;
   void updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) override;
+  void stageTeleopBatchAck(uint16_t requestId, uint8_t status) override;
   void requestImmediatePresenceTx() override;
+  void sendLinkKeepalive(const char *localIp) override;
   void updateServoTelemetry(
       const char *servoIds,
       const char *servoTelemetry,
@@ -119,6 +121,7 @@ private:
   char localMacText_[18]{};
   char lastLocalIp_[16]{};
   bool forcePresenceTx_{false};
+  uint32_t lastTeleopBatchRxMs_{0U};
 };
 
 } // namespace soarm

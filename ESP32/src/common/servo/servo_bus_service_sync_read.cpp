@@ -42,6 +42,45 @@ void appendTelemetryFragment(char *telemetryText, size_t telemetryCapacity, uint
   strncat(telemetryText, telemetryFragment, telemetryCapacity - strlen(telemetryText) - 1U);
 }
 
+void flushSerialRx(HardwareSerial *serial) {
+  if (serial == nullptr) {
+    return;
+  }
+  while (serial->available() > 0) {
+    serial->read();
+  }
+}
+
+uint8_t readPositionsSync(
+    SMS_STS &driver,
+    const uint8_t *ids,
+    uint8_t knownCount,
+    char *telemetryText,
+    size_t telemetryCapacity,
+    ServoPositionSnapshot &snapshot) {
+  uint8_t availableCount = 0U;
+  for (uint8_t i = 0U; i < knownCount; ++i) {
+    const uint8_t id = ids[i];
+    uint8_t rxBuffer[4]{};
+    if (driver.syncReadPacketRx(id, rxBuffer) != 2) {
+      continue;
+    }
+
+    const int position = driver.syncReadRxPacketToWrod(15);
+    if (position < 0) {
+      continue;
+    }
+
+    appendTelemetryFragment(telemetryText, telemetryCapacity, id, position);
+    if (availableCount < config::common::kTeleopBatchMaxServos) {
+      snapshot.samples[availableCount].id = id;
+      snapshot.samples[availableCount].position = static_cast<int16_t>(position);
+      ++availableCount;
+    }
+  }
+  return availableCount;
+}
+
 } // namespace
 
 uint8_t ServoBusService::refreshKnownTelemetrySync() {
@@ -68,46 +107,22 @@ uint8_t ServoBusService::refreshKnownTelemetrySync() {
   driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
   driver.Level = 0;
 
-  if (serial_ != nullptr) {
-    while (serial_->available() > 0) {
-      serial_->read();
-    }
-  }
+  flushSerialRx(serial_);
 
   if (driver.syncReadPacketTx(ids, knownCount, SMS_STS_PRESENT_POSITION_L, 2) != 2) {
     setSummary("sync read tx fail");
     return lastScanCount_;
   }
 
-  if (serial_ != nullptr) {
-    serial_->flush();
-  }
+  serial_->flush();
 
   char telemetryText[96];
   telemetryText[0] = '\0';
   ServoPositionSnapshot snapshot{};
   snapshot.capturedAtMs = millis();
 
-  uint8_t availableCount = 0U;
-  for (uint8_t i = 0U; i < knownCount; ++i) {
-    const uint8_t id = ids[i];
-    uint8_t rxBuffer[4]{};
-    if (driver.syncReadPacketRx(id, rxBuffer) != 2) {
-      continue;
-    }
-
-    const int position = driver.syncReadRxPacketToWrod(15);
-    if (position < 0) {
-      continue;
-    }
-
-    appendTelemetryFragment(telemetryText, sizeof(telemetryText), id, position);
-    if (availableCount < config::common::kTeleopBatchMaxServos) {
-      snapshot.samples[availableCount].id = id;
-      snapshot.samples[availableCount].position = static_cast<int16_t>(position);
-      ++availableCount;
-    }
-  }
+  const uint8_t availableCount =
+      readPositionsSync(driver, ids, knownCount, telemetryText, sizeof(telemetryText), snapshot);
 
   snapshot.count = availableCount;
   updatePositionSnapshot(snapshot);

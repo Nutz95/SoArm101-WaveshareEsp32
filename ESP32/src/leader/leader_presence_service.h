@@ -17,6 +17,7 @@ public:
 
   bool begin() override;
   void tick() override;
+  void setPairingWatchdogSuspended(bool suspended) override;
   bool isFollowerLinked() const override;
   bool hasValidFollowerIp() const override;
   const char *followerIp() const override;
@@ -68,6 +69,7 @@ private:
 
   PeerPairingStore pairingStore_;
   bool started_{false};
+  bool pairingWatchdogSuspended_{false};
   bool hasPairedMac_{false};
   uint8_t pairedFollowerMac_[6]{};
   uint32_t lastFollowerSeenMs_{0};

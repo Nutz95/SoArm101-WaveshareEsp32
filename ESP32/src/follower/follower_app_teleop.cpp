@@ -121,27 +121,17 @@ void FollowerApp::processIncomingTeleopBatch() {
       filteredIds, filteredPositions, config::common::kTeleopBatchMaxServos,
       servoBusService_.lastIdsText());
   if (filteredCount == 0U) {
-    presenceService_->updateLastCommandAck(
-        requestId,
-        static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch),
-        static_cast<uint8_t>(CommandAckStatus::Applied));
-    presenceService_->requestImmediatePresenceTx();
+    presenceService_->stageTeleopBatchAck(requestId, static_cast<uint8_t>(CommandAckStatus::Applied));
     return;
   }
   if (!ensureTeleopServosReady(filteredIds, filteredCount)) {
-    presenceService_->updateLastCommandAck(
-        requestId,
-        static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch),
-        static_cast<uint8_t>(CommandAckStatus::Failed));
-    presenceService_->requestImmediatePresenceTx();
+    presenceService_->stageTeleopBatchAck(requestId, static_cast<uint8_t>(CommandAckStatus::Failed));
     return;
   }
   const bool ok = servoBusService_.moveBatch(filteredIds, filteredPositions, filteredCount, speed, false);
-  presenceService_->updateLastCommandAck(
+  presenceService_->stageTeleopBatchAck(
       requestId,
-      static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch),
       static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
-  presenceService_->requestImmediatePresenceTx();
 }
 
 } // namespace soarm
