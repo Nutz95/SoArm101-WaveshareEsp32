@@ -1,0 +1,100 @@
+<section class="view-panel" data-view-panel="mode">
+
+  <article class="card">
+
+    <h2>Operation mode</h2>
+
+    <p class="hint">
+
+      Passthrough bridges USB serial to the leader servo bus at 1&nbsp;Mbaud (PlatformIO monitor is set to 1000000 for leader).
+
+      On the controller: cycle to passthrough, then press <strong>A</strong> to confirm or <strong>B</strong> to cancel.
+
+      Applying passthrough here activates it immediately. Use the follower hardware switch for wired LeRobot on the follower arm.
+
+    </p>
+
+    <p class="hint">
+
+      <strong>PC serial bench (profile 5)</strong> sends mirror batches to the follower over USB COM.
+
+      The dashboard reads leader positions over Wi-Fi and writes binary frames to the follower port (leader USB not required).
+
+      Apply profile 5, start the COM mirror below, then start continuous mirror.
+
+    </p>
+
+    <div class="field-row">
+
+      <label for="operationModeSelect">Leader profile</label>
+
+      <select id="operationModeSelect">
+
+        <option value="calibration_leader">Calibration — leader</option>
+
+        <option value="calibration_follower">Calibration — follower</option>
+
+        <option value="teleop_espnow">Teleoperation — ESP-NOW</option>
+
+        <option value="teleop_wifi">Teleoperation — Wi-Fi UDP</option>
+
+        <option value="teleop_pcserial">Teleoperation — PC serial bridge</option>
+
+        <option value="passthrough">Passthrough — USB to servo bus</option>
+
+      </select>
+
+      <button type="button" id="operationModeApplyBtn" class="btn-primary">Apply profile</button>
+
+    </div>
+
+    <p id="operationModeStatus" class="status-line">-</p>
+
+    <p>Active profile: <strong id="operationModeCurrent">-</strong></p>
+
+    <p>Runtime mode: <strong id="operationModeRuntime">-</strong></p>
+
+  </article>
+
+
+
+  <article class="card">
+
+    <h2>Follower COM mirror</h2>
+
+    <p class="hint">
+
+      Requires <code>pip install pyserial</code> and launching the dashboard with <code>--enable-com-mirror</code>.
+
+      Only the follower USB port is used. Check the console for <code>[com-mirror] OPEN OK</code> or error details.
+
+    </p>
+
+    <div class="field-row">
+
+      <label for="serialBridgeFollowerCom">Follower COM</label>
+
+      <input id="serialBridgeFollowerCom" type="text" value="COM8" />
+
+    </div>
+
+    <div class="field-row">
+
+      <button type="button" id="serialBridgeStartBtn" class="btn-primary">Start COM mirror</button>
+
+      <button type="button" id="serialBridgeStopBtn">Stop COM mirror</button>
+
+    </div>
+
+    <p id="serialBridgeStatus" class="status-line">-</p>
+
+    <p>Packets sent: <strong id="serialBridgePacketCount">0</strong></p>
+
+    <p>State: <strong id="serialBridgeIdleReason">-</strong></p>
+
+    <p>Available ports: <code id="serialBridgePorts">-</code></p>
+
+  </article>
+
+</section>
+

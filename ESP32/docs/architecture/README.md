@@ -6,6 +6,13 @@ This document describes the current runtime architecture of the SoArm ESP32 firm
 
 For mirroring cadence, transport choice (ESP-NOW vs Wi-Fi UDP), LeRobot alignment, and salon checklist, see [teleop_performance.md](../teleop_performance.md).
 
+## Communication links (diagrams)
+
+Actor-level diagrams (Mermaid + SVG) for LeRobot, ESP-NOW/Wi-Fi mirror, COM mirror bench, and the proposed USB-debug + direct ESP Wi-Fi architecture:
+
+- [communication_links.md](./communication_links.md)
+- [communication_links.svg](./communication_links.svg)
+
 ## Overview
 
 The project is split into three main runtime actors:

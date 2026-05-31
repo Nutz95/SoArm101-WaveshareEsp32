@@ -4,7 +4,10 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
+
+from serial_teleop_bridge import SerialBridgeConfig, SerialTeleopBridge
+from telemetry_com_mirror import ComMirrorConfig, TelemetryComMirror, list_serial_ports
 
 from dashboard_protocol import (
     ESP_CMD_PING,
@@ -37,11 +40,14 @@ def build_dashboard_server(
     port: int,
     state: DashboardState,
     command_sender: Callable[[int, int, int], bool],
+    com_mirror: Optional[TelemetryComMirror] = None,
+    com_passthrough: Optional[SerialTeleopBridge] = None,
 ) -> HTTPServer:
     class DashboardHandler(BaseHTTPRequestHandler):
         static_dir = Path(os.path.join(os.path.dirname(__file__), "static")).resolve()
         teleop_store = TeleopConfigStore(Path(os.path.join(os.path.dirname(__file__), "teleop_config.json")))
         controller_store = ControllerConfigStore(Path(os.path.join(os.path.dirname(__file__), "controller_config.json")))
+        serial_bridge_config_path = Path(os.path.join(os.path.dirname(__file__), "serial_bridge_config.json"))
 
         command_map: Dict[str, int] = {
             "start_stream": ESP_CMD_START_STREAM,
@@ -93,6 +99,11 @@ def build_dashboard_server(
                 self._send_bytes(200, "application/json", payload)
                 return
 
+            if request_path == "/api/serial-bridge/state":
+                payload = json.dumps(self._build_serial_bridge_payload()).encode("utf-8")
+                self._send_bytes(200, "application/json", payload)
+                return
+
             if request_path == "/":
                 request_path = "/index.html"
 
@@ -111,6 +122,14 @@ def build_dashboard_server(
 
             if parsed.path == "/api/controller/config":
                 self._handle_controller_config_post()
+                return
+
+            if parsed.path == "/api/serial-bridge/start":
+                self._handle_serial_bridge_start()
+                return
+
+            if parsed.path == "/api/serial-bridge/stop":
+                self._handle_serial_bridge_stop()
                 return
 
             if parsed.path != "/api/command":
@@ -199,6 +218,113 @@ def build_dashboard_server(
 
         def _build_controller_payload(self) -> Dict[str, object]:
             return self.controller_store.state()
+
+        def _load_com_mirror_config(self) -> ComMirrorConfig:
+            if self.serial_bridge_config_path.is_file():
+                with self.serial_bridge_config_path.open("r", encoding="utf-8") as handle:
+                    raw = json.load(handle)
+                return ComMirrorConfig(
+                    follower_port=str(raw.get("follower_port", "COM8")),
+                    follower_baud=int(raw.get("follower_baud", 115200)),
+                    speed_pct=int(raw.get("speed_pct", 100)),
+                )
+            return ComMirrorConfig()
+
+        def _save_com_mirror_config(self, payload: Dict[str, object]) -> ComMirrorConfig:
+            config = ComMirrorConfig(
+                follower_port=str(payload.get("follower_port", "COM8")),
+                follower_baud=int(payload.get("follower_baud", 115200)),
+                speed_pct=int(payload.get("speed_pct", 100)),
+            )
+            with self.serial_bridge_config_path.open("w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "enabled": com_mirror.running if com_mirror is not None else False,
+                        "follower_port": config.follower_port,
+                        "follower_baud": config.follower_baud,
+                        "speed_pct": config.speed_pct,
+                    },
+                    handle,
+                    indent=2,
+                )
+                handle.write("\n")
+            return config
+
+        def _build_serial_bridge_payload(self) -> Dict[str, object]:
+            payload: Dict[str, object] = {
+                "available_ports": list_serial_ports(),
+                "running": False,
+                "packets_forwarded": 0,
+                "packets_sent": 0,
+                "bytes_read": 0,
+                "idle_reason": "disabled",
+                "last_error": "",
+            }
+            if com_mirror is not None:
+                payload.update(com_mirror.snapshot())
+            elif com_passthrough is not None:
+                payload.update(com_passthrough.snapshot())
+            else:
+                config = self._load_com_mirror_config()
+                payload["follower_port"] = config.follower_port
+                payload["follower_baud"] = config.follower_baud
+            return payload
+
+        def _handle_serial_bridge_start(self) -> None:
+            payload = self._read_json_body() or {}
+            mode = str(payload.get("mode", "telemetry")).strip().lower()
+            if mode == "passthrough":
+                if com_passthrough is None:
+                    self._send_json(503, {"ok": False, "error": "com_passthrough_disabled"})
+                    return
+                config = SerialBridgeConfig(
+                    leader_port=str(payload.get("leader_port", "COM7")),
+                    follower_port=str(payload.get("follower_port", "COM8")),
+                    leader_baud=int(payload.get("leader_baud", 1_000_000)),
+                    follower_baud=int(payload.get("follower_baud", 115200)),
+                )
+                try:
+                    if com_passthrough.running:
+                        com_passthrough.stop()
+                    com_passthrough.configure(config)
+                    com_passthrough.start()
+                except Exception as exc:
+                    self._send_json(500, {"ok": False, "error": str(exc)})
+                    return
+                self._send_json(200, {"ok": True, "state": com_passthrough.snapshot()})
+                return
+
+            if com_mirror is None:
+                self._send_json(503, {"ok": False, "error": "com_mirror_disabled"})
+                return
+            config = self._save_com_mirror_config(payload)
+            try:
+                if com_mirror.running:
+                    com_mirror.stop()
+                com_mirror.configure(config)
+                com_mirror.start()
+            except Exception as exc:
+                self._send_json(500, {"ok": False, "error": str(exc), "state": com_mirror.snapshot()})
+                return
+            self._send_json(200, {"ok": True, "state": com_mirror.snapshot()})
+
+        def _handle_serial_bridge_stop(self) -> None:
+            stopped = False
+            state_payload: Dict[str, object] = {}
+            if com_mirror is not None and com_mirror.running:
+                com_mirror.stop()
+                state_payload = com_mirror.snapshot()
+                stopped = True
+            if com_passthrough is not None and com_passthrough.running:
+                com_passthrough.stop()
+                state_payload = com_passthrough.snapshot()
+                stopped = True
+            if not stopped and com_mirror is None and com_passthrough is None:
+                self._send_json(503, {"ok": False, "error": "com_mirror_disabled"})
+                return
+            if not state_payload and com_mirror is not None:
+                state_payload = com_mirror.snapshot()
+            self._send_json(200, {"ok": True, "state": state_payload})
 
         def _read_json_body(self):
             content_length = int(self.headers.get("Content-Length", "0"))

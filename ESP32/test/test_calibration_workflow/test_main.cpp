@@ -134,9 +134,8 @@ void test_expand_profile_ignores_servo_id_beyond_count() {
 
 void test_profile_has_range_returns_true_when_any_has_range() {
   soarm::CalibrationProfile p = makeResetProfile();
-  // Capture a range on servo 1 only
-  soarm::expandWorkingProfileFromTelemetry(p, "#1 p1000 t25;");
-  soarm::expandWorkingProfileFromTelemetry(p, "#1 p2000 t25;");
+  soarm::expandWorkingProfileFromTelemetry(p, "#1 p1000 t25;#2 p1000 t25;#3 p1000 t25;");
+  soarm::expandWorkingProfileFromTelemetry(p, "#1 p2000 t25;#2 p2000 t25;#3 p2000 t25;");
   TEST_ASSERT_TRUE(soarm::profileHasRange(p));
 }
 
@@ -148,20 +147,14 @@ void test_profile_has_range_returns_false_when_no_range() {
 
 void test_profile_has_range_returns_false_when_min_equals_max() {
   soarm::CalibrationProfile p = makeResetProfile();
-  // Single sample → min == max == 2048 for servo 1; still no range (max >= min → TRUE)
-  // Note: profileHasRange returns true if maxPosition >= minPosition (even 1 sample)
   soarm::expandWorkingProfileFromTelemetry(p, "#1 p2048 t25;");
-  TEST_ASSERT_TRUE(soarm::profileHasRange(p));
+  TEST_ASSERT_FALSE(soarm::profileHasRange(p));
 }
 
 void test_profile_has_range_returns_true_when_last_servo_has_range() {
   soarm::CalibrationProfile p = makeResetProfile();
-  const uint8_t lastIdx = soarm::CalibrationProfile::kServoCount; // servo ID = kServoCount
-  char buf[32]{};
-  snprintf(buf, sizeof(buf), "#%u p1000 t25;", static_cast<unsigned>(lastIdx));
-  soarm::expandWorkingProfileFromTelemetry(p, buf);
-  snprintf(buf, sizeof(buf), "#%u p2000 t25;", static_cast<unsigned>(lastIdx));
-  soarm::expandWorkingProfileFromTelemetry(p, buf);
+  soarm::expandWorkingProfileFromTelemetry(p, "#1 p1000 t25;#2 p1000 t25;#3 p1000 t25;");
+  soarm::expandWorkingProfileFromTelemetry(p, "#1 p2000 t25;#2 p2000 t25;#3 p2000 t25;");
   TEST_ASSERT_TRUE(soarm::profileHasRange(p));
 }
 

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 640" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#334155"/>
+    </marker>
+    <style>
+      .title { font-size: 20px; font-weight: 700; fill: #0f172a; }
+      .subtitle { font-size: 13px; fill: #475569; }
+      .box { fill: #f8fafc; stroke: #334155; stroke-width: 1.5; rx: 8; }
+      .actor { fill: #e0f2fe; stroke: #0369a1; }
+      .bus { fill: #fef3c7; stroke: #b45309; }
+      .radio { fill: #ede9fe; stroke: #6d28d9; stroke-dasharray: 6 4; }
+      .pc { fill: #dcfce7; stroke: #15803d; }
+      .label { font-size: 12px; fill: #1e293b; }
+      .small { font-size: 11px; fill: #64748b; }
+      .path-title { font-size: 14px; font-weight: 600; fill: #0f172a; }
+      .line { stroke: #334155; stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+      .line-radio { stroke: #6d28d9; stroke-width: 1.4; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrow); }
+      .line-pc { stroke: #15803d; stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <text x="24" y="32" class="title">SoArm communication paths</text>
+  <text x="24" y="52" class="subtitle">Leader / follower ESP32, PC dashboard, servo buses @ 1 Mbps</text>
+
+  <!-- Shared actors -->
+  <rect x="40" y="88" width="120" height="48" class="box pc"/>
+  <text x="100" y="118" text-anchor="middle" class="label">PC</text>
+
+  <rect x="220" y="88" width="140" height="48" class="box actor"/>
+  <text x="290" y="118" text-anchor="middle" class="label">Leader ESP</text>
+
+  <rect x="220" y="168" width="140" height="40" class="box bus"/>
+  <text x="290" y="193" text-anchor="middle" class="label">Leader bus</text>
+
+  <rect x="520" y="88" width="140" height="48" class="box actor"/>
+  <text x="590" y="118" text-anchor="middle" class="label">Follower ESP</text>
+
+  <rect x="520" y="168" width="140" height="40" class="box bus"/>
+  <text x="590" y="193" text-anchor="middle" class="label">Follower bus</text>
+
+  <line x1="160" y1="112" x2="220" y2="112" class="line-pc"/>
+  <text x="190" y="104" text-anchor="middle" class="small">USB / WiFi</text>
+  <line x1="290" y1="136" x2="290" y2="168" class="line"/>
+  <line x1="590" y1="136" x2="590" y2="168" class="line"/>
+  <line x1="360" y1="112" x2="520" y2="112" class="line-radio"/>
+  <text x="440" y="104" text-anchor="middle" class="small">ESP-NOW / UDP</text>
+
+  <!-- Path A: LeRobot -->
+  <text x="40" y="250" class="path-title">A  LeRobot (USB both arms via PC)</text>
+  <rect x="40" y="262" width="840" height="72" class="box"/>
+  <text x="56" y="286" class="label">PC loop ~60 Hz: sync_read leader ’ sync_write follower</text>
+  <text x="56" y="306" class="small">Bottleneck: 2× USB + 2× bus; ~17 ms budget</text>
+  <line x1="120" y1="318" x2="200" y2="318" class="line-pc"/>
+  <line x1="200" y1="318" x2="280" y2="318" class="line"/>
+  <line x1="120" y1="318" x2="120" y2="318" class="line-pc"/>
+  <line x1="120" y1="318" x2="500" y2="318" class="line-pc"/>
+  <line x1="500" y1="318" x2="580" y2="318" class="line"/>
+
+  <!-- Path B: Radio mirror -->
+  <text x="40" y="360" class="path-title">B  On-device mirror (ESP-NOW or Wi-Fi UDP)</text>
+  <rect x="40" y="372" width="840" height="72" class="box"/>
+  <text x="56" y="396" class="label">Leader teleop_mirror @ 17 ms ’ radio ’ follower teleop_apply @ 17 ms ’ moveBatch</text>
+  <text x="56" y="416" class="small">Follower bus telemetry paused during active teleop</text>
+
+  <!-- Path C: COM mirror -->
+  <text x="40" y="470" class="path-title">C  COM mirror bench (profile TeleopPcSerial)</text>
+  <rect x="40" y="482" width="840" height="72" class="box"/>
+  <text x="56" y="506" class="label">Leader bus ’ binary snapshot :9090 ’ PC packs BatchPacket ’ follower USB</text>
+  <text x="56" y="526" class="small">Leader IHM snapshots throttled 250 ms; latest-only on follower</text>
+
+  <!-- Path D: Future -->
+  <text x="40" y="580" class="path-title">D  Proposed: USB debug on leader + direct ESP Wi-Fi teleop</text>
+  <rect x="40" y="592" width="840" height="40" class="box"/>
+  <text x="56" y="618" class="small">ESP-NOW negotiates WPA2; soft-AP link between boards; no router in teleop path</text>
+</svg>

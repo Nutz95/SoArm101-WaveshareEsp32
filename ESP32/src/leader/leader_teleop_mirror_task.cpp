@@ -27,16 +27,25 @@ bool canMirrorNow(
     const ILeaderPresenceService &presenceService) {
   const bool active = continuousEnabled.load();
   const OperationMode mode = static_cast<OperationMode>(runtimeMode.load());
-  if (!(active && mode == OperationMode::Teleoperation && presenceService.isFollowerLinked())) {
+  const TeleopTransportMode transport = static_cast<TeleopTransportMode>(transportMode.load());
+
+  if (transport == TeleopTransportMode::PcSerialBridge) {
+    return active && mode == OperationMode::Teleoperation;
+  }
+
+  if (!(active && mode == OperationMode::Teleoperation)) {
     return false;
   }
 
-  if (static_cast<TeleopTransportMode>(transportMode.load()) != TeleopTransportMode::WifiUdp) {
-    return true;
+  if (transport == TeleopTransportMode::WifiUdp) {
+    if (!presenceService.isFollowerAvailable()) {
+      return false;
+    }
+    char endpoint[16]{};
+    return resolveFollowerEndpoint(presenceService.followerIp(), endpoint, sizeof(endpoint));
   }
 
-  char endpoint[16]{};
-  return resolveFollowerEndpoint(presenceService.followerIp(), endpoint, sizeof(endpoint));
+  return presenceService.isFollowerLinked();
 }
 
 void refreshFollowerIds(TeleopMirrorState &state, ILeaderPresenceService &presenceService) {
@@ -54,7 +63,8 @@ void tryAppendBatchItem(
     const CalibrationProfile &leaderCalibrationProfile,
     const CalibrationProfile &followerCalibrationProfile,
     uint8_t &batchCount,
-    uint8_t filterId) {
+    uint8_t filterId,
+    int16_t minPositionDelta) {
   if (id == 0U || (filterId != 0U && id != filterId)) {
     return;
   }
@@ -104,7 +114,8 @@ uint8_t buildMirrorBatchFromSnapshot(
     const ServoPositionSnapshot &snapshot,
     const CalibrationProfile &leaderCalibrationProfile,
     const CalibrationProfile &followerCalibrationProfile,
-    uint8_t filterId) {
+    uint8_t filterId,
+    int16_t minPositionDelta) {
   uint8_t batchCount = 0U;
   for (uint8_t i = 0U; i < snapshot.count; ++i) {
     tryAppendBatchItem(
@@ -114,13 +125,15 @@ uint8_t buildMirrorBatchFromSnapshot(
         leaderCalibrationProfile,
         followerCalibrationProfile,
         batchCount,
-        filterId);
+        filterId,
+        minPositionDelta);
   }
   return batchCount;
 }
 
 void sendBatch(ILeaderPresenceService &presenceService,
                LeaderTeleopWifiBridge &teleopWifiBridge,
+               LeaderTeleopPcSerialBridge &teleopPcSerialBridge,
                uint8_t count,
                TeleopMirrorState &state,
                uint16_t &requestCounter,
@@ -135,21 +148,32 @@ void sendBatch(ILeaderPresenceService &presenceService,
 
   ++requestCounter;
   const uint8_t wifiFlags = wifiRequireAck ? teleop::kFlagRequireAck : 0U;
-  const bool sent = (transportMode == TeleopTransportMode::WifiUdp)
-                        ? teleopWifiBridge.sendBatch(
-                              presenceService.followerIp(),
-                              state.batchIds,
-                              state.batchPositions,
-                              count,
-                              speedPercent,
-                              requestCounter,
-                              wifiFlags)
-                        : presenceService.requestTeleopMirrorBatch(
-                              state.batchIds,
-                              state.batchPositions,
-                              count,
-                              speedPercent,
-                              requestCounter);
+  bool sent = false;
+  if (transportMode == TeleopTransportMode::WifiUdp) {
+    sent = teleopWifiBridge.sendBatch(
+        presenceService.followerIp(),
+        state.batchIds,
+        state.batchPositions,
+        count,
+        speedPercent,
+        requestCounter,
+        wifiFlags);
+  } else if (transportMode == TeleopTransportMode::PcSerialBridge) {
+    sent = teleopPcSerialBridge.sendBatch(
+        state.batchIds,
+        state.batchPositions,
+        count,
+        speedPercent,
+        requestCounter,
+        wifiFlags);
+  } else {
+    sent = presenceService.requestTeleopMirrorBatch(
+        state.batchIds,
+        state.batchPositions,
+        count,
+        speedPercent,
+        requestCounter);
+  }
   if (!sent) {
     const uint8_t previous = latencyMetrics.sendFailCount.load();
     if (previous < 255U) {
@@ -159,6 +183,9 @@ void sendBatch(ILeaderPresenceService &presenceService,
   }
 
   if (transportMode == TeleopTransportMode::WifiUdp && !wifiRequireAck) {
+    return;
+  }
+  if (transportMode == TeleopTransportMode::PcSerialBridge) {
     return;
   }
 
@@ -182,6 +209,7 @@ bool canSendNowForTransport(
 void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
                                      ILeaderPresenceService &presenceService,
                                      LeaderTeleopWifiBridge &teleopWifiBridge,
+                                     LeaderTeleopPcSerialBridge &teleopPcSerialBridge,
                                      const CalibrationProfile &leaderCalibrationProfile,
                                      const CalibrationProfile &followerCalibrationProfile,
                                      const std::atomic<bool> &continuousEnabled,
@@ -201,7 +229,8 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
     if (selectedMode == TeleopTransportMode::WifiUdp && wifiRequireAck) {
       processWifiBatchAck(state, teleopWifiBridge, latencyMetrics, nowMs);
       expireOldPendingBatches(state, nowMs, latencyMetrics);
-    } else if (selectedMode != TeleopTransportMode::WifiUdp) {
+    } else if (selectedMode != TeleopTransportMode::WifiUdp &&
+               selectedMode != TeleopTransportMode::PcSerialBridge) {
       processFollowerBatchAck(state, presenceService, latencyMetrics, nowMs);
       expireOldPendingBatches(state, nowMs, latencyMetrics);
     }
@@ -220,16 +249,23 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
       continue;
     }
 
+    const int16_t minPositionDelta =
+        (selectedMode == TeleopTransportMode::WifiUdp ||
+         selectedMode == TeleopTransportMode::PcSerialBridge)
+            ? config::leader::kTeleopMirrorMinPositionDeltaWifi
+            : config::leader::kTeleopMirrorMinPositionDelta;
     const uint8_t batchCount = buildMirrorBatchFromSnapshot(
         state,
         snapshot,
         leaderCalibrationProfile,
         followerCalibrationProfile,
-        servoIdFilter.load());
+        servoIdFilter.load(),
+        minPositionDelta);
     if (canSendNowForTransport(state, selectedMode, wifiRequireAck)) {
       sendBatch(
           presenceService,
           teleopWifiBridge,
+          teleopPcSerialBridge,
           batchCount,
           state,
           requestCounter,
@@ -241,7 +277,8 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
     }
 
     const uint32_t activeDelayMs =
-        (selectedMode == TeleopTransportMode::WifiUdp)
+        (selectedMode == TeleopTransportMode::WifiUdp ||
+         selectedMode == TeleopTransportMode::PcSerialBridge)
             ? config::leader::kTeleopMirrorTaskWifiActiveDelayMs
             : config::leader::kTeleopMirrorTaskActiveDelayMs;
     vTaskDelay(pdMS_TO_TICKS(activeDelayMs));

@@ -4,6 +4,7 @@ export function modeLabel(v) {
     case 1: return "CalibrationLeader";
     case 2: return "CalibrationFollower";
     case 3: return "Teleoperation";
+    case 4: return "Passthrough";
     default: return "Unknown";
   }
 }

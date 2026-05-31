@@ -55,6 +55,21 @@ bool FollowerTeleopWifiBridge::consumeBatch(
   return true;
 }
 
+bool FollowerTeleopWifiBridge::drainLatestBatch(
+    uint8_t *ids,
+    int16_t *positions,
+    uint8_t capacity,
+    uint8_t &count,
+    uint8_t &speedPercent,
+    uint16_t &requestId,
+    uint8_t &flags) {
+  bool got = false;
+  while (consumeBatch(ids, positions, capacity, count, speedPercent, requestId, flags)) {
+    got = true;
+  }
+  return got;
+}
+
 bool FollowerTeleopWifiBridge::sendAck(uint16_t requestId, uint8_t status) {
   if (!started_ || !hasAckPeer_ || leaderAckPort_ == 0U) {
     return false;

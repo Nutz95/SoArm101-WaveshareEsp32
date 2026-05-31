@@ -28,6 +28,7 @@ public:
   virtual void stageTeleopBatchAck(uint16_t requestId, uint8_t status) = 0;
   virtual void requestImmediatePresenceTx() = 0;
   virtual void sendLinkKeepalive(const char *localIp) = 0;
+  virtual void notifyWifiTeleopActivity() = 0;
   virtual void updateServoTelemetry(
       const char *servoIds,
       const char *servoTelemetry,

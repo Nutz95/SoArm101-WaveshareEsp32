@@ -107,12 +107,60 @@ Current behaviour:
 | Traffic | Teleop active | Idle / commands |
 |---------|---------------|-----------------|
 | Mirror batch ACK | Staged into next periodic presence only | Full ACK burst (3×) for scans/moves |
-| Presence period | 1000 ms | 250 ms |
+| Presence period | 250 ms (teleop) | 250 ms |
 | PairRequest while paired | 30 s | 5 s |
 
 Leader re-pairs when it receives **Presence** or **PairRequest** from a follower after a timeout (no more `PairReset` on stale presence). Pairing timeout is **45 s** without presence when the watchdog is active.
 
-During **calibration** (leader or follower profile, or range-capture phase), the pairing watchdog is **suspended** so a long min–max session does not drop the link. The follower sends **link keepalives** before and after `CalibrationCenter` (offset + grouped move).
+During **calibration** (leader or follower profile, or range-capture phase), the pairing watchdog is **suspended** so a long min–max session does not drop the link. The follower sends **link keepalives** before and after `CalibrationCenter` (offset + grouped move) and after a successful **range capture** save.
+
+### “Follower offline” with a valid IP after calibration
+
+`isFollowerLinked()` requires a recent presence/ACK (`kPresenceTimeoutMs`, now **12 s**). A long follower center calibration can exceed that window while the IP string on the OLED stays valid. Fixes:
+
+- Refresh `lastFollowerSeenMs` when the pairing watchdog **resumes** (calibration finished).
+- `refreshFollowerLinkGrace()` after follower range commit on the leader.
+- Follower keepalive after NVS capture.
+
+### Wi-Fi teleop stepping
+
+The follower **teleop_apply** FreeRTOS task (~17 ms) drains Wi-Fi/PC serial sockets with **latest-only** semantics and applies a single `moveBatch` per period. Bus telemetry publish on the follower is **paused** while teleop traffic is recent (`kTeleopTrafficRecentMs`). Wi-Fi mirror sends on **any** position change (`kTeleopMirrorMinPositionDeltaWifi = 0`). Leader caches the resolved follower IP to avoid repeated mDNS lookups. ESP-NOW presence is throttled to **5 s** while Wi-Fi batches are active so the radio can favor UDP.
+
+COM mirror uses binary `leader_mirror_positions[]` in the Wi-Fi telemetry snapshot (not parsed text). Leader dashboard snapshots are throttled to **250 ms** during `PcSerialBridge` profile. See [architecture/communication_links.md](architecture/communication_links.md).
+
+If motion is still choppy on Wi-Fi but smooth on **PC serial bridge** (profile 5), the bottleneck is Wi-Fi/radio—not the 60 Hz pipeline.
+
+## PC serial bench mode (profile 5, TeleopPcSerial)
+
+Same mirror logic as Wi-Fi/ESP-NOW; batch frames are written on **USB CDC Serial** (UART0 via CP2102 on each board).
+
+There is **no GPIO wiring** between the two arms. Both boards stay connected to the PC; a COM bridge forwards leader USB → follower USB.
+
+### Setup
+
+1. Connect **follower** to the PC USB port (e.g. COM8). Leader USB is **not** required.
+2. Install pyserial: `pip install pyserial`
+3. Start the dashboard with COM mirror enabled:
+
+```powershell
+python tools/telemetry_dashboard/telemetry_dashboard.py --enable-com-mirror --follower-com COM8
+```
+
+Or use `.\tools\telemetry_dashboard\start_dashboard.ps1 -FollowerCom COM8`.
+
+4. In the web UI **Modes** tab: **Start COM mirror** (watch the console for `[com-mirror] OPEN OK`).
+5. Apply profile **PC serial bridge** (profile 5), then **Start Continuous** (Teleop tab) or press **A** on the controller.
+6. **Packets sent** in the UI should increase; **State** should show `sending`.
+
+The dashboard reads leader servo positions over Wi-Fi telemetry and writes binary batch frames to the follower COM port. ESP-NOW is not used for mirror batches in this mode.
+
+## Leader USB passthrough (wired LeRobot on leader arm)
+
+Profile **4** (Xbox mode cycle or dashboard **Modes** tab → Passthrough):
+
+- USB serial reopens at **1 000 000** baud and is bridged byte-for-byte to `Serial2` (servo bus).
+- Servo telemetry and mirror tasks stay idle; set the host terminal to **1000000** baud.
+- The follower arm still uses its hardware UART switch for direct bus access.
 
 ### Leader center calibration (vs follower)
 
@@ -122,6 +170,10 @@ Leader center uses the same `calibrateOffsetsForDetectedServos()` as the followe
 2. The servo telemetry task kept polling the bus every ~17 ms during calibration modes.
 
 Current behaviour: offsets for all reachable servos → **unlock** → one `SyncWrite` center move → relaxed verify (±400 counts, 25 attempts). Telemetry polling is **paused** on both boards during calibration modes.
+
+### Xbox cal follower (fixed)
+
+One **A** press no longer runs center calibration **and** commit in the same frame. Cycle to cal follower → OLED **cal follower? press A** → first **A** sends center to follower (wait for **cal follower move extremes**) → move arm to min/max → second **A** commits. **B** cancels.
 
 ## Planned: rest pose and leader “zero-G”
 

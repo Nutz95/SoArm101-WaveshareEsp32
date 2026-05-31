@@ -8,6 +8,8 @@ const calibrationProfileByMode = {
   1: "calibration_follower",
   2: "teleop_espnow",
   3: "teleop_wifi",
+  4: "passthrough",
+  5: "teleop_pcserial",
 };
 
 

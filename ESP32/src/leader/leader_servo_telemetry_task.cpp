@@ -22,7 +22,7 @@ void LeaderServoTelemetryTask::runLoop(
     const bool calibrationMode =
         mode == OperationMode::CalibrationLeader || mode == OperationMode::CalibrationFollower;
 
-    if (calibrationMode) {
+    if (mode == OperationMode::Passthrough || calibrationMode) {
       vTaskDelay(pdMS_TO_TICKS(50U));
       continue;
     }

@@ -36,6 +36,7 @@ public:
   void stageTeleopBatchAck(uint16_t requestId, uint8_t status) override;
   void requestImmediatePresenceTx() override;
   void sendLinkKeepalive(const char *localIp) override;
+  void notifyWifiTeleopActivity() override;
   void updateServoTelemetry(
       const char *servoIds,
       const char *servoTelemetry,
@@ -122,6 +123,7 @@ private:
   char lastLocalIp_[16]{};
   bool forcePresenceTx_{false};
   uint32_t lastTeleopBatchRxMs_{0U};
+  uint32_t lastWifiTeleopRxMs_{0U};
 };
 
 } // namespace soarm

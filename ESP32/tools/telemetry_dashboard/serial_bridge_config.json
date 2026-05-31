@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "follower_port": "COM8",
+  "follower_baud": 115200,
+  "speed_pct": 100
+}

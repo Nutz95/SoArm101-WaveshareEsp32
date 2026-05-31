@@ -6,6 +6,7 @@
 #include "../common/teleop/teleop_transport_mode.h"
 #include "../common/types/operation_mode.h"
 #include "leader_teleop_wifi_bridge.h"
+#include "leader_teleop_pc_serial_bridge.h"
 
 #include <atomic>
 #include <cstdint>
@@ -27,6 +28,7 @@ public:
       ServoBusService &servoBusService,
       ILeaderPresenceService &presenceService,
       LeaderTeleopWifiBridge &teleopWifiBridge,
+      LeaderTeleopPcSerialBridge &teleopPcSerialBridge,
       const CalibrationProfile &leaderCalibrationProfile,
       const CalibrationProfile &followerCalibrationProfile,
       const std::atomic<bool> &continuousEnabled,

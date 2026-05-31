@@ -180,5 +180,7 @@ class TelemetryClient(threading.Thread):
                 "leader_working_calibration_max": [int(fields[89 + i]) for i in range(6)],
                 "follower_working_calibration_min": [int(fields[95 + i]) for i in range(6)],
                 "follower_working_calibration_max": [int(fields[101 + i]) for i in range(6)],
+                "leader_mirror_positions": [int(fields[107 + i]) for i in range(6)],
+                "leader_mirror_position_count": int(fields[113]),
             }
         )

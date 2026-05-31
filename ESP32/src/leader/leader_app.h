@@ -15,9 +15,11 @@
 #include "leader_telemetry_stream_server.h"
 #include "leader_command_processor.h"
 #include "leader_teleop_mirror_task.h"
-#include "leader_teleop_wifi_bridge.h"
+#include "leader_teleop_pc_serial_bridge.h"
+#include "leader_servo_passthrough.h"
 #include "leader_xbox_controller_service.h"
 #include "../common/teleop/teleop_transport_mode.h"
+#include "../common/controller/controller_operation_profile.h"
 
 #include <atomic>
 #include <cstdint>
@@ -79,6 +81,10 @@ private:
   void releaseCalibrationTorqueForActiveRole();
   void handleControllerModeCycleEvents();
   void applyControllerOperationProfile(uint8_t profile);
+  void engagePassthroughMode();
+  void disengagePassthroughMode(ControllerOperationProfile fallbackProfile);
+  void nudgeFollowerLinkAfterCalibration();
+  void pollFollowerCalibrationCenterAck(uint32_t nowMs);
   void setTransientStatus(const char *text, uint32_t holdMs);
   void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
   void setLeaderCommandStatus(CommandAckStatus status);
@@ -97,6 +103,7 @@ private:
 
   // Telemetry / display extracted from tick()
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
+  void fillLeaderMirrorPositions(LeaderTelemetrySnapshot &snapshot);
   void refreshOled(uint32_t uptimeMs);
 
   void startBackgroundTasks();
@@ -148,11 +155,17 @@ private:
   std::atomic<uint8_t> teleopContinuousServoIdFilter_{0U};
   std::atomic<uint8_t> teleopContinuousSpeedPct_{35U};
   std::atomic<uint8_t> teleopTransportMode_{static_cast<uint8_t>(TeleopTransportMode::EspNow)};
-  std::atomic<uint8_t> controllerOperationProfile_{2U};
+  std::atomic<uint8_t> controllerOperationProfile_{toProfileRaw(ControllerOperationProfile::TeleopEspNow)};
   std::atomic<uint8_t> calibrationPhase_{0U};
   std::atomic<uint8_t> runtimeModeForTasks_{0U};
+  std::atomic<bool> passthroughEngaged_{false};
+  std::atomic<bool> followerCalibrationCenterPending_{false};
+  uint16_t followerCalibrationCenterRequestId_{0U};
+  uint32_t followerCalibrationCenterStartedMs_{0U};
   TeleopMirrorLatencyMetrics teleopMirrorLatencyMetrics_{};
   LeaderTeleopWifiBridge teleopWifiBridge_{};
+  LeaderTeleopPcSerialBridge teleopPcSerialBridge_{};
+  LeaderServoPassthrough servoPassthrough_{};
   LeaderXboxControllerService xboxControllerService_{};
   uint16_t            teleopContinuousRequestCounter_{40000U};
   void               *telemetryPollTaskHandle_{nullptr};

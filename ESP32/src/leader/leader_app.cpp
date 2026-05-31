@@ -7,7 +7,9 @@
 #include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
 #include "../common/teleop/teleop_wifi_packet.h"
+#include "../common/teleop/teleop_transport_mode.h"
 #include "../common/servo/servo_control_opcode.h"
+#include "../common/controller/controller_operation_profile.h"
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
@@ -62,7 +64,7 @@ LeaderApp::LeaderApp()
 }
 
 void LeaderApp::begin() {
-  Serial.begin(115200);
+  Serial.begin(config::leader::kPassthroughUsbBaud);
 
   statusLedService_.begin();
   teleopContinuousSpeedPct_.store(config::leader::kTeleopContinuousSpeedPct);
@@ -128,6 +130,8 @@ void LeaderApp::begin() {
     Serial.println("[WARN] Teleop Wi-Fi UDP bridge init failed on leader");
   }
 
+  teleopPcSerialBridge_.attach(Serial);
+
   xboxControllerService_.begin();
 
   startBackgroundTasks();
@@ -135,43 +139,68 @@ void LeaderApp::begin() {
 
 void LeaderApp::tick() {
   wifiOta_.tick();
-  const uint8_t profile = controllerOperationProfile_.load();
+  const ControllerOperationProfile profile =
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+  const bool passthroughActive = passthroughEngaged_.load();
   presenceService_->setPairingWatchdogSuspended(
-      profile <= 1U || calibrationPhase_.load() != 0U);
+      (profile == ControllerOperationProfile::CalibrationLeader ||
+       profile == ControllerOperationProfile::CalibrationFollower) ||
+      calibrationPhase_.load() != 0U ||
+      followerCalibrationCenterPending_.load());
   presenceService_->tick();
   telemetryStreamServer_.tick();
 
   handlePairingCommands();
-  handleServoCommands();
+  if (!passthroughActive) {
+    handleServoCommands();
+  } else {
+    (void)handleTeleopTransportValueCommand();
+  }
 
   const uint32_t uptimeMs = millis();
-  runStartupServoScans(uptimeMs);
-  updateFollowerAckTracking(uptimeMs);
+  if (!passthroughActive) {
+    runStartupServoScans(uptimeMs);
+    updateFollowerAckTracking(uptimeMs);
+    pollFollowerCalibrationCenterAck(uptimeMs);
+  }
   updateLocalInputs(uptimeMs);
   handleControllerModeCycleEvents();
-  if (calibrationPhase_.load() == 1U) {
+  if (!passthroughActive && calibrationPhase_.load() == 1U) {
     (void)sampleCalibrationRangeCapture();
   }
-  updateServoHealthFlags();
+  if (!passthroughActive) {
+    updateServoHealthFlags();
+  }
   computeModeAndStatus();
   runtimeModeForTasks_.store(static_cast<uint8_t>(mode_));
   updateFollowerState();
   renderStatusLeds();
 
-  const uint32_t snapshotPeriodMs =
-      mode_ == OperationMode::Teleoperation
-          ? config::leader::kTelemetrySnapshotTeleopPeriodMs
-          : config::leader::kTelemetrySnapshotIdlePeriodMs;
-  if ((uptimeMs - lastTelemetrySnapshotMs_) >= snapshotPeriodMs) {
-    lastTelemetrySnapshotMs_ = uptimeMs;
-    LeaderTelemetrySnapshot snapshot{};
-    buildTelemetrySnapshot(snapshot, uptimeMs);
-    telemetryState_.update(snapshot);
+  if (!passthroughActive) {
+    const bool pcSerialMirrorBench =
+        mode_ == OperationMode::Teleoperation &&
+        static_cast<TeleopTransportMode>(teleopTransportMode_.load()) == TeleopTransportMode::PcSerialBridge;
+    const uint32_t snapshotPeriodMs =
+        pcSerialMirrorBench
+            ? config::leader::kTelemetrySnapshotPcSerialMirrorPeriodMs
+            : (mode_ == OperationMode::Teleoperation
+                   ? config::leader::kTelemetrySnapshotTeleopPeriodMs
+                   : config::leader::kTelemetrySnapshotIdlePeriodMs);
+    if ((uptimeMs - lastTelemetrySnapshotMs_) >= snapshotPeriodMs) {
+      lastTelemetrySnapshotMs_ = uptimeMs;
+      LeaderTelemetrySnapshot snapshot{};
+      buildTelemetrySnapshot(snapshot, uptimeMs);
+      telemetryState_.update(snapshot);
+    }
   }
 
   refreshOled(uptimeMs);
 
-  delay(config::leader::kTickDelayMs);
+  if (passthroughActive) {
+    servoPassthrough_.tick(true);
+  }
+
+  delay(passthroughActive ? 0U : config::leader::kTickDelayMs);
 }
 
 void LeaderApp::runStartupServoScans(uint32_t nowMs) {
@@ -231,8 +260,11 @@ void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
   (void)uptimeMs;
   xboxControllerService_.tick();
   localInputs_.joystickPaired = xboxControllerService_.isControllerPaired();
-  const uint8_t profile = controllerOperationProfile_.load();
-  const bool profileCalibration = profile <= 1U;
+  const ControllerOperationProfile profile =
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+  const bool profileCalibration =
+      profile == ControllerOperationProfile::CalibrationLeader ||
+      profile == ControllerOperationProfile::CalibrationFollower;
   if (profileCalibration) {
     localInputs_.calibrationDone = false;
   } else {
@@ -333,6 +365,7 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
     snapshot.followerWorkingCalibrationMin[i] = followerCalibrationWorkingProfile_.minPosition[i];
     snapshot.followerWorkingCalibrationMax[i] = followerCalibrationWorkingProfile_.maxPosition[i];
   }
+  fillLeaderMirrorPositions(snapshot);
 }
 
 void LeaderApp::refreshOled(uint32_t uptimeMs) {

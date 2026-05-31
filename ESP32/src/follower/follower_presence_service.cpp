@@ -63,10 +63,14 @@ void FollowerPresenceService::tick(const char *localIp) {
   }
 
   const uint32_t nowMs = millis();
-  const bool teleopActive =
+  const bool espNowTeleopActive =
       lastTeleopBatchRxMs_ > 0U && ((nowMs - lastTeleopBatchRxMs_) < config::follower::kTeleopTrafficRecentMs);
+  const bool wifiTeleopActive =
+      lastWifiTeleopRxMs_ > 0U && ((nowMs - lastWifiTeleopRxMs_) < config::follower::kTeleopTrafficRecentMs);
+  const bool teleopActive = espNowTeleopActive || wifiTeleopActive;
   const uint32_t presencePeriodMs =
-      teleopActive ? config::follower::kPresenceTxPeriodTeleopMs : kPresenceTxPeriodMs;
+      wifiTeleopActive ? config::follower::kPresenceTxPeriodWifiTeleopMs
+                       : (teleopActive ? config::follower::kPresenceTxPeriodTeleopMs : kPresenceTxPeriodMs);
 
   if (!forcePresenceTx_ && ((nowMs - lastTxMs_) < presencePeriodMs)) {
     return;
@@ -218,6 +222,10 @@ void FollowerPresenceService::sendLinkKeepalive(const char *localIp) {
   }
   sendPresence(localIp);
   lastTxMs_ = millis();
+}
+
+void FollowerPresenceService::notifyWifiTeleopActivity() {
+  lastWifiTeleopRxMs_ = millis();
 }
 
 void FollowerPresenceService::updateServoTelemetry(

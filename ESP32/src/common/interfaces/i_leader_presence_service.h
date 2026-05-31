@@ -11,7 +11,9 @@ public:
   virtual bool begin() = 0;
   virtual void tick() = 0;
   virtual void setPairingWatchdogSuspended(bool suspended) = 0;
+  virtual void refreshFollowerLinkGrace() = 0;
   virtual bool isFollowerLinked() const = 0;
+  virtual bool isFollowerAvailable() const = 0;
   virtual bool hasValidFollowerIp() const = 0;
   virtual const char *followerIp() const = 0;
   virtual bool isPaired() const = 0;

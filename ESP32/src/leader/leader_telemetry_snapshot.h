@@ -78,6 +78,9 @@ struct LeaderTelemetrySnapshot {
   uint16_t leaderWorkingCalibrationMax[CalibrationProfile::kServoCount];
   uint16_t followerWorkingCalibrationMin[CalibrationProfile::kServoCount];
   uint16_t followerWorkingCalibrationMax[CalibrationProfile::kServoCount];
+  // Raw leader positions (servo id 1..6 -> index 0..5). INT16_MIN = not present this frame.
+  int16_t leaderMirrorPositions[CalibrationProfile::kServoCount];
+  uint8_t leaderMirrorPositionCount;
 } __attribute__((packed));
 
 } // namespace soarm

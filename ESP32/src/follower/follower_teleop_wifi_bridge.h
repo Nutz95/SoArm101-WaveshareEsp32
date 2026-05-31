@@ -18,6 +18,15 @@ public:
       uint8_t &speedPercent,
       uint16_t &requestId,
       uint8_t &flags);
+  // Drain the UDP socket and return only the newest batch (drops stale packets).
+  bool drainLatestBatch(
+      uint8_t *ids,
+      int16_t *positions,
+      uint8_t capacity,
+      uint8_t &count,
+      uint8_t &speedPercent,
+      uint16_t &requestId,
+      uint8_t &flags);
   bool sendAck(uint16_t requestId, uint8_t status);
 
 private:

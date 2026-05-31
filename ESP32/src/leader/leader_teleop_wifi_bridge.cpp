@@ -35,8 +35,22 @@ bool LeaderTeleopWifiBridge::sendBatch(
   }
 
   char resolvedIp[16]{};
-  if (!resolveFollowerEndpoint(followerIp, resolvedIp, sizeof(resolvedIp))) {
+  if (hasCachedEndpoint_ && followerIp != nullptr && strcmp(followerIp, cachedSourceIp_) == 0) {
+    strncpy(resolvedIp, cachedEndpoint_, sizeof(resolvedIp) - 1U);
+    resolvedIp[sizeof(resolvedIp) - 1U] = '\0';
+  } else if (!resolveFollowerEndpoint(followerIp, resolvedIp, sizeof(resolvedIp))) {
+    hasCachedEndpoint_ = false;
     return false;
+  } else {
+    strncpy(cachedEndpoint_, resolvedIp, sizeof(cachedEndpoint_) - 1U);
+    cachedEndpoint_[sizeof(cachedEndpoint_) - 1U] = '\0';
+    if (followerIp != nullptr) {
+      strncpy(cachedSourceIp_, followerIp, sizeof(cachedSourceIp_) - 1U);
+      cachedSourceIp_[sizeof(cachedSourceIp_) - 1U] = '\0';
+    } else {
+      cachedSourceIp_[0] = '\0';
+    }
+    hasCachedEndpoint_ = true;
   }
 
   IPAddress remoteIp;

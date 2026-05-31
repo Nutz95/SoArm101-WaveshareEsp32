@@ -8,7 +8,8 @@ enum class OperationMode : uint8_t {
   Idle = 0,
   CalibrationLeader,
   CalibrationFollower,
-  Teleoperation
+  Teleoperation,
+  Passthrough
 };
 
 } // namespace soarm

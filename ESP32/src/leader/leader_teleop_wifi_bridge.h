@@ -33,6 +33,9 @@ private:
   bool started_{false};
   uint32_t lastSendErrorLogMs_{0U};
   uint32_t sendBackoffUntilMs_{0U};
+  char cachedEndpoint_[16]{};
+  char cachedSourceIp_[16]{};
+  bool hasCachedEndpoint_{false};
 };
 
 } // namespace soarm

@@ -1,6 +1,7 @@
 #include "leader_app.h"
 
 #include "../Config/common_runtime_config.h"
+#include "../common/controller/controller_operation_profile.h"
 
 #include <cstdio>
 #include <cstring>
@@ -9,12 +10,27 @@ namespace soarm {
 
 void LeaderApp::computeModeAndStatus() {
   const bool followerIpValid = presenceService_->hasValidFollowerIp();
-  const uint8_t profile = controllerOperationProfile_.load();
+  const ControllerOperationProfile profile =
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
   const bool rangeCaptureActive = calibrationPhase_.load() != 0U;
-  const bool calibrationProfileActive = profile <= 1U;
+  const bool calibrationProfileActive =
+      profile == ControllerOperationProfile::CalibrationLeader ||
+      profile == ControllerOperationProfile::CalibrationFollower;
+
+  if (profile == ControllerOperationProfile::Passthrough) {
+    if (passthroughEngaged_.load()) {
+      mode_ = OperationMode::Passthrough;
+      strncpy(statusLine_, "passthrough usb 1M", sizeof(statusLine_) - 1);
+    } else {
+      mode_ = OperationMode::Idle;
+      strncpy(statusLine_, "passthrough? press A", sizeof(statusLine_) - 1);
+    }
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+    return;
+  }
 
   if (millis() < commandStatusHoldUntilMs_) {
-    if (profile == 1U && localInputs_.espNowLinked) {
+    if (profile == ControllerOperationProfile::CalibrationFollower && localInputs_.espNowLinked) {
       mode_ = OperationMode::CalibrationFollower;
     } else if (calibrationProfileActive || !localInputs_.calibrationDone) {
       mode_ = OperationMode::CalibrationLeader;
@@ -39,18 +55,24 @@ void LeaderApp::computeModeAndStatus() {
   if (!localInputs_.joystickPaired) {
     mode_ = OperationMode::Idle;
     strncpy(statusLine_, "pair joystick", sizeof(statusLine_) - 1);
-  } else if (profile == 1U) {
-    if (localInputs_.espNowLinked) {
+  } else if (profile == ControllerOperationProfile::CalibrationFollower) {
+    if (followerCalibrationCenterPending_.load()) {
+      mode_ = OperationMode::CalibrationFollower;
+      strncpy(statusLine_, "cal follower center", sizeof(statusLine_) - 1);
+    } else if (localInputs_.espNowLinked) {
       mode_ = OperationMode::CalibrationFollower;
       strncpy(
           statusLine_,
           rangeCaptureActive ? "cal follower range" : "cal follower center",
           sizeof(statusLine_) - 1);
+    } else if (presenceService_->isFollowerAvailable()) {
+      mode_ = OperationMode::CalibrationFollower;
+      strncpy(statusLine_, "follower link stale", sizeof(statusLine_) - 1);
     } else {
       mode_ = OperationMode::Idle;
       strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
     }
-  } else if (profile == 0U || !localInputs_.calibrationDone) {
+  } else if (profile == ControllerOperationProfile::CalibrationLeader || !localInputs_.calibrationDone) {
     mode_ = OperationMode::CalibrationLeader;
     strncpy(
         statusLine_,
@@ -58,14 +80,26 @@ void LeaderApp::computeModeAndStatus() {
         sizeof(statusLine_) - 1);
   } else if (!localInputs_.espNowLinked) {
     mode_ = OperationMode::Idle;
-    if (presenceService_->followerIp()[0] != '\0' && !followerIpValid) {
+    if (sanitizeControllerOperationProfile(controllerOperationProfile_.load()) ==
+            ControllerOperationProfile::TeleopPcSerial &&
+        teleopContinuousEnabled_.load()) {
+      mode_ = OperationMode::Teleoperation;
+      strncpy(statusLine_, "pc serial: COM bridge", sizeof(statusLine_) - 1);
+    } else if (presenceService_->isFollowerAvailable()) {
+      strncpy(statusLine_, "follower link stale", sizeof(statusLine_) - 1);
+    } else if (presenceService_->followerIp()[0] != '\0' && !followerIpValid) {
       strncpy(statusLine_, "follower wifi down", sizeof(statusLine_) - 1);
     } else {
       strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
     }
   } else {
     mode_ = OperationMode::Teleoperation;
-    strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
+    if (sanitizeControllerOperationProfile(controllerOperationProfile_.load()) ==
+        ControllerOperationProfile::TeleopPcSerial) {
+      strncpy(statusLine_, "pc serial: COM bridge", sizeof(statusLine_) - 1);
+    } else {
+      strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
+    }
   }
   statusLine_[sizeof(statusLine_) - 1] = '\0';
 }
@@ -77,7 +111,10 @@ void LeaderApp::updateFollowerState() {
     followerIpHint_[sizeof(followerIpHint_) - 1] = '\0';
   } else {
     followerState_ = ArmRuntimeState::WaitingEspNow;
-    if (!presenceService_->hasValidFollowerIp()) {
+    if (presenceService_->hasValidFollowerIp()) {
+      strncpy(followerIpHint_, presenceService_->followerIp(), sizeof(followerIpHint_) - 1);
+      followerIpHint_[sizeof(followerIpHint_) - 1] = '\0';
+    } else {
       strncpy(followerIpHint_, "0.0.0.0", sizeof(followerIpHint_) - 1);
       followerIpHint_[sizeof(followerIpHint_) - 1] = '\0';
     }

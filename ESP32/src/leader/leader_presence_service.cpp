@@ -44,7 +44,16 @@ bool LeaderPresenceService::begin() {
 }
 
 void LeaderPresenceService::setPairingWatchdogSuspended(bool suspended) {
+  if (pairingWatchdogSuspended_ && !suspended && hasPairedMac_ && hasValidFollowerIp()) {
+    lastFollowerSeenMs_ = millis();
+  }
   pairingWatchdogSuspended_ = suspended;
+}
+
+void LeaderPresenceService::refreshFollowerLinkGrace() {
+  if (hasPairedMac_ && hasValidFollowerIp()) {
+    lastFollowerSeenMs_ = millis();
+  }
 }
 
 void LeaderPresenceService::tick() {
@@ -74,8 +83,15 @@ void LeaderPresenceService::tick() {
 }
 
 bool LeaderPresenceService::isFollowerLinked() const {
+  if (!hasPairedMac_ || !hasValidFollowerIp()) {
+    return false;
+  }
   const uint32_t nowMs = millis();
-  return hasValidFollowerIp() && ((nowMs - lastFollowerSeenMs_) <= kPresenceTimeoutMs);
+  return (nowMs - lastFollowerSeenMs_) <= kPresenceTimeoutMs;
+}
+
+bool LeaderPresenceService::isFollowerAvailable() const {
+  return hasPairedMac_ && hasValidFollowerIp();
 }
 
 bool LeaderPresenceService::hasValidFollowerIp() const {

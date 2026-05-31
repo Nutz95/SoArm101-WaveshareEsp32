@@ -15,6 +15,8 @@ constexpr uint8_t kTeleopContinuousSpeedPct = 100U;
 // ~60 Hz teleop loop (LeRobot-aligned target).
 constexpr uint32_t kTeleopTargetPeriodMs = 17U;
 constexpr int16_t kTeleopMirrorMinPositionDelta = 3;
+constexpr int16_t kTeleopMirrorMinPositionDeltaWifi = 0;
+constexpr uint32_t kPassthroughUsbBaud = 1000000U;
 constexpr uint32_t kServoTelemetryTaskActiveDelayMs = kTeleopTargetPeriodMs;
 constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
 constexpr uint32_t kTeleopMirrorTaskActiveDelayMs = kTeleopTargetPeriodMs;
@@ -26,6 +28,7 @@ constexpr uint32_t kTeleopWifiSendBackoffMs = 50U;
 constexpr bool kTeleopWifiRequireAck = false;
 constexpr uint32_t kTelemetryStreamPeriodMs = 10U;
 constexpr uint32_t kTelemetrySnapshotTeleopPeriodMs = 10U;
+constexpr uint32_t kTelemetrySnapshotPcSerialMirrorPeriodMs = 250U;
 constexpr uint32_t kTelemetrySnapshotIdlePeriodMs = 100U;
 
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
@@ -36,7 +39,8 @@ constexpr uint32_t kFollowerAckDeadlineSlackMs = 600U;
 constexpr uint8_t kFollowerAckRttClampMs = 250U;
 
 constexpr uint32_t kFollowerDebugAckTimeoutMs = 3500U;
-constexpr uint32_t kFollowerMoveAckTimeoutMs = 1500U;
+constexpr uint32_t kFollowerMoveAckTimeoutMs = 3500U;
+constexpr uint32_t kFollowerCalibrationCenterAckTimeoutMs = 180000U;
 constexpr uint32_t kFollowerSetIdAckTimeoutMs = 2000U;
 constexpr uint32_t kFollowerSetModeAckTimeoutMs = 1500U;
 constexpr uint32_t kFollowerScanAckTimeoutMs = 3000U;

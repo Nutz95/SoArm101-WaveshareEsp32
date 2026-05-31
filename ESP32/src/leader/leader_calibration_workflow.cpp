@@ -61,12 +61,16 @@ bool expandWorkingProfileFromTelemetry(CalibrationProfile &profile, const char *
 }
 
 bool profileHasRange(const CalibrationProfile &profile) {
+  constexpr uint16_t kMinSpanCounts = 50U;
+  uint8_t validServoCount = 0U;
   for (uint8_t servoIndex = 0U; servoIndex < CalibrationProfile::kServoCount; ++servoIndex) {
-    if (profile.maxPosition[servoIndex] >= profile.minPosition[servoIndex]) {
-      return true;
+    const uint16_t minPos = profile.minPosition[servoIndex];
+    const uint16_t maxPos = profile.maxPosition[servoIndex];
+    if (maxPos > static_cast<uint16_t>(minPos + kMinSpanCounts)) {
+      ++validServoCount;
     }
   }
-  return false;
+  return validServoCount >= 3U;
 }
 
 } // namespace soarm

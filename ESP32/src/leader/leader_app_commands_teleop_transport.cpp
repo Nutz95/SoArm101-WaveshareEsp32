@@ -1,8 +1,18 @@
 #include "leader_app.h"
 
 #include "../Config/leader_runtime_config.h"
+#include "../common/controller/controller_operation_profile.h"
+#include "../common/teleop/teleop_transport_set_values.h"
+#include "../common/teleop/teleop_transport_mode.h"
 
 namespace soarm {
+
+using teleop_transport_set::kCalibrationFollower;
+using teleop_transport_set::kCalibrationLeader;
+using teleop_transport_set::kEspNow;
+using teleop_transport_set::kPassthrough;
+using teleop_transport_set::kPcSerial;
+using teleop_transport_set::kWifiUdp;
 
 bool LeaderApp::handleTeleopTransportValueCommand() {
   uint32_t value = 0U;
@@ -19,33 +29,53 @@ bool LeaderApp::handleTeleopTransportValueCommand() {
 void LeaderApp::handleTeleopTransportCommand(uint32_t value, uint16_t requestId) {
   (void)requestId;
 
-  static constexpr uint32_t kTransportCalibrationLeaderProfile = 2U;
-  static constexpr uint32_t kTransportCalibrationFollowerProfile = 3U;
+  if (passthroughEngaged_.load()) {
+    disengagePassthroughMode(ControllerOperationProfile::TeleopEspNow);
+  }
 
-  if (value == kTransportCalibrationLeaderProfile) {
-    applyControllerOperationProfile(0U);
+  if (value == kCalibrationLeader) {
+    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::CalibrationLeader));
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
     setTransientStatus("cal leader place near ctr", config::leader::kMoveStatusHoldMs);
     return;
   }
 
-  if (value == kTransportCalibrationFollowerProfile) {
-    applyControllerOperationProfile(1U);
+  if (value == kCalibrationFollower) {
+    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::CalibrationFollower));
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
-    setTransientStatus("cal follower place ctr", config::leader::kMoveStatusHoldMs);
+    setTransientStatus("cal follower? press A", config::leader::kMoveStatusHoldMs);
     return;
   }
 
-  if (value > static_cast<uint32_t>(TeleopTransportMode::WifiUdp)) {
+  if (value == kPassthrough) {
+    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::Passthrough));
+    engagePassthroughMode();
+    setLeaderCommandStatus(CommandAckStatus::Applied);
+    setFollowerCommandStatus(CommandAckStatus::None);
+    setTransientStatus("passthrough active", config::leader::kMoveStatusHoldMs);
+    return;
+  }
+
+  if (value == kPcSerial) {
+    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopPcSerial));
+    setLeaderCommandStatus(CommandAckStatus::Applied);
+    setFollowerCommandStatus(CommandAckStatus::None);
+    setTransientStatus("pc serial: start COM bridge", config::leader::kMoveStatusHoldMs);
+    return;
+  }
+
+  if (value > kWifiUdp) {
     setLeaderCommandStatus(CommandAckStatus::Rejected);
     setFollowerCommandStatus(CommandAckStatus::None);
     setTransientStatus("teleop transport invalid", config::leader::kMoveStatusHoldMs);
     return;
   }
 
-  applyControllerOperationProfile(value == static_cast<uint32_t>(TeleopTransportMode::WifiUdp) ? 3U : 2U);
+  applyControllerOperationProfile(
+      value == kWifiUdp ? toProfileRaw(ControllerOperationProfile::TeleopWifi)
+                        : toProfileRaw(ControllerOperationProfile::TeleopEspNow));
   teleopTransportMode_.store(static_cast<uint8_t>(value));
   setLeaderCommandStatus(CommandAckStatus::Applied);
   setFollowerCommandStatus(CommandAckStatus::None);

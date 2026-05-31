@@ -118,6 +118,9 @@ void FollowerApp::begin() {
     Serial.println("[WARN] Teleop Wi-Fi UDP listener init failed on follower");
   }
 
+  teleopPcSerialBridge_.attach(Serial);
+
+  startBackgroundTasks();
   publishServoTelemetry();
 }
 
@@ -126,11 +129,10 @@ void FollowerApp::tick() {
   wifiOta_.tick();
   presenceService_->tick(wifiOta_.ipAddress());
 
-  processIncomingTeleopWifiBatch();
-  processIncomingTeleopBatch();
   processIncomingServoControl();
   processIncomingServoScan();
-  if ((nowMs - lastServoTelemetryPublishMs_) >= config::follower::kServoTelemetryPublishPeriodMs) {
+  if (!isTeleopBusPaused(nowMs) &&
+      (nowMs - lastServoTelemetryPublishMs_) >= config::follower::kServoTelemetryPublishPeriodMs) {
     lastServoTelemetryPublishMs_ = nowMs;
     publishServoTelemetry();
   }
@@ -342,6 +344,9 @@ CommandAckStatus FollowerApp::handleCalibrationCapture(uint32_t value) {
   Serial.printf("[CAL] follower capture %s %s\n",
                 captureMin ? "min" : "max",
                 saved ? "saved" : "save_failed");
+  if (saved) {
+    presenceService_->sendLinkKeepalive(wifiOta_.ipAddress());
+  }
   return saved ? CommandAckStatus::Applied : CommandAckStatus::Failed;
 }
 

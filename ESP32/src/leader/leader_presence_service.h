@@ -18,7 +18,9 @@ public:
   bool begin() override;
   void tick() override;
   void setPairingWatchdogSuspended(bool suspended) override;
+  void refreshFollowerLinkGrace() override;
   bool isFollowerLinked() const override;
+  bool isFollowerAvailable() const override;
   bool hasValidFollowerIp() const override;
   const char *followerIp() const override;
   bool isPaired() const override;

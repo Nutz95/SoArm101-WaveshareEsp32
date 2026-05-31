@@ -17,7 +17,15 @@ const char *modeLabel(OperationMode mode, TeleopTransportMode transportMode) {
         case OperationMode::CalibrationFollower:
             return "CAL FOLLOWER";
         case OperationMode::Teleoperation:
-            return transportMode == TeleopTransportMode::WifiUdp ? "TELEOP WIFI" : "TELEOP ESPNOW";
+            if (transportMode == TeleopTransportMode::WifiUdp) {
+                return "TELEOP WIFI";
+            }
+            if (transportMode == TeleopTransportMode::PcSerialBridge) {
+                return "TELEOP PC COM";
+            }
+            return "TELEOP ESPNOW";
+        case OperationMode::Passthrough:
+            return "PASSTHROUGH";
         default:
             return "UNKNOWN";
     }
