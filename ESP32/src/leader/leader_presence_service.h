@@ -1,8 +1,10 @@
 #pragma once
 
 #include "../common/interfaces/i_leader_presence_service.h"
+#include "../common/link/link_heartbeat_manager.h"
 #include "../common/mac_address_utils.h"
 #include "../common/presence/espnow_presence_base.h"
+#include "../common/presence/link_heartbeat_packet.h"
 #include "../common/presence/presence_packet.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
@@ -19,6 +21,7 @@ public:
   void tick() override;
   void setPairingWatchdogSuspended(bool suspended) override;
   void refreshFollowerLinkGrace() override;
+  void notifyPeerLinkActivity() override;
   bool isFollowerLinked() const override;
   bool isFollowerAvailable() const override;
   bool hasValidFollowerIp() const override;
@@ -52,6 +55,7 @@ private:
   void handlePairRequest(const uint8_t *mac, const PresencePacket &packet);
   void handlePresenceData(const uint8_t *mac, const PresencePacket &packet);
   void handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet);
+  void handleLinkHeartbeat(const uint8_t *mac, const LinkHeartbeatPacket &packet);
 
   void sendPairAck(const uint8_t mac[6]);
   void sendPairResetTo(const uint8_t mac[6]);
@@ -74,7 +78,7 @@ private:
   bool pairingWatchdogSuspended_{false};
   bool hasPairedMac_{false};
   uint8_t pairedFollowerMac_[6]{};
-  uint32_t lastFollowerSeenMs_{0};
+  LinkHeartbeatManager linkHeartbeat_{};
   uint8_t followerServoCount_{0};
   bool followerServoDebugManual_{false};
   bool followerServoTemperatureAlarm_{false};

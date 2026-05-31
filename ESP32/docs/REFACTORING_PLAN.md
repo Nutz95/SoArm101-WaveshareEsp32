@@ -45,24 +45,21 @@ Track progress here (no OpenSpec). Update this file and linked architecture docs
 
 ---
 
-## Phase 1 — Link heartbeat manager (replace presence cadence)
+## Phase 1 — Link heartbeat manager (replace presence cadence) ✅
 
 **Problem:** Periodic full presence frames while boards already exchange teleop/commands wastes airtime and complicates “linked” state.
 
 **Design**
 
-- [ ] Add `common/link/link_heartbeat_manager.h` — single API for leader + follower
-  - `notifyInboundActivity()` on **any** valid ESP-NOW (or TCP) frame from peer
-  - `tick(nowMs)` — if idle longer than `kLinkHeartbeatIntervalMs`, send **small** heartbeat (not full presence)
-  - `isPeerAlive(nowMs)` — used instead of “recent presence frame”
-- [ ] Shrink presence packet: pairing + IP hint + ACK fields only when needed; no redundant telemetry in hot path
-- [ ] Leader: stop using `isFollowerLinked()` = “got presence recently” only; include teleop/command RX as liveness
-- [ ] Follower: remove `kPresenceTxPeriodTeleopMs` / `kPresenceTxPeriodWifiTeleopMs` special cases; heartbeat manager decides TX
-- [ ] Pairing: keep MAC lock + `PairRequest` / accept; drop “presence watchdog” hacks (`refreshFollowerLinkGrace` layering)
-- [ ] Update [teleop_performance.md](teleop_performance.md) ESP-NOW section
-- [ ] Update [architecture/README.md](architecture/README.md) message flow
+- [x] Add `common/link/link_heartbeat_manager.h` — `notifyPeerActivity`, `shouldSendHeartbeat`, `isPeerAlive`
+- [x] Add compact `LinkHeartbeatPacket` + `PresenceMessageType::LinkHeartbeat` (no telemetry strings on hot path)
+- [x] Leader: `isFollowerLinked()` via heartbeat manager; inbound ESP-NOW + `notifyPeerLinkActivity()` on command TX
+- [x] Follower: removed `kPresenceTxPeriodTeleopMs` / `kPresenceTxPeriodWifiTeleopMs`; TX gated by teleop traffic + heartbeat intervals
+- [x] `refreshFollowerLinkGrace()` → `notifyPeerLinkActivity()` (same call sites)
+- [x] Update [teleop_performance.md](teleop_performance.md) ESP-NOW section
+- [x] Update [architecture/README.md](architecture/README.md) message flow
 
-**Exit criteria:** ESP-NOW teleop @ 60 Hz with presence TX ≤ 1 Hz when batches flow; link stays up during cal center.
+**Exit criteria:** ESP-NOW teleop @ 60 Hz with outbound presence ≤ 1 Hz when batches flow; link stays up during cal center (bench after flash).
 
 ---
 

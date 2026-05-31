@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../common/interfaces/i_follower_presence_service.h"
+#include "../common/link/link_heartbeat_manager.h"
 #include "../Config/follower_runtime_config.h"
 #include "../common/mac_address_utils.h"
 #include "../common/presence/espnow_presence_base.h"
@@ -82,6 +83,8 @@ private:
   void sendCommandAck(uint16_t requestId, uint8_t op, uint8_t status, uint8_t sequence);
   void sendPairRequest(const char *localIp);
   void sendPresence(const char *localIp);
+  void sendLinkHeartbeat(const char *localIp);
+  bool isTeleopTrafficActive(uint32_t nowMs) const;
 
   bool servoScanRequested_{false};
   uint16_t pendingServoScanRequestId_{0U};
@@ -114,7 +117,6 @@ private:
 
   PeerPairingStore pairingStore_;
   bool started_{false};
-  uint32_t lastTxMs_{0};
   uint32_t lastPairRequestMs_{0};
   uint8_t pairedLeaderMac_[6]{};
   bool hasPairedLeaderMac_{false};
@@ -122,6 +124,8 @@ private:
   char localMacText_[18]{};
   char lastLocalIp_[16]{};
   bool forcePresenceTx_{false};
+  bool stagedAckPending_{false};
+  LinkHeartbeatManager linkHeartbeat_{};
   uint32_t lastTeleopBatchRxMs_{0U};
   uint32_t lastWifiTeleopRxMs_{0U};
 };

@@ -94,37 +94,26 @@ cd ESP32
 pio test -e native
 ```
 
-## ESP-NOW airtime (teleop vs presence)
+## ESP-NOW airtime (teleop vs link heartbeat)
 
-During continuous teleop the follower must **not** send a dedicated command ACK and a full presence frame for every mirror batch (~60 Hz). That previously saturated the radio and caused:
+During continuous teleop the follower must **not** send a full presence frame for every mirror batch (~60 Hz). A central **`LinkHeartbeatManager`** tracks liveness: **any** inbound ESP-NOW frame from the peer (teleop batch, command, ACK, heartbeat) resets the alive timer.
 
-- Serial log flood (`Presence`, `RX msgType=8` = `ServoControlBatch`)
-- Stuttering / stepped follower curves on the dashboard
-- Leader `[PAIR] Timeout` and follower IP `0.0.0.0`
+Current behaviour (Phase 1):
 
-Current behaviour:
-
-| Traffic | Teleop active | Idle / commands |
-|---------|---------------|-----------------|
-| Mirror batch ACK | Staged into next periodic presence only | Full ACK burst (3×) for scans/moves |
-| Presence period | 250 ms (teleop) | 250 ms |
+| Traffic | Teleop active (~60 Hz batches) | Idle |
+|---------|-------------------------------|------|
+| Outbound from follower | **None** (unless staged teleop ACK or forced full presence) | Compact `LinkHeartbeat` @ 1 Hz max |
+| Staged mirror ACK | Piggyback on next compact heartbeat | — |
+| Full presence (telemetry strings) | Suppressed | @ 5 s when idle |
 | PairRequest while paired | 30 s | 5 s |
 
-Leader re-pairs when it receives **Presence** or **PairRequest** from a follower after a timeout (no more `PairReset` on stale presence). Pairing timeout is **45 s** without presence when the watchdog is active.
+`isFollowerLinked()` uses `link::kPeerAliveTimeoutMs` (**12 s**) from last **inbound or outbound** peer activity. Leader `notifyPeerLinkActivity()` / `refreshFollowerLinkGrace()` refresh the timer when we TX commands or finish calibration steps.
 
-During **calibration** (leader or follower profile, or range-capture phase), the pairing watchdog is **suspended** so a long min–max session does not drop the link. The follower sends **link keepalives** before and after `CalibrationCenter` (offset + grouped move) and after a successful **range capture** save.
-
-### “Follower offline” with a valid IP after calibration
-
-`isFollowerLinked()` requires a recent presence/ACK (`kPresenceTimeoutMs`, now **12 s**). A long follower center calibration can exceed that window while the IP string on the OLED stays valid. Fixes:
-
-- Refresh `lastFollowerSeenMs` when the pairing watchdog **resumes** (calibration finished).
-- `refreshFollowerLinkGrace()` after follower range commit on the leader.
-- Follower keepalive after NVS capture.
+Pairing watchdog timeout remains **45 s** without peer activity. Calibration suspends the watchdog; follower `sendLinkKeepalive()` sends a compact heartbeat.
 
 ### Wi-Fi teleop stepping
 
-The follower **teleop_apply** FreeRTOS task (~17 ms) drains Wi-Fi/PC serial sockets with **latest-only** semantics and applies a single `moveBatch` per period. Bus telemetry publish on the follower is **paused** while teleop traffic is recent (`kTeleopTrafficRecentMs`). Wi-Fi mirror sends on **any** position change (`kTeleopMirrorMinPositionDeltaWifi = 0`). Leader caches the resolved follower IP to avoid repeated mDNS lookups. ESP-NOW presence is throttled to **5 s** while Wi-Fi batches are active so the radio can favor UDP.
+The follower **teleop_apply** task (~17 ms) uses latest-only batch drain. Bus telemetry publish is paused during recent teleop traffic. Wi-Fi UDP does not use ESP-NOW airtime; follower ESP-NOW TX is suppressed while ESP-NOW teleop batches are flowing.
 
 COM mirror uses binary `leader_mirror_positions[]` in the Wi-Fi telemetry snapshot (not parsed text). Leader dashboard snapshots are throttled to **250 ms** during `PcSerialBridge` profile. See [architecture/communication_links.md](architecture/communication_links.md).
 

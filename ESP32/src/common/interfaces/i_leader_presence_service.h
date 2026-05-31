@@ -12,6 +12,8 @@ public:
   virtual void tick() = 0;
   virtual void setPairingWatchdogSuspended(bool suspended) = 0;
   virtual void refreshFollowerLinkGrace() = 0;
+  // Resets link-alive timer when we know the follower is reachable (command TX, cal, etc.).
+  virtual void notifyPeerLinkActivity() = 0;
   virtual bool isFollowerLinked() const = 0;
   virtual bool isFollowerAvailable() const = 0;
   virtual bool hasValidFollowerIp() const = 0;

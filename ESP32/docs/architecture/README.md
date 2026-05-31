@@ -87,7 +87,7 @@ Normal sequence:
 2. Leader accepts the request if pairing is open or the MAC already matches the paired peer.
 3. Leader sends `PairAck`.
 4. Both boards persist the peer MAC in NVS.
-5. The follower sends periodic presence and occasional refresh requests to keep the link alive.
+5. The follower sends compact **LinkHeartbeat** frames when idle (~1 Hz) and full **Presence** less often (~5 s). While teleop batches flow, outbound presence is suppressed; any inbound frame resets link liveness on both boards (`LinkHeartbeatManager`).
 
 Recovery sequence:
 
@@ -112,7 +112,7 @@ Command types sent from the dashboard include:
 
 For each command, the dashboard API allocates a unique request ID. The leader stores that request ID in the telemetry snapshot and forwards it to the follower when relevant.
 
-The follower returns a command ACK in its next presence frame. The leader then exposes the latest follower ACK result alongside the local leader ACK result.
+The follower returns a command ACK in the next compact heartbeat or full presence frame. The leader then exposes the latest follower ACK result alongside the local leader ACK result.
 
 ## Telemetry Path
 

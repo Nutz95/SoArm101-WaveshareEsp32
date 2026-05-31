@@ -1,5 +1,6 @@
 #include "follower_presence_service.h"
 
+#include "../common/presence/link_heartbeat_packet.h"
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
@@ -104,6 +105,30 @@ void FollowerPresenceService::sendPresence(const char *localIp) {
   packet.servoIds[sizeof(packet.servoIds) - 1] = '\0';
   strncpy(packet.servoTelemetry, servoTelemetryText_, sizeof(packet.servoTelemetry) - 1);
   packet.servoTelemetry[sizeof(packet.servoTelemetry) - 1] = '\0';
+
+  esp_now_send(pairedLeaderMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+}
+
+void FollowerPresenceService::sendLinkHeartbeat(const char *localIp) {
+  LinkHeartbeatPacket packet{};
+  packet.magic = kPresenceMagic;
+  packet.version = kPresenceVersion;
+  packet.messageType = static_cast<uint8_t>(PresenceMessageType::LinkHeartbeat);
+  packet.ackStatus = lastAckStatus_;
+  packet.ackRequestId = lastAckRequestId_;
+  packet.ackCommandOp = lastAckCommandOp_;
+  packet.servoCount = servoCount_;
+
+  if (localIp != nullptr && localIp[0] != '\0') {
+    strncpy(packet.ip, localIp, sizeof(packet.ip) - 1);
+    packet.ip[sizeof(packet.ip) - 1] = '\0';
+  } else if (lastLocalIp_[0] != '\0') {
+    strncpy(packet.ip, lastLocalIp_, sizeof(packet.ip) - 1);
+    packet.ip[sizeof(packet.ip) - 1] = '\0';
+  } else {
+    strncpy(packet.ip, "0.0.0.0", sizeof(packet.ip) - 1);
+    packet.ip[sizeof(packet.ip) - 1] = '\0';
+  }
 
   esp_now_send(pairedLeaderMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
 }

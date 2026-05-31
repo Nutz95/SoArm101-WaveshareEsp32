@@ -1,6 +1,7 @@
 #include "follower_presence_service.h"
 
 #include "../common/command/command_ack_status.h"
+#include "../common/link/link_constants.h"
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
@@ -52,6 +53,14 @@ bool FollowerPresenceService::begin() {
   return true;
 }
 
+bool FollowerPresenceService::isTeleopTrafficActive(uint32_t nowMs) const {
+  const bool espNowTeleopActive =
+      lastTeleopBatchRxMs_ > 0U && ((nowMs - lastTeleopBatchRxMs_) < config::follower::kTeleopTrafficRecentMs);
+  const bool wifiTeleopActive =
+      lastWifiTeleopRxMs_ > 0U && ((nowMs - lastWifiTeleopRxMs_) < config::follower::kTeleopTrafficRecentMs);
+  return espNowTeleopActive || wifiTeleopActive;
+}
+
 void FollowerPresenceService::tick(const char *localIp) {
   if (!started_) {
     return;
@@ -63,33 +72,56 @@ void FollowerPresenceService::tick(const char *localIp) {
   }
 
   const uint32_t nowMs = millis();
-  const bool espNowTeleopActive =
-      lastTeleopBatchRxMs_ > 0U && ((nowMs - lastTeleopBatchRxMs_) < config::follower::kTeleopTrafficRecentMs);
-  const bool wifiTeleopActive =
-      lastWifiTeleopRxMs_ > 0U && ((nowMs - lastWifiTeleopRxMs_) < config::follower::kTeleopTrafficRecentMs);
-  const bool teleopActive = espNowTeleopActive || wifiTeleopActive;
-  const uint32_t presencePeriodMs =
-      wifiTeleopActive ? config::follower::kPresenceTxPeriodWifiTeleopMs
-                       : (teleopActive ? config::follower::kPresenceTxPeriodTeleopMs : kPresenceTxPeriodMs);
+  const bool teleopActive = isTeleopTrafficActive(nowMs);
+  const bool mustTransmit = forcePresenceTx_ || stagedAckPending_;
 
-  if (!forcePresenceTx_ && ((nowMs - lastTxMs_) < presencePeriodMs)) {
+  if (!hasPairedLeader()) {
+    if ((nowMs - lastPairRequestMs_) >= config::follower::kPairRequestIntervalMs) {
+      lastPairRequestMs_ = nowMs;
+      sendPairRequest(localIp);
+      linkHeartbeat_.markOutboundSent(nowMs);
+    }
     return;
   }
 
-  forcePresenceTx_ = false;
-  lastTxMs_ = nowMs;
-  if (hasPairedLeader()) {
-    sendPresence(localIp);
+  if (teleopActive && !mustTransmit) {
+    return;
+  }
 
+  const bool sendFullPresence =
+      forcePresenceTx_ ||
+      (!teleopActive && linkHeartbeat_.shouldSendFullPresence(nowMs, link::kFullPresenceIntervalMs));
+  const bool sendCompact =
+      stagedAckPending_ ||
+      (!sendFullPresence && linkHeartbeat_.shouldSendHeartbeat(nowMs, link::kHeartbeatIntervalMs));
+
+  if (!sendFullPresence && !sendCompact) {
     const uint32_t pairRequestIntervalMs =
         teleopActive ? config::follower::kPairRequestIntervalTeleopMs : config::follower::kPairRequestIntervalMs;
     if ((nowMs - lastPairRequestMs_) >= pairRequestIntervalMs) {
       lastPairRequestMs_ = nowMs;
       sendPairRequest(localIp);
+      linkHeartbeat_.markOutboundSent(nowMs);
     }
+    return;
+  }
+
+  forcePresenceTx_ = false;
+
+  if (sendFullPresence) {
+    sendPresence(localIp);
+    linkHeartbeat_.markFullPresenceSent(nowMs);
   } else {
-    sendPairRequest(localIp);
+    sendLinkHeartbeat(localIp);
+    linkHeartbeat_.markOutboundSent(nowMs);
+    stagedAckPending_ = false;
+  }
+
+  const uint32_t pairRequestIntervalMs =
+      teleopActive ? config::follower::kPairRequestIntervalTeleopMs : config::follower::kPairRequestIntervalMs;
+  if ((nowMs - lastPairRequestMs_) >= pairRequestIntervalMs) {
     lastPairRequestMs_ = nowMs;
+    sendPairRequest(localIp);
   }
 }
 
@@ -112,13 +144,13 @@ bool FollowerPresenceService::resetPairing() {
   strncpy(pairedLeaderMacText_, "unpaired", sizeof(pairedLeaderMacText_) - 1);
   pairedLeaderMacText_[sizeof(pairedLeaderMacText_) - 1] = '\0';
   pairingStore_.clear();
+  linkHeartbeat_.reset();
+  stagedAckPending_ = false;
   Serial.println("[PAIR] NVS cleared");
 
-  // Re-add broadcast peer to ensure we can receive PairReset and send PairRequest.
   addBroadcastPeer();
   Serial.println("[PAIR] Broadcast peer re-added");
 
-  // Immediately start sending PairRequest so leader picks us up fast.
   lastPairRequestMs_ = 0;
   return true;
 }
@@ -210,6 +242,7 @@ void FollowerPresenceService::stageTeleopBatchAck(uint16_t requestId, uint8_t st
   lastAckRequestId_ = requestId;
   lastAckCommandOp_ = static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch);
   lastAckStatus_ = status;
+  stagedAckPending_ = true;
 }
 
 void FollowerPresenceService::requestImmediatePresenceTx() {
@@ -220,12 +253,14 @@ void FollowerPresenceService::sendLinkKeepalive(const char *localIp) {
   if (!started_ || !hasPairedLeaderMac_) {
     return;
   }
-  sendPresence(localIp);
-  lastTxMs_ = millis();
+  sendLinkHeartbeat(localIp);
+  linkHeartbeat_.markOutboundSent(millis());
 }
 
 void FollowerPresenceService::notifyWifiTeleopActivity() {
-  lastWifiTeleopRxMs_ = millis();
+  const uint32_t nowMs = millis();
+  lastWifiTeleopRxMs_ = nowMs;
+  linkHeartbeat_.notifyPeerActivity(nowMs);
 }
 
 void FollowerPresenceService::updateServoTelemetry(

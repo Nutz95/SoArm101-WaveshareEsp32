@@ -24,6 +24,8 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
     return;
   }
 
+  linkHeartbeat_.notifyPeerActivity(millis());
+
   const PresenceMessageType msgType = static_cast<PresenceMessageType>(packet.messageType);
   if (msgType != PresenceMessageType::ServoControlBatch) {
     Serial.printf("[FOLLOWER] RX msgType=%u from %02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -153,7 +155,9 @@ void FollowerPresenceService::handleServoControlBatchFrame(const PresencePacket 
     batch.positions[i] = static_cast<int16_t>((hi << 8U) | lo);
   }
 
-  lastTeleopBatchRxMs_ = millis();
+  const uint32_t nowMs = millis();
+  lastTeleopBatchRxMs_ = nowMs;
+  linkHeartbeat_.notifyPeerActivity(nowMs);
   enqueueTeleopBatch(batch);
 }
 

@@ -11,6 +11,12 @@ Use it when implementing changes to avoid broad code searches.
   - this file (`docs/CODE_CONTEXT_INDEX.md`)
   - refactor tracking file (`docs/REFACTORING_PLAN.md`)
 
+## Link heartbeat (Phase 1)
+
+- `src/common/link/link_heartbeat_manager.h` — peer liveness, heartbeat/full-presence TX cadence.
+- `src/common/link/link_constants.h` — `kHeartbeatIntervalMs`, `kFullPresenceIntervalMs`, `kPeerAliveTimeoutMs`.
+- `src/common/presence/link_heartbeat_packet.h` — compact ESP-NOW keepalive + staged ACK fields.
+
 ## Leader Firmware
 
 - `src/leader/leader_app.cpp`

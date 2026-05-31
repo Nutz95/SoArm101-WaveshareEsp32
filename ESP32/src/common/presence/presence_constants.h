@@ -6,6 +6,7 @@ namespace soarm {
 
 constexpr uint8_t kPresenceMagic = 0xA5;
 constexpr uint8_t kPresenceVersion = 1;
+// Legacy alias; follower TX cadence is driven by link::kHeartbeatIntervalMs (see link_heartbeat_manager.h).
 constexpr uint32_t kPresenceTxPeriodMs = 250U;
 constexpr uint32_t kPresenceTimeoutMs = 12000U;
 
