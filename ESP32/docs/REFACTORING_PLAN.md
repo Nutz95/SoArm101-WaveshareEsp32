@@ -23,7 +23,7 @@ Track progress here (no OpenSpec). Update this file and linked architecture docs
 - [x] Factorize `drainLatestBatch` (shared teleop ingest helper)
 - [x] USB CDC baud from `platformio.ini` (`USB_CDC_BAUD`), remove `kPassthroughUsbBaud` duplicate
 - [ ] Audit profile/transport matrix (table below) on hardware; note what to delete
-- [ ] Add CI/dashboard `py_compile` for telemetry tools
+- [x] Add dashboard `py_compile` helper (`tools/check_dashboard_syntax.py`)
 
 ### Profile / transport audit (current firmware)
 
@@ -63,13 +63,15 @@ Track progress here (no OpenSpec). Update this file and linked architecture docs
 
 ---
 
-## Phase 2 — ESP-NOW teleop: Wi-Fi off (except OTA)
+## Phase 2 — ESP-NOW teleop: Wi-Fi STA off (except OTA)
 
-- [ ] `TeleopEspNow` profile: `WiFi.mode(WIFI_OFF)` or STA disconnect after boot handshake; keep OTA entry (button / timed window / `WiFi.begin` on demand)
-- [ ] Leader mirror task: only ESP-NOW `sendBatch` (already true); verify no mDNS/UDP side effects
-- [ ] Follower: no Wi-Fi UDP listener active in this profile
-- [ ] Dashboard: leader connected via **USB serial** debug channel (not `:9090` for teleop)
-- [ ] Document OTA procedure when Wi-Fi was off
+- [x] `WifiOtaService::setStaConnectDesired` — **no** `WiFi.disconnect()` (panics with ESP-NOW + NimBLE); STA may stay up
+- [x] `TeleopEspNow` profile (leader): STA off + telemetry stream `:9090` listener paused
+- [x] Follower: STA off when ESP-NOW teleop active and no recent Wi-Fi teleop
+- [x] OTA start forces `WiFi.begin` again
+- [x] Xbox profile **OtaReady** (cycle manette) forces STA on for `pio run -e *-ota`
+- [ ] Dashboard: leader debug via **USB serial** when `:9090` paused (TeleopEspNow) — blocked on Phase 3 `debug_protocol`
+- [x] Document OTA when STA disconnected (see [communication_links.md](architecture/communication_links.md))
 - [ ] Bench: measure latency/jitter vs current
 
 ---
@@ -144,6 +146,7 @@ Parallel safe: Phase 3 (USB) can start while Phase 1 lands; Phase 4 depends on P
 
 ## Notes
 
+- **Leader BLE (2026-05):** `env:leader` / `leader-ota` / `build_upload_leader.ps1` enable Xbox BLE by default; use `leader-no-ble` or `-NoBle` to opt out.
 - **Servo speed profiles:** keep for fast STS; default teleop speed % for current hardware stays moderate.
 - **Passthrough:** remains profile 4; baud = `USB_CDC_BAUD` from PlatformIO (same as monitor for leader).
 - **Commits:** user commits baseline before refactor branches; tick checkboxes in PR descriptions.

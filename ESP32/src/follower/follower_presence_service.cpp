@@ -53,6 +53,14 @@ bool FollowerPresenceService::begin() {
   return true;
 }
 
+bool FollowerPresenceService::preferWifiStaConnected(uint32_t nowMs) const {
+  const bool espNowTeleopActive =
+      lastTeleopBatchRxMs_ > 0U && ((nowMs - lastTeleopBatchRxMs_) < config::follower::kTeleopTrafficRecentMs);
+  const bool wifiTeleopActive =
+      lastWifiTeleopRxMs_ > 0U && ((nowMs - lastWifiTeleopRxMs_) < config::follower::kTeleopTrafficRecentMs);
+  return !(espNowTeleopActive && !wifiTeleopActive);
+}
+
 bool FollowerPresenceService::isTeleopTrafficActive(uint32_t nowMs) const {
   const bool espNowTeleopActive =
       lastTeleopBatchRxMs_ > 0U && ((nowMs - lastTeleopBatchRxMs_) < config::follower::kTeleopTrafficRecentMs);
@@ -88,9 +96,11 @@ void FollowerPresenceService::tick(const char *localIp) {
     return;
   }
 
+  const uint32_t fullPresenceIntervalMs =
+      teleopActive ? link::kFullPresenceIntervalMs : config::follower::kIdleFullPresenceIntervalMs;
   const bool sendFullPresence =
       forcePresenceTx_ ||
-      (!teleopActive && linkHeartbeat_.shouldSendFullPresence(nowMs, link::kFullPresenceIntervalMs));
+      (!teleopActive && linkHeartbeat_.shouldSendFullPresence(nowMs, fullPresenceIntervalMs));
   const bool sendCompact =
       stagedAckPending_ ||
       (!sendFullPresence && linkHeartbeat_.shouldSendHeartbeat(nowMs, link::kHeartbeatIntervalMs));

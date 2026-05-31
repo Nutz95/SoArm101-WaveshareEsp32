@@ -51,6 +51,7 @@ private:
   void processIncomingServoScan();
   void publishServoTelemetry();
   void updateStateAndLeds(uint32_t uptimeMs);
+  void syncWifiRadioPolicy(uint32_t nowMs);
   CommandAckStatus executeServoControl(uint8_t op, uint32_t value);
   CommandAckStatus handleDebugEnable(uint32_t value);
   CommandAckStatus handleDebugDisable(uint32_t value);
@@ -73,6 +74,7 @@ private:
   std::unique_ptr<IFollowerPresenceService> presenceService_;
   ArmStateInputs      localInputs_;
   uint32_t            lastServoTelemetryPublishMs_{0U};
+  uint32_t            lastPresenceNudgeMs_{0U};
   uint32_t            lastTeleopActivityMs_{0U};
   bool                teleopPreparedById_[256]{};
   TaskHandle_t        teleopApplyTaskHandle_{nullptr};

@@ -38,6 +38,7 @@ public:
   void requestImmediatePresenceTx() override;
   void sendLinkKeepalive(const char *localIp) override;
   void notifyWifiTeleopActivity() override;
+  bool preferWifiStaConnected(uint32_t nowMs) const override;
   void updateServoTelemetry(
       const char *servoIds,
       const char *servoTelemetry,
@@ -128,6 +129,7 @@ private:
   LinkHeartbeatManager linkHeartbeat_{};
   uint32_t lastTeleopBatchRxMs_{0U};
   uint32_t lastWifiTeleopRxMs_{0U};
+  uint32_t lastServoControlRxMs_{0U};
 };
 
 } // namespace soarm

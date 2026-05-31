@@ -13,6 +13,7 @@ public:
   explicit LeaderTelemetryStreamServer(LeaderTelemetryState &telemetryState);
 
   bool begin(uint16_t port);
+  void setListeningEnabled(bool enabled);
   void tick();
   bool consumeResetPairingRequested(uint16_t &requestId);
   bool consumeServoScanRequested(uint32_t &value, uint16_t &requestId);
@@ -40,6 +41,7 @@ private:
   LeaderTelemetrySerializer serializer_;
   LeaderCommandProcessor commandProcessor_;
   bool started_{false};
+  bool listeningEnabled_{true};
   bool streamEnabled_{false};
   bool resetPairingRequested_{false};
   uint16_t resetPairingRequestId_{0U};

@@ -7,6 +7,11 @@ namespace config {
 namespace leader {
 
 constexpr uint32_t kTickDelayMs = 2U;
+// Stagger heavy init so Wi-Fi + ESP-NOW stabilize before NimBLE (avoids boot loops).
+constexpr uint32_t kDeferredServoBusMs = 800U;
+constexpr uint32_t kDeferredNetworkMs = 1200U;
+constexpr uint32_t kDeferredBackgroundTasksMs = 1500U;
+constexpr uint32_t kDeferredBleMs = 10000U;
 constexpr uint32_t kJoystickPairReadyMs = 3000U;
 constexpr uint32_t kCalibrationReadyMs = 6000U;
 constexpr bool kCalibrationRequired = false;

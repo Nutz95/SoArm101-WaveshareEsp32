@@ -212,12 +212,14 @@ void LeaderApp::handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t r
   }
 
   if (value == kCalibrationFinish) {
+    const ArmRole role = activeCalibrationRole();
     if (!commitCalibrationRangeCapture()) {
       setLeaderCommandStatus(CommandAckStatus::Rejected);
       setFollowerCommandStatus(CommandAckStatus::Rejected);
       setTransientStatus("cal telemetry missing", config::leader::kMoveStatusHoldMs);
       return;
     }
+    calibrationOledWorkflow_.showCommittedResult(role, millis());
     applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
@@ -226,7 +228,9 @@ void LeaderApp::handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t r
   }
 
   if (value == kCalibrationCancel) {
+    const ArmRole role = activeCalibrationRole();
     cancelCalibrationRangeCapture();
+    calibrationOledWorkflow_.showCanceledResult(role, millis());
     applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow)); // return to teleop_espnow so the user is never stuck in cal mode
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);

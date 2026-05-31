@@ -17,6 +17,7 @@ constexpr Profile kProfileTeleopEspNow = Profile::TeleopEspNow;
 constexpr Profile kProfileTeleopWifi = Profile::TeleopWifi;
 constexpr Profile kProfileTeleopPcSerial = Profile::TeleopPcSerial;
 constexpr Profile kProfilePassthrough = Profile::Passthrough;
+constexpr Profile kProfileOtaReady = Profile::OtaReady;
 
 } // namespace
 
@@ -65,8 +66,12 @@ void LeaderApp::handleControllerModeCycleEvents() {
       setTransientStatus("xbox profile teleop wifi", config::leader::kMoveStatusHoldMs);
     } else if (next == kProfileTeleopPcSerial) {
       setTransientStatus("xbox profile teleop pc serial", config::leader::kMoveStatusHoldMs);
-    } else {
+    } else if (next == kProfilePassthrough) {
       setTransientStatus("passthrough? press A", config::leader::kMoveStatusHoldMs);
+    } else if (next == kProfileOtaReady) {
+      setTransientStatus("OTA: wifi on, flash now", config::leader::kMoveStatusHoldMs);
+    } else {
+      setTransientStatus("profile changed", config::leader::kMoveStatusHoldMs);
     }
   }
 
@@ -185,6 +190,8 @@ void LeaderApp::applyControllerOperationProfile(uint8_t profileRaw) {
     nudgeFollowerLinkAfterCalibration();
   }
 
+  syncWifiRadioPolicyForProfile(safeProfile);
+
   if (previous != safeProfile) {
     if (safeProfile == kProfileCalibrationLeader) {
       setTransientStatus("xbox profile cal leader", config::leader::kMoveStatusHoldMs);
@@ -196,6 +203,8 @@ void LeaderApp::applyControllerOperationProfile(uint8_t profileRaw) {
       setTransientStatus("xbox profile teleop wifi", config::leader::kMoveStatusHoldMs);
     } else if (safeProfile == kProfileTeleopPcSerial) {
       setTransientStatus("pc serial: start COM bridge", config::leader::kMoveStatusHoldMs);
+    } else if (safeProfile == kProfileOtaReady) {
+      setTransientStatus("OTA: wifi on, flash now", config::leader::kMoveStatusHoldMs);
     }
   }
 }

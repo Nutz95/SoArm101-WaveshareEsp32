@@ -10,6 +10,8 @@
 #include "../common/cpu_load_service.h"
 #include "../common/servo/servo_bus_service.h"
 #include "oled_presenter.h"
+#include "oled_menu_controller.h"
+#include "leader_calibration_oled_workflow.h"
 #include "oled_display_config.h"
 #include "leader_telemetry_state.h"
 #include "leader_telemetry_stream_server.h"
@@ -84,6 +86,7 @@ private:
   void engagePassthroughMode();
   void disengagePassthroughMode(ControllerOperationProfile fallbackProfile);
   void nudgeFollowerLinkAfterCalibration();
+  void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
   void pollFollowerCalibrationCenterAck(uint32_t nowMs);
   void setTransientStatus(const char *text, uint32_t holdMs);
   void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
@@ -105,6 +108,7 @@ private:
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
   void fillLeaderMirrorPositions(LeaderTelemetrySnapshot &snapshot);
   void refreshOled(uint32_t uptimeMs);
+  void runDeferredBootStages(uint32_t uptimeMs);
 
   void startBackgroundTasks();
   static void telemetryPollTaskEntry(void *context);
@@ -126,6 +130,8 @@ private:
   std::unique_ptr<ILeaderPresenceService> presenceService_;
   OledDisplayConfig   oledConfig_;
   OledPresenter       oled_;
+  OledMenuController  oledMenu_;
+  LeaderCalibrationOledWorkflow calibrationOledWorkflow_;
   LeaderTelemetryState telemetryState_;
   LeaderTelemetryStreamServer telemetryStreamServer_;
   ArmStateInputs      localInputs_;
@@ -179,7 +185,14 @@ private:
   bool                leaderServoFault_{false};
   bool                followerServoFault_{false};
   uint32_t            lastTelemetrySnapshotMs_{0U};
-  uint32_t            lastOledRefreshMs_;
+  uint32_t            lastOledRefreshMs_{0U};
+  uint32_t            bootMs_{0U};
+  bool                deferredOledReady_{false};
+  bool                deferredServoBusReady_{false};
+  bool                deferredNetworkReady_{false};
+  bool                deferredBackgroundTasksReady_{false};
+  bool                deferredBleReady_{false};
+  bool                deferredBootComplete_{false};
 };
 
 } // namespace soarm

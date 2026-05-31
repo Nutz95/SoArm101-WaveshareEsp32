@@ -129,6 +129,7 @@ void FollowerApp::begin() {
 
 void FollowerApp::tick() {
   const uint32_t nowMs = millis();
+  syncWifiRadioPolicy(nowMs);
   wifiOta_.tick();
   presenceService_->tick(wifiOta_.ipAddress());
 
@@ -138,6 +139,10 @@ void FollowerApp::tick() {
       (nowMs - lastServoTelemetryPublishMs_) >= config::follower::kServoTelemetryPublishPeriodMs) {
     lastServoTelemetryPublishMs_ = nowMs;
     publishServoTelemetry();
+    if ((nowMs - lastPresenceNudgeMs_) >= config::follower::kIdleFullPresenceIntervalMs) {
+      lastPresenceNudgeMs_ = nowMs;
+      presenceService_->requestImmediatePresenceTx();
+    }
   }
 
   updateStateAndLeds(nowMs);

@@ -4,6 +4,7 @@
 #include "../common/pairing/pairing_policy.h"
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
+#include "../common/presence/presence_message_type_name.h"
 #include "../common/servo/servo_control_opcode.h"
 #include "../Config/common_runtime_config.h"
 
@@ -28,8 +29,8 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
 
   const PresenceMessageType msgType = static_cast<PresenceMessageType>(packet.messageType);
   if (msgType != PresenceMessageType::ServoControlBatch) {
-    Serial.printf("[FOLLOWER] RX msgType=%u from %02X:%02X:%02X:%02X:%02X:%02X\n",
-                  static_cast<unsigned>(msgType),
+    Serial.printf("[FOLLOWER] RX %s from %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  presenceMessageTypeName(msgType),
                   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   }
 
@@ -64,6 +65,7 @@ void FollowerPresenceService::handlePairResetMessage(const uint8_t *mac, const P
 void FollowerPresenceService::handleServoScanMessage(const uint8_t *mac, const PresencePacket &packet) {
   (void)mac;
   (void)packet;
+  lastServoControlRxMs_ = millis();
   Serial.println("[FOLLOWER] ServoScan requested");
   servoScanRequested_ = true;
 }
@@ -89,6 +91,7 @@ void FollowerPresenceService::handlePairResetFrame() {
 }
 
 void FollowerPresenceService::handleServoControlFrame(const PresencePacket &packet) {
+  lastServoControlRxMs_ = millis();
   Serial.printf("[FOLLOWER] ServoControl op=%u req=%u\n",
                 static_cast<unsigned>(packet.controlOp),
                 static_cast<unsigned>(packet.reserved2));

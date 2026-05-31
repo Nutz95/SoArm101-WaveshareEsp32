@@ -13,7 +13,20 @@ bool LeaderTelemetryStreamServer::begin(uint16_t port) {
   server_.begin();
   server_.setNoDelay(true);
   started_ = true;
+  listeningEnabled_ = true;
   return true;
+}
+
+void LeaderTelemetryStreamServer::setListeningEnabled(bool enabled) {
+  if (listeningEnabled_ == enabled) {
+    return;
+  }
+
+  listeningEnabled_ = enabled;
+  streamEnabled_ = false;
+  if (client_) {
+    client_.stop();
+  }
 }
 
 bool LeaderTelemetryStreamServer::consumeResetPairingRequested(uint16_t &requestId) {
@@ -156,7 +169,7 @@ bool LeaderTelemetryStreamServer::consumeTeleopCalibrationCaptureRequested(uint3
 }
 
 void LeaderTelemetryStreamServer::tick() {
-  if (!started_) {
+  if (!started_ || !listeningEnabled_) {
     return;
   }
 

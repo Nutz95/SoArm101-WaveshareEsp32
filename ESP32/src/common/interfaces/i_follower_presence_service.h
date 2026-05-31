@@ -29,6 +29,7 @@ public:
   virtual void requestImmediatePresenceTx() = 0;
   virtual void sendLinkKeepalive(const char *localIp) = 0;
   virtual void notifyWifiTeleopActivity() = 0;
+  virtual bool preferWifiStaConnected(uint32_t nowMs) const = 0;
   virtual void updateServoTelemetry(
       const char *servoIds,
       const char *servoTelemetry,

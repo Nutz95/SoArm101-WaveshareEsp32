@@ -55,7 +55,7 @@ constexpr int kScreenWidth  = 128;
 constexpr int kScreenHeight = 64;
 constexpr int kOledReset    = -1; // Share Arduino reset pin.
 constexpr uint32_t kScrollStepMs = 250U;
-constexpr uint8_t kScrollHoldSteps = 4U;
+constexpr uint8_t kScrollHoldSteps = 14U;
 
 } // namespace
 
@@ -160,6 +160,34 @@ void OledPresenter::showOtaProgress(uint8_t progressPercent) {
     display_->print(progressPercent);
     display_->println("%");
     display_->display();
+}
+
+void OledPresenter::showCalibrationArmPrompt(const char *armLabel) {
+    char line2[22]{};
+    snprintf(line2, sizeof(line2), "%s arm", armLabel != nullptr ? armLabel : "?");
+    printLines("Calibration", line2, "A:Validate", "B:Cancel");
+}
+
+void OledPresenter::showCalibrationCentering(const char *armLabel, const char *statusLine) {
+    char line2[22]{};
+    snprintf(line2, sizeof(line2), "%s arm", armLabel != nullptr ? armLabel : "?");
+    printLines(line2, statusLine != nullptr ? statusLine : "...", "", "");
+}
+
+void OledPresenter::showCalibrationRangeTable(
+    const char *row1,
+    const char *row2,
+    const char *row3,
+    const char *footer) {
+    printLines(
+        row1 != nullptr ? row1 : "",
+        row2 != nullptr ? row2 : "",
+        row3 != nullptr ? row3 : "",
+        footer != nullptr ? footer : "A:Val B:Can");
+}
+
+void OledPresenter::showCalibrationResultBanner(const char *message) {
+    printLines("", message != nullptr ? message : "OK", "", "");
 }
 
 void OledPresenter::showError(uint32_t errorCode, const char *message) {

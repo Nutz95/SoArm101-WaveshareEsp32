@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Build and upload firmware to the LEADER board.
+    Build and upload firmware to the LEADER board (Xbox BLE enabled by default).
 
 .PARAMETER Ota
     Upload via OTA (WiFi) instead of USB.
@@ -10,18 +10,23 @@
 .PARAMETER NoBuild
     Skip the build step; only upload the existing .bin file.
 
+.PARAMETER NoBle
+    Build env:leader-no-ble (no Xbox BLE, smaller image) instead of env:leader.
+
 .PARAMETER Port
     USB serial port for USB upload. Default: COM7.
 
 .EXAMPLE
-    .\build_upload_leader.ps1              # USB build + upload
-    .\build_upload_leader.ps1 -Ota         # OTA build + upload
+    .\build_upload_leader.ps1              # USB build + upload (BLE on)
+    .\build_upload_leader.ps1 -Ota         # OTA build + upload (BLE on)
+    .\build_upload_leader.ps1 -NoBle       # USB without NimBLE / Xbox BLE
     .\build_upload_leader.ps1 -NoBuild     # USB upload only
     .\build_upload_leader.ps1 -Ota -NoBuild  # OTA upload only
 #>
 param(
     [switch]$Ota,
     [switch]$NoBuild,
+    [switch]$NoBle,
     [string]$Port = "COM7",
     [string]$OtaIp = ""
 )
@@ -34,6 +39,8 @@ $pio       = "pio"
 
 if ($Ota) {
     $env_name = "leader-ota"
+} elseif ($NoBle) {
+    $env_name = "leader-no-ble"
 } else {
     $env_name = "leader"
 }

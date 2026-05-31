@@ -12,9 +12,10 @@ enum class ControllerOperationProfile : uint8_t {
   TeleopWifi = 3,
   Passthrough = 4,
   TeleopPcSerial = 5,
+  OtaReady = 6,
 };
 
-constexpr uint8_t kControllerOperationProfileCount = 6U;
+constexpr uint8_t kControllerOperationProfileCount = 7U;
 
 inline ControllerOperationProfile sanitizeControllerOperationProfile(uint8_t raw) {
   if (raw >= kControllerOperationProfileCount) {

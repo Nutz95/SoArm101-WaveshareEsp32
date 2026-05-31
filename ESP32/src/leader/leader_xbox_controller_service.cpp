@@ -2,9 +2,11 @@
 
 #include "../Config/controller_mapping_config.h"
 #include "../Config/leader_runtime_config.h"
+#include "leader_radio_coexistence.h"
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include <WiFi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <cstring>
@@ -96,7 +98,10 @@ void LeaderXboxControllerService::begin() {
   g_service = this;
   controllerName_[0] = '\0';
 
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(true);
   NimBLEDevice::init("");
+  applyLeaderRadioCoexistencePreference();
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   // MITM disabled because ESP has no IO capability for PIN entry/confirmation.
   NimBLEDevice::setSecurityAuth(true, false, true);

@@ -1,4 +1,5 @@
 #include "leader_app.h"
+#include "leader_ble_config.h"
 #include "leader_presence_service.h"
 #include "leader_retry_policy.h"
 #include "leader_servo_telemetry_task.h"
@@ -12,6 +13,7 @@
 #include "../common/controller/controller_operation_profile.h"
 
 #include <Arduino.h>
+#include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <cstdio>
@@ -51,6 +53,7 @@ LeaderApp::LeaderApp()
   presenceService_(std::unique_ptr<ILeaderPresenceService>(new LeaderPresenceService())),
       oledConfig_{128, 32, 0x3C, 300, false, OledTextStyle::Small},
       oled_(oledConfig_),
+      oledMenu_(oled_),
   telemetryState_(),
   telemetryStreamServer_(telemetryState_),
       localInputs_{true, false, false, false},
@@ -68,16 +71,19 @@ LeaderApp::LeaderApp()
 
 void LeaderApp::begin() {
   Serial.begin(USB_CDC_BAUD);
+  delay(50);
+  bootMs_ = millis();
+  Serial.printf(
+      "\n[BOOT] leader reset_reason=%d USB_CDC_BAUD=%lu\n",
+      static_cast<int>(esp_reset_reason()),
+      static_cast<unsigned long>(USB_CDC_BAUD));
 
   statusLedService_.begin();
   teleopContinuousSpeedPct_.store(config::leader::kTeleopContinuousSpeedPct);
-
-  if (!oled_.begin()) {
-    Serial.println("[WARN] OLED not found");
-  }
-  oled_.showConnecting(followerIpHint_);
+  Serial.println("[BOOT] stage: status led");
 
   const bool nvsReady = calibrationStore_.begin();
+  Serial.println("[BOOT] stage: nvs");
   if (!nvsReady || !calibrationStore_.load(ArmRole::Leader, leaderCalibrationProfile_)) {
     const CalibrationProfile defaults = calibrationStore_.buildDefaultProfile();
     calibrationStore_.save(ArmRole::Leader, defaults);
@@ -89,6 +95,12 @@ void LeaderApp::begin() {
     followerCalibrationProfile_ = defaults;
   }
 
+#if LEADER_ENABLE_XBOX_BLE
+  Serial.println("[BOOT] stage: xbox BLE");
+  xboxControllerService_.begin();
+  deferredBleReady_ = true;
+#endif
+
   WifiOtaCallbacks cb;
   cb.onWifiConnected    = [](const char *ip) { Serial.printf("[WiFi] connected ip=%s\n", ip); };
   cb.onWifiDisconnected = []() { Serial.println("[WiFi] disconnected"); };
@@ -96,51 +108,22 @@ void LeaderApp::begin() {
   cb.onOtaEnd           = []() { Serial.println("[OTA] end"); };
   cb.onOtaError         = [](uint32_t code) { Serial.printf("[OTA] error %u\n", code); };
   wifiOta_.begin(cb);
+  Serial.println("[BOOT] stage: wifi ota");
 
   const bool espNowReady = presenceService_->begin();
+  Serial.printf("[BOOT] stage: esp-now ok=%d\n", static_cast<int>(espNowReady));
   if (!espNowReady) {
     Serial.println("[WARN] ESP-NOW init failed on leader");
   }
 
-  ServoBusConfig servoBusConfig{};
-  servoBusConfig.serial = &Serial2;
-  servoBusConfig.rxPin = LEADER_SERVO_BUS_RX_PIN;
-  servoBusConfig.txPin = LEADER_SERVO_BUS_TX_PIN;
-  servoBusConfig.baudRate = LEADER_SERVO_BUS_BAUD;
-  servoBusConfig.firstId = 1U;
-  servoBusConfig.lastId = 32U;
-  if (!servoBusService_.begin(servoBusConfig)) {
-    Serial.println("[WARN] Servo bus init failed on leader");
-  }
-
-  const uint8_t localScanCount = servoBusService_.scan();
-  leaderStartupScanDone_ = true;
-    leaderServoFault_ = localScanCount != config::common::kExpectedLeaderServoCount;
-  if (leaderServoFault_) {
-    Serial.printf(
-        "[SERVO] leader startup mismatch expected=%u actual=%u\n",
-      static_cast<unsigned>(config::common::kExpectedLeaderServoCount),
-        static_cast<unsigned>(localScanCount));
-  }
-
-  if (!telemetryStreamServer_.begin(9090)) {
-    Serial.println("[WARN] Telemetry stream init failed");
-  } else {
-    Serial.println("[INFO] Telemetry stream on :9090");
-  }
-
-  if (!teleopWifiBridge_.begin(static_cast<uint16_t>(teleop_wifi::kFollowerListenPort + 1U))) {
-    Serial.println("[WARN] Teleop Wi-Fi UDP bridge init failed on leader");
-  }
-
-  teleopPcSerialBridge_.attach(Serial);
-
-  xboxControllerService_.begin();
-
-  startBackgroundTasks();
+  Serial.println("[BOOT] leader minimal begin done (heavy init deferred)");
 }
 
 void LeaderApp::tick() {
+  const uint32_t uptimeMs = millis();
+
+  runDeferredBootStages(uptimeMs);
+
   wifiOta_.tick();
   const ControllerOperationProfile profile =
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());
@@ -160,7 +143,6 @@ void LeaderApp::tick() {
     (void)handleTeleopTransportValueCommand();
   }
 
-  const uint32_t uptimeMs = millis();
   if (!passthroughActive) {
     runStartupServoScans(uptimeMs);
     updateFollowerAckTracking(uptimeMs);
@@ -256,7 +238,13 @@ void LeaderApp::updateServoHealthFlags() {
     return;
   }
 
-  followerServoFault_ = presenceService_->followerServoCount() != config::common::kExpectedFollowerServoCount;
+  const uint8_t followerCount = presenceService_->followerServoCount();
+  if (followerCount == 0U) {
+    followerServoFault_ = false;
+    return;
+  }
+
+  followerServoFault_ = followerCount != config::common::kExpectedFollowerServoCount;
 }
 
 void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
@@ -369,25 +357,6 @@ void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32
     snapshot.followerWorkingCalibrationMax[i] = followerCalibrationWorkingProfile_.maxPosition[i];
   }
   fillLeaderMirrorPositions(snapshot);
-}
-
-void LeaderApp::refreshOled(uint32_t uptimeMs) {
-  if ((uptimeMs - lastOledRefreshMs_) >= oledConfig_.refreshPeriodMs) {
-    lastOledRefreshMs_ = uptimeMs;
-    if (wifiOta_.isOtaInProgress()) {
-      strncpy(statusLine_, "ota updating", sizeof(statusLine_) - 1);
-      statusLine_[sizeof(statusLine_) - 1] = '\0';
-      oled_.showOtaProgress(50);
-    } else {
-      oled_.showDashboard(
-          wifiOta_.ipAddress(),
-          followerIpHint_,
-          mode_,
-          static_cast<TeleopTransportMode>(teleopTransportMode_.load()),
-          statusLine_,
-          uptimeMs);
-    }
-  }
 }
 
 } // namespace soarm

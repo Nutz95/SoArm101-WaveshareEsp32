@@ -12,71 +12,111 @@ WifiOtaService::WifiOtaService(const char *ssid,
     : ssid_(ssid), password_(password), hostname_(hostname) {}
 
 void WifiOtaService::begin(WifiOtaCallbacks callbacks) {
-    callbacks_ = callbacks;
+  callbacks_ = callbacks;
 
-    WiFi.mode(WIFI_STA);
-    WiFi.setHostname(hostname_);
+  WiFi.mode(WIFI_STA);
+#if defined(LEADER_ENABLE_XBOX_BLE) && LEADER_ENABLE_XBOX_BLE
+  // ESP-IDF aborts when Wi-Fi + Bluetooth coexist with modem sleep disabled.
+  WiFi.setSleep(true);
+#else
+  WiFi.setSleep(false);
+#endif
+  WiFi.setHostname(hostname_);
+
+  const bool ssidConfigured = (ssid_ != nullptr && ssid_[0] != '\0');
+  if (!ssidConfigured) {
+    staConnectDesired_ = false;
+    Serial.println("[WiFi] SSID not configured (set SOARM_WIFI_SSID at build time)");
+  } else if (staConnectDesired_) {
     WiFi.begin(ssid_, password_);
-    // Connection result is handled asynchronously in tick().
+  }
 
-    ArduinoOTA.setHostname(hostname_);
+  ArduinoOTA.setHostname(hostname_);
 
-    ArduinoOTA.onStart([this]() {
-        otaInProgress_ = true;
-        if (callbacks_.onOtaBegin) {
-            callbacks_.onOtaBegin();
-        }
-    });
+  ArduinoOTA.onStart([this]() {
+    otaInProgress_ = true;
+    if (!staConnectDesired_) {
+      staConnectDesired_ = true;
+    }
+    if (ssid_ != nullptr && ssid_[0] != '\0' && WiFi.status() != WL_CONNECTED) {
+      WiFi.begin(ssid_, password_);
+    }
+    if (callbacks_.onOtaBegin) {
+      callbacks_.onOtaBegin();
+    }
+  });
 
-    ArduinoOTA.onEnd([this]() {
-        otaInProgress_ = false;
-        if (callbacks_.onOtaEnd) {
-            callbacks_.onOtaEnd();
-        }
-    });
+  ArduinoOTA.onEnd([this]() {
+    otaInProgress_ = false;
+    if (callbacks_.onOtaEnd) {
+      callbacks_.onOtaEnd();
+    }
+  });
 
-    ArduinoOTA.onError([this](ota_error_t error) {
-        otaInProgress_ = false;
-        if (callbacks_.onOtaError) {
-            callbacks_.onOtaError(static_cast<uint32_t>(error));
-        }
-    });
+  ArduinoOTA.onError([this](ota_error_t error) {
+    otaInProgress_ = false;
+    if (callbacks_.onOtaError) {
+      callbacks_.onOtaError(static_cast<uint32_t>(error));
+    }
+  });
 
-    ArduinoOTA.begin();
+  ArduinoOTA.begin();
+}
+
+void WifiOtaService::setStaConnectDesired(bool desired) {
+  if (staConnectDesired_ == desired) {
+    return;
+  }
+
+  staConnectDesired_ = desired;
+
+  // Do NOT call WiFi.disconnect() here: it crashes ESP32 when ESP-NOW + NimBLE are active.
+  // "desired=false" only stops treating Wi-Fi as required for teleop; the STA link may stay up.
+  if (desired && ssid_ != nullptr && ssid_[0] != '\0' && WiFi.status() != WL_CONNECTED) {
+    WiFi.begin(ssid_, password_);
+  }
+}
+
+bool WifiOtaService::isStaConnectDesired() const {
+  return staConnectDesired_;
 }
 
 void WifiOtaService::tick() {
-    ArduinoOTA.handle();
+  ArduinoOTA.handle();
 
-    const bool connected = (WiFi.status() == WL_CONNECTED);
+  if (!staConnectDesired_ && !otaInProgress_) {
+    return;
+  }
 
-    if (connected && !wasConnected_) {
-        wasConnected_ = true;
-        const String ip = WiFi.localIP().toString();
-        strncpy(ipBuf_, ip.c_str(), sizeof(ipBuf_) - 1);
-        ipBuf_[sizeof(ipBuf_) - 1] = '\0';
-        if (callbacks_.onWifiConnected) {
-            callbacks_.onWifiConnected(ipBuf_);
-        }
-    } else if (!connected && wasConnected_) {
-        wasConnected_ = false;
-        ipBuf_[0] = '\0';
-        if (callbacks_.onWifiDisconnected) {
-            callbacks_.onWifiDisconnected();
-        }
+  const bool connected = (WiFi.status() == WL_CONNECTED);
+
+  if (connected && !wasConnected_) {
+    wasConnected_ = true;
+    const String ip = WiFi.localIP().toString();
+    strncpy(ipBuf_, ip.c_str(), sizeof(ipBuf_) - 1);
+    ipBuf_[sizeof(ipBuf_) - 1] = '\0';
+    if (callbacks_.onWifiConnected) {
+      callbacks_.onWifiConnected(ipBuf_);
     }
+  } else if (!connected && wasConnected_) {
+    wasConnected_ = false;
+    ipBuf_[0] = '\0';
+    if (callbacks_.onWifiDisconnected) {
+      callbacks_.onWifiDisconnected();
+    }
+  }
 }
 
 bool WifiOtaService::isConnected() const {
-    return wasConnected_;
+  return wasConnected_;
 }
 
 bool WifiOtaService::isOtaInProgress() const {
-    return otaInProgress_;
+  return otaInProgress_;
 }
 
 const char *WifiOtaService::ipAddress() const {
-    return ipBuf_;
+  return ipBuf_;
 }
 
 } // namespace soarm

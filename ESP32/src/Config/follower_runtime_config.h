@@ -20,6 +20,9 @@ constexpr uint8_t kServoControlQueueCapacity = 8U;
 constexpr uint8_t kCommandAckSendBurstCount = 3U;
 constexpr uint8_t kTeleopBatchQueueCapacity = 8U;
 constexpr uint32_t kServoTelemetryPublishPeriodMs = 20U;
+// Full presence cadence when idle/calibration (not ESP-NOW teleop batches).
+constexpr uint32_t kIdleFullPresenceIntervalMs = 500U;
+constexpr uint32_t kServoCommandPresenceBoostMs = 5000U;
 
 } // namespace follower
 } // namespace config

@@ -17,6 +17,19 @@ void LeaderApp::computeModeAndStatus() {
       profile == ControllerOperationProfile::CalibrationLeader ||
       profile == ControllerOperationProfile::CalibrationFollower;
 
+  if (profile == ControllerOperationProfile::OtaReady) {
+    mode_ = OperationMode::Idle;
+    if (wifiOta_.isConnected()) {
+      strncpy(statusLine_, "OTA ready", sizeof(statusLine_) - 1);
+    } else if (wifiOta_.isStaConnectDesired()) {
+      strncpy(statusLine_, "OTA: wifi connect", sizeof(statusLine_) - 1);
+    } else {
+      strncpy(statusLine_, "OTA: wifi off", sizeof(statusLine_) - 1);
+    }
+    statusLine_[sizeof(statusLine_) - 1] = '\0';
+    return;
+  }
+
   if (profile == ControllerOperationProfile::Passthrough) {
     if (passthroughEngaged_.load()) {
       mode_ = OperationMode::Passthrough;
@@ -45,7 +58,7 @@ void LeaderApp::computeModeAndStatus() {
     snprintf(
         statusLine_,
         sizeof(statusLine_),
-        "servo mismatch L:%u F:%u",
+        "servo cnt L%u F%u",
         static_cast<unsigned>(servoBusService_.lastScanCount()),
         static_cast<unsigned>(presenceService_->followerServoCount()));
     statusLine_[sizeof(statusLine_) - 1] = '\0';

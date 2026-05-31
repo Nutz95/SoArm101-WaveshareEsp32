@@ -34,6 +34,15 @@ public:
     void showOtaProgress(uint8_t progressPercent);
     void showError(uint32_t errorCode, const char *message);
 
+    void showCalibrationArmPrompt(const char *armLabel);
+    void showCalibrationCentering(const char *armLabel, const char *statusLine);
+    void showCalibrationRangeTable(
+        const char *row1,
+        const char *row2,
+        const char *row3,
+        const char *footer);
+    void showCalibrationResultBanner(const char *message);
+
 private:
     OledDisplayConfig config_;
     Adafruit_SSD1306 *display_;

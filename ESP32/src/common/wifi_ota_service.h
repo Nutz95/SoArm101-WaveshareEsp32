@@ -25,6 +25,10 @@ public:
     // Call every loop iteration (handles OTA packets and reconnection).
     void tick();
 
+    // When false: disconnect from AP but keep Wi-Fi driver up for ESP-NOW. OTA forces reconnect.
+    void setStaConnectDesired(bool desired);
+    bool isStaConnectDesired() const;
+
     bool isConnected()      const;
     bool isOtaInProgress()  const;
 
@@ -38,6 +42,7 @@ private:
     WifiOtaCallbacks callbacks_;
     bool        otaInProgress_{false};
     bool        wasConnected_{false};
+    bool        staConnectDesired_{true};
     char        ipBuf_[16]{};
 };
 

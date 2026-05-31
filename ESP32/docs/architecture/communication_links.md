@@ -129,6 +129,30 @@ This is a larger refactor (web UI connects via leader COM, transport state machi
 
 **Leader + follower async buses:** leader read and follower write can overlap in time on separate boards; end-to-end latency ≈ leader read + radio + follower write (not sum of USB legs).
 
+## OTA (ArduinoOTA over home Wi-Fi STA)
+
+**How it works today**
+
+1. At boot, firmware runs `WiFi.begin(SOARM_WIFI_SSID)` (credentials from build env) and `ArduinoOTA.begin()` with hostname `soarm-leader` or `soarm-follower`.
+2. Every `tick()`, `ArduinoOTA.handle()` listens for the **espota** protocol (PlatformIO `upload_protocol = espota`, port 3232).
+3. Your PC must be on the **same LAN**; upload target is `soarm-leader.local` or the board IP (`env:leader-ota` in `platformio.ini`).
+4. There is **no separate “OTA mode” on the wire** — the board is flashed whenever it has an IP and OTA is not busy with teleop. Switching Xbox profile to **OtaReady** only forces `setStaConnectDesired(true)` so STA reconnects after TeleopEspNow.
+
+**TeleopEspNow vs OTA**
+
+- In **TeleopEspNow**, the dashboard TCP server (`:9090`) is paused; STA **stays connected** (calling `WiFi.disconnect()` with ESP-NOW + BLE active can reboot the chip). OTA from PC will **not** work reliably until you:
+  - Cycle Xbox profile to **OtaReady** or **TeleopWifi** / calibration (STA on), wait for IP on OLED, then `pio run -e leader-ota -t upload`, **or**
+  - Use **USB** upload: `pio run -e leader -t upload` (works even with no Wi-Fi).
+- On OTA upload start, `ArduinoOTA.onStart` forces `WiFi.begin()` again if STA was off.
+
+**Follower**
+
+- No Xbox profile; STA drops only while ESP-NOW teleop is active. For follower OTA, stop teleop or power follower alone on Wi-Fi until connected.
+
+**Serial monitor**
+
+- Leader USB CDC is **1 000 000** baud (`USB_CDC_BAUD` in `platformio.ini`). Use `pio device monitor -b 1000000` — 115200 / 100000 shows garbage and hides crash logs.
+
 ## SVG diagram
 
 See [communication_links.svg](./communication_links.svg) for a printable overview of all four paths.
