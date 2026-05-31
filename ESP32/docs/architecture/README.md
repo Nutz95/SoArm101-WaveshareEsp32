@@ -13,6 +13,10 @@ Actor-level diagrams (Mermaid + SVG) for LeRobot, ESP-NOW/Wi-Fi mirror, COM mirr
 - [communication_links.md](./communication_links.md)
 - [communication_links.svg](./communication_links.svg)
 
+## Refactor roadmap
+
+Tracked checklist (profiles to remove, heartbeat manager, Wi-Fi AP/STA teleop, USB debug): [../REFACTORING_PLAN.md](../REFACTORING_PLAN.md)
+
 ## Overview
 
 The project is split into three main runtime actors:

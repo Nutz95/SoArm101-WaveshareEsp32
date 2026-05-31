@@ -9,7 +9,7 @@ Use it when implementing changes to avoid broad code searches.
 - Update this index when a file or class responsibility changes materially, even if file paths stay the same.
 - If key runtime/transport/teleop behavior changed, update both:
   - this file (`docs/CODE_CONTEXT_INDEX.md`)
-  - refactor tracking file (`docs/REFACTOR_CHECKLIST.md`)
+  - refactor tracking file (`docs/REFACTORING_PLAN.md`)
 
 ## Leader Firmware
 

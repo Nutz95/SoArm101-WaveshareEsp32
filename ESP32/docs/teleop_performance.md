@@ -128,6 +128,8 @@ The follower **teleop_apply** FreeRTOS task (~17 ms) drains Wi-Fi/PC serial sock
 
 COM mirror uses binary `leader_mirror_positions[]` in the Wi-Fi telemetry snapshot (not parsed text). Leader dashboard snapshots are throttled to **250 ms** during `PcSerialBridge` profile. See [architecture/communication_links.md](architecture/communication_links.md).
 
+**Refactor:** profile 5 and COM mirror are scheduled for removal. See [REFACTORING_PLAN.md](REFACTORING_PLAN.md).
+
 If motion is still choppy on Wi-Fi but smooth on **PC serial bridge** (profile 5), the bottleneck is Wi-Fi/radio—not the 60 Hz pipeline.
 
 ## PC serial bench mode (profile 5, TeleopPcSerial)

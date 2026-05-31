@@ -39,6 +39,9 @@
 #ifndef LEADER_SERVO_BUS_BAUD
 #define LEADER_SERVO_BUS_BAUD 1000000U
 #endif
+#ifndef USB_CDC_BAUD
+#define USB_CDC_BAUD 1000000U
+#endif
 
 namespace soarm {
 
@@ -64,7 +67,7 @@ LeaderApp::LeaderApp()
 }
 
 void LeaderApp::begin() {
-  Serial.begin(config::leader::kPassthroughUsbBaud);
+  Serial.begin(USB_CDC_BAUD);
 
   statusLedService_.begin();
   teleopContinuousSpeedPct_.store(config::leader::kTeleopContinuousSpeedPct);

@@ -2,6 +2,7 @@
 
 #include "../Config/common_runtime_config.h"
 #include "../common/teleop/teleop_batch_packet.h"
+#include "../common/teleop/teleop_drain_latest.h"
 
 namespace soarm {
 
@@ -70,11 +71,9 @@ bool FollowerTeleopPcSerialBridge::drainLatestBatch(
     uint8_t &speedPercent,
     uint16_t &requestId,
     uint8_t &flags) {
-  bool got = false;
-  while (consumeBatch(ids, positions, capacity, count, speedPercent, requestId, flags)) {
-    got = true;
-  }
-  return got;
+  return teleop::drainLatestWhile([&]() {
+    return consumeBatch(ids, positions, capacity, count, speedPercent, requestId, flags);
+  });
 }
 
 } // namespace soarm

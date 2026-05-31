@@ -16,7 +16,6 @@ constexpr uint8_t kTeleopContinuousSpeedPct = 100U;
 constexpr uint32_t kTeleopTargetPeriodMs = 17U;
 constexpr int16_t kTeleopMirrorMinPositionDelta = 3;
 constexpr int16_t kTeleopMirrorMinPositionDeltaWifi = 0;
-constexpr uint32_t kPassthroughUsbBaud = 1000000U;
 constexpr uint32_t kServoTelemetryTaskActiveDelayMs = kTeleopTargetPeriodMs;
 constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
 constexpr uint32_t kTeleopMirrorTaskActiveDelayMs = kTeleopTargetPeriodMs;

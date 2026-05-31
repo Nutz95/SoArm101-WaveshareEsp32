@@ -29,6 +29,9 @@
 #ifndef SERVO_BUS_BAUD
 #define SERVO_BUS_BAUD 1000000U
 #endif
+#ifndef USB_CDC_BAUD
+#define USB_CDC_BAUD 1000000U
+#endif
 
 namespace soarm {
 
@@ -74,7 +77,7 @@ FollowerApp::FollowerApp()
       localInputs_{false, false, false, false} {}
 
 void FollowerApp::begin() {
-  Serial.begin(115200);
+  Serial.begin(USB_CDC_BAUD);
   Serial.printf("[BOOT] reset reason=%d\n", static_cast<int>(esp_reset_reason()));
 
   statusLedService_.begin();

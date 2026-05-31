@@ -1,5 +1,6 @@
 #include "follower_teleop_wifi_bridge.h"
 
+#include "../common/teleop/teleop_drain_latest.h"
 #include "../common/teleop/teleop_packet_flags.h"
 
 namespace soarm {
@@ -63,11 +64,9 @@ bool FollowerTeleopWifiBridge::drainLatestBatch(
     uint8_t &speedPercent,
     uint16_t &requestId,
     uint8_t &flags) {
-  bool got = false;
-  while (consumeBatch(ids, positions, capacity, count, speedPercent, requestId, flags)) {
-    got = true;
-  }
-  return got;
+  return teleop::drainLatestWhile([&]() {
+    return consumeBatch(ids, positions, capacity, count, speedPercent, requestId, flags);
+  });
 }
 
 bool FollowerTeleopWifiBridge::sendAck(uint16_t requestId, uint8_t status) {
