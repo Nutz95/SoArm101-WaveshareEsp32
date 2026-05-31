@@ -102,6 +102,8 @@ Enforcement guidance:
 **10. Runtime constants and magic numbers**
 - Do not introduce magic numbers in production logic (timeouts, retries, periods, queue sizes, thresholds, protocol timing, etc.).
 - Put runtime constants in the appropriate `src/Config/*.h` file and reference them by descriptive names.
+- Use a typed `enum class` (for example `ControllerOperationProfile`) or named `constexpr` symbols instead of raw integer literals such as `profile == 4U` in application logic.
+- The `U` suffix marks an **unsigned integer literal** in C++ (e.g. `4U` = unsigned 4). It belongs on config constants, not on unexplained profile/mode checks in feature code.
 - Numeric literals are allowed directly only for:
   - protocol constants defined in dedicated protocol headers,
   - compile-time bit masks/packing operations,

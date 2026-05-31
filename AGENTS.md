@@ -18,6 +18,8 @@ Coding rules (formatting, SOLID design guidance language policy and related guid
 
 Refer to: `CODING_RULES.md` for the authoritative, project-level coding rules. All contributors and assistants must follow the rules documented there when modifying code or OpenSpec files.
 
+**Profile / mode identifiers:** never compare raw `uint8_t` profile values (e.g. `4U`) in feature code. Use `ControllerOperationProfile` from `ESP32/src/common/controller/controller_operation_profile.h` or named constants from `src/Config/*.h`.
+
 If you make changes to coding rules, update `CODING_RULES.md`.
 
 ## Architecture Context
