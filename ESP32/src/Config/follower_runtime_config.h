@@ -16,6 +16,7 @@ constexpr uint32_t kTeleopWifiDrainMaxBatchesPerTick = 16U;
 constexpr uint32_t kTeleopApplyTaskPeriodMs = 17U;
 constexpr uint32_t kTeleopApplyTaskIdleDelayMs = 1U;
 constexpr uint32_t kTeleopTrafficRecentMs = 2500U;
+constexpr uint32_t kWifiDirectStaConnectTimeoutMs = 12000U;
 constexpr uint8_t kServoControlQueueCapacity = 8U;
 constexpr uint8_t kCommandAckSendBurstCount = 3U;
 constexpr uint8_t kTeleopBatchQueueCapacity = 8U;

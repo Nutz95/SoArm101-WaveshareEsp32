@@ -131,7 +131,7 @@ void FollowerApp::tick() {
   const uint32_t nowMs = millis();
   syncWifiRadioPolicy(nowMs);
   wifiOta_.tick();
-  presenceService_->tick(wifiOta_.ipAddress());
+  presenceService_->tick(activeWifiIpForPresence());
 
   processIncomingServoControl();
   processIncomingServoScan();
@@ -265,9 +265,9 @@ CommandAckStatus FollowerApp::handleCalibrationCenter(uint32_t value) {
   (void)value;
   const uint32_t startMs = millis();
   Serial.println("[CAL] follower center start");
-  presenceService_->sendLinkKeepalive(wifiOta_.ipAddress());
+  presenceService_->sendLinkKeepalive(activeWifiIpForPresence());
   const bool ok = servoBusService_.calibrateOffsetsForDetectedServos();
-  presenceService_->sendLinkKeepalive(wifiOta_.ipAddress());
+  presenceService_->sendLinkKeepalive(activeWifiIpForPresence());
   if (ok) {
     (void)servoBusService_.scan();
     servoBusService_.refreshKnownTelemetryFast();
@@ -353,7 +353,7 @@ CommandAckStatus FollowerApp::handleCalibrationCapture(uint32_t value) {
                 captureMin ? "min" : "max",
                 saved ? "saved" : "save_failed");
   if (saved) {
-    presenceService_->sendLinkKeepalive(wifiOta_.ipAddress());
+    presenceService_->sendLinkKeepalive(activeWifiIpForPresence());
   }
   return saved ? CommandAckStatus::Applied : CommandAckStatus::Failed;
 }

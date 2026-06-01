@@ -111,6 +111,11 @@ void LeaderApp::handleControllerModeCycleEvents() {
     return;
   }
 
+  if (profile == kProfileTeleopWifi) {
+    handleTeleopWifiButtons(confirmPressed, validatePressed);
+    return;
+  }
+
   handleTeleopMirrorButtons(confirmPressed, validatePressed);
 }
 
@@ -238,7 +243,7 @@ void LeaderApp::updateProfileSwitchStatus(ControllerOperationProfile profile) {
   } else if (profile == kProfileTeleopEspNow) {
     setTransientStatus("xbox profile teleop espnow", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfileTeleopWifi) {
-    setTransientStatus("xbox profile teleop wifi", config::leader::kMoveStatusHoldMs);
+    setTransientStatus("wifi teleop? press A", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfileTeleopPcSerial) {
     setTransientStatus("xbox profile teleop pc serial", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfilePassthrough) {
@@ -298,6 +303,16 @@ void LeaderApp::applyProfileExitTransitions(
   if (previous == kProfilePassthrough && passthroughEngaged_.load()) {
     passthroughEngaged_.store(false);
     servoPassthrough_.exit();
+  }
+
+  if (previous == kProfileTeleopWifi && (wifiDirectLinkEngaged_.load() || wifiDirectSession_.isActive())) {
+    disengageWifiDirectLink();
+  } else if (next == kProfileTeleopWifi && previous != kProfileTeleopWifi) {
+    wifiDirectLinkEngaged_.store(false);
+    wifiDirectTeleopActive_.store(false);
+    teleopContinuousEnabled_.store(false);
+    xboxControllerService_.discardPendingButtonPress(XboxLogicalButton::A);
+    lastOledRefreshMs_ = 0U;
   }
 
   if (leavingEngagedCalibration) {

@@ -44,6 +44,10 @@ public:
         const char *footer);
     void showCalibrationResultBanner(const char *message);
 
+    void showWifiDirectAwaitEnter(const char *leaderRouterIp, const char *followerRouterIp);
+    void showWifiDirectWaitingFollower(const char *leaderApIp);
+    void showWifiDirectAwaitStart(const char *leaderApIp, const char *followerApIp);
+
 private:
     OledDisplayConfig config_;
     Adafruit_SSD1306 *display_;

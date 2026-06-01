@@ -5,6 +5,7 @@
 #include "../common/mac_address_utils.h"
 #include "../common/presence/espnow_presence_base.h"
 #include "../common/presence/link_heartbeat_packet.h"
+#include "../common/wifi/wifi_direct_offer_packet.h"
 #include "../common/presence/presence_packet.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
@@ -48,6 +49,10 @@ public:
   uint8_t followerLastAckStatus() const override;
   uint32_t followerLastAckMs() const override;
 
+  bool sendWifiDirectOffer(const WifiDirectOfferPacket &packet);
+  const char *followerWifiDirectIp() const;
+  void clearFollowerWifiDirectState();
+
 private:
   void onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) override;
 
@@ -56,6 +61,7 @@ private:
   void handlePresenceData(const uint8_t *mac, const PresencePacket &packet);
   void handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet);
   void handleLinkHeartbeat(const uint8_t *mac, const LinkHeartbeatPacket &packet);
+  void handleWifiDirectAck(const uint8_t *mac, const WifiDirectAckPacket &packet);
 
   void sendPairAck(const uint8_t mac[6]);
   void sendPairResetTo(const uint8_t mac[6]);
@@ -90,6 +96,8 @@ private:
   uint8_t pendingResetBroadcastCount_{0U};
   uint32_t nextResetBroadcastMs_{0U};
   char followerIp_[16]{};
+  char followerWifiDirectIp_[16]{};
+  uint32_t followerWifiDirectSessionId_{0U};
   char followerServoIdsText_[48]{};
   char followerServoTelemetryText_[96]{};
   char pairedFollowerMacText_[18]{};

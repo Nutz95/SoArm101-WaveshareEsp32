@@ -1,6 +1,7 @@
 #include "leader_telemetry_stream_server.h"
 
 #include "../Config/leader_runtime_config.h"
+#include "../common/usb_debug_log_gate.h"
 
 namespace soarm {
 
@@ -23,7 +24,6 @@ void LeaderTelemetryStreamServer::setListeningEnabled(bool enabled) {
   }
 
   listeningEnabled_ = enabled;
-  streamEnabled_ = false;
   if (client_) {
     client_.stop();
   }
@@ -271,11 +271,13 @@ void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action, uint3
 
   if (action == LeaderCommandAction::StartStream) {
     streamEnabled_ = true;
+    setUsbDashboardStreamActive(true);
     return;
   }
 
   if (action == LeaderCommandAction::StopStream) {
     streamEnabled_ = false;
+    setUsbDashboardStreamActive(false);
     return;
   }
 

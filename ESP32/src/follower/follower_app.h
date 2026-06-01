@@ -5,10 +5,12 @@
 #include "../common/interfaces/i_follower_presence_service.h"
 #include "../common/nvs_calibration_store.h"
 #include "../common/status_led_service.h"
+#include "../common/wifi/wifi_direct_radio_service.h"
 #include "../common/wifi_ota_service.h"
 #include "../common/servo/servo_bus_service.h"
 #include "follower_teleop_wifi_bridge.h"
 #include "follower_teleop_pc_serial_bridge.h"
+#include "follower_wifi_direct_link.h"
 
 #include <memory>
 
@@ -52,6 +54,7 @@ private:
   void publishServoTelemetry();
   void updateStateAndLeds(uint32_t uptimeMs);
   void syncWifiRadioPolicy(uint32_t nowMs);
+  const char *activeWifiIpForPresence() const;
   CommandAckStatus executeServoControl(uint8_t op, uint32_t value);
   CommandAckStatus handleDebugEnable(uint32_t value);
   CommandAckStatus handleDebugDisable(uint32_t value);
@@ -68,10 +71,12 @@ private:
   CalibrationProfile  calibrationProfile_{};
   StatusLedService    statusLedService_;
   WifiOtaService      wifiOta_;
+  WifiDirectRadioService wifiDirectRadio_;
   ServoBusService     servoBusService_;
   FollowerTeleopWifiBridge teleopWifiBridge_;
   FollowerTeleopPcSerialBridge teleopPcSerialBridge_;
   std::unique_ptr<IFollowerPresenceService> presenceService_;
+  FollowerWifiDirectLink followerWifiDirectLink_{};
   ArmStateInputs      localInputs_;
   uint32_t            lastServoTelemetryPublishMs_{0U};
   uint32_t            lastPresenceNudgeMs_{0U};

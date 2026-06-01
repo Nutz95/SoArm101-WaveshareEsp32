@@ -21,6 +21,8 @@ constexpr PresenceMessageTypeNameEntry kPresenceMessageTypeNames[] = {
     {PresenceMessageType::ServoCommandAck, "ServoCommandAck"},
     {PresenceMessageType::ServoControlBatch, "ServoControlBatch"},
     {PresenceMessageType::LinkHeartbeat, "LinkHeartbeat"},
+    {PresenceMessageType::WifiDirectOffer, "WifiDirectOffer"},
+    {PresenceMessageType::WifiDirectAck, "WifiDirectAck"},
 };
 
 const char *lookupPresenceMessageTypeName(uint8_t raw) {

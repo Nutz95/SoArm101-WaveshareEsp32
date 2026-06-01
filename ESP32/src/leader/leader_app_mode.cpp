@@ -79,7 +79,10 @@ bool LeaderApp::applyHeldCommandModeAndStatus(
     return false;
   }
 
-  if (calibrationProfileSelected && !calibrationEngaged_.load()) {
+  if (profile == ControllerOperationProfile::TeleopWifi && !wifiDirectLinkEngaged_.load()) {
+    mode_ = OperationMode::Idle;
+    setWifiDirectPreviewStatus();
+  } else if (calibrationProfileSelected && !calibrationEngaged_.load()) {
     mode_ = OperationMode::Idle;
     setCalibrationPreviewStatus(profile);
   } else if (calibrationProfileActive || !localInputs_.calibrationDone) {
@@ -132,6 +135,16 @@ void LeaderApp::applyRuntimeModeAndStatus(
       mode_ = OperationMode::Idle;
       strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
     }
+  } else if (profile == ControllerOperationProfile::TeleopWifi && !wifiDirectLinkEngaged_.load()) {
+    mode_ = OperationMode::Idle;
+    setWifiDirectPreviewStatus();
+  } else if (profile == ControllerOperationProfile::TeleopWifi && wifiDirectLinkEngaged_.load() &&
+             !wifiDirectSession_.isFollowerReady()) {
+    mode_ = OperationMode::Teleoperation;
+    strncpy(statusLine_, "wifi: wait follower", sizeof(statusLine_) - 1);
+  } else if (profile == ControllerOperationProfile::TeleopWifi && !wifiDirectTeleopActive_.load()) {
+    mode_ = OperationMode::Teleoperation;
+    strncpy(statusLine_, "wifi: start? press A", sizeof(statusLine_) - 1);
   } else if (calibrationProfileSelected && !calibrationEngaged_.load()) {
     mode_ = OperationMode::Idle;
     setCalibrationPreviewStatus(profile);
@@ -167,6 +180,11 @@ void LeaderApp::applyRuntimeModeAndStatus(
       strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
     }
   }
+}
+
+void LeaderApp::setWifiDirectPreviewStatus() {
+  strncpy(statusLine_, "wifi? press A", sizeof(statusLine_) - 1);
+  statusLine_[sizeof(statusLine_) - 1] = '\0';
 }
 
 void LeaderApp::setCalibrationPreviewStatus(ControllerOperationProfile profile) {

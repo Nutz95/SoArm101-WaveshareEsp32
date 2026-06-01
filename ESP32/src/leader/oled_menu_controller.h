@@ -23,6 +23,10 @@ public:
                        const CalibrationOledInput &input,
                        const char *resultText);
 
+  void showWifiDirectAwaitEnter(const char *leaderRouterIp, const char *followerRouterIp);
+  void showWifiDirectWaitingFollower(const char *leaderApIp);
+  void showWifiDirectAwaitStart(const char *leaderApIp, const char *followerApIp);
+
 private:
   OledPresenter &presenter_;
 };

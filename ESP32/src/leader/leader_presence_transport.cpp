@@ -3,6 +3,7 @@
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
+#include "../common/wifi/wifi_direct_offer_packet.h"
 #include "../common/servo/servo_control_opcode.h"
 #include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
@@ -137,6 +138,19 @@ bool LeaderPresenceService::addBroadcastPeer() {
   uint8_t broadcastAddr[ESP_NOW_ETH_ALEN];
   memset(broadcastAddr, 0xFF, sizeof(broadcastAddr));
   return addPeer(broadcastAddr);
+}
+
+bool LeaderPresenceService::sendWifiDirectOffer(const WifiDirectOfferPacket &packet) {
+  if (!hasPairedMac_) {
+    return false;
+  }
+
+  followerWifiDirectSessionId_ = packet.sessionId;
+  followerWifiDirectIp_[0] = '\0';
+  addPeer(pairedFollowerMac_);
+  const esp_err_t result =
+      esp_now_send(pairedFollowerMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+  return result == ESP_OK;
 }
 
 bool LeaderPresenceService::isPairedMac(const uint8_t mac[6]) const {

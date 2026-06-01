@@ -162,6 +162,38 @@ void OledPresenter::showOtaProgress(uint8_t progressPercent) {
     display_->display();
 }
 
+void OledPresenter::showWifiDirectAwaitEnter(const char *leaderRouterIp, const char *followerRouterIp) {
+    char l1[24] = "L:?";
+    char l2[24] = "F:?";
+    if (leaderRouterIp != nullptr && leaderRouterIp[0] != '\0') {
+        snprintf(l1, sizeof(l1), "L:%s", leaderRouterIp);
+    }
+    if (followerRouterIp != nullptr && followerRouterIp[0] != '\0') {
+        snprintf(l2, sizeof(l2), "F:%s", followerRouterIp);
+    }
+    printLines("TELEOP WIFI", l1, l2, "Enter? (A)");
+}
+
+void OledPresenter::showWifiDirectWaitingFollower(const char *leaderApIp) {
+    char l2[24] = "L:AP ?";
+    if (leaderApIp != nullptr && leaderApIp[0] != '\0') {
+        snprintf(l2, sizeof(l2), "L:%s", leaderApIp);
+    }
+    printLines("TELEOP WIFI", l2, "waiting follower", "B:Cancel");
+}
+
+void OledPresenter::showWifiDirectAwaitStart(const char *leaderApIp, const char *followerApIp) {
+    char l2[24] = "L:AP ?";
+    char l3[24] = "F:STA ?";
+    if (leaderApIp != nullptr && leaderApIp[0] != '\0') {
+        snprintf(l2, sizeof(l2), "L:%s", leaderApIp);
+    }
+    if (followerApIp != nullptr && followerApIp[0] != '\0') {
+        snprintf(l3, sizeof(l3), "F:%s", followerApIp);
+    }
+    printLines("TELEOP WIFI", l2, l3, "Start? (A)");
+}
+
 void OledPresenter::showCalibrationAwaitEnter(const char *armLabel) {
     char line2[22]{};
     snprintf(line2, sizeof(line2), "%s arm", armLabel != nullptr ? armLabel : "?");

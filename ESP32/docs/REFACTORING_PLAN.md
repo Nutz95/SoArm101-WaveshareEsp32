@@ -81,8 +81,10 @@ Track progress here (no OpenSpec). Update this file and linked architecture docs
 **Problem:** PC serial mirror duplicated leader positions over Wi-Fi → PC → USB (choppy, unfair test).
 
 - [x] USB CDC reuses dashboard command + snapshot binary (`LeaderUsbDebugService`, same magic as `:9090`)
-- [ ] Calibration leader/follower: all capture/center/scan over USB debug + ESP-NOW to follower (unchanged semantics, simpler frames)
+- [x] Calibration leader/follower over USB debug + ESP-NOW to follower (dashboard `teleop_calibration_capture` / transport set)
 - [x] Dashboard `--leader-serial COMx` (`telemetry_serial_client.py`) — no Wi-Fi for cal/debug when TeleopEspNow pauses TCP
+- [x] `start_dashboard.ps1` reads `monitor_port` / `USB_CDC_BAUD` from `platformio.ini` by default
+- [x] Leader text logs suppressed on USB while dashboard stream is active (`usb_debug_log_gate`)
 - [x] `:9090` still paused in TeleopEspNow; USB path always active in `LeaderApp::tick`
 - [x] Document Xbox BLE + USB debug in [architecture/xbox_ble_controls.md](architecture/xbox_ble_controls.md)
 
@@ -90,13 +92,15 @@ Track progress here (no OpenSpec). Update this file and linked architecture docs
 
 ## Phase 4 — Wi-Fi direct teleop (AP/STA)
 
-- [ ] ESP-NOW side channel: negotiate WPA2 PSK + role (leader AP / follower STA) + TCP/UDP port
-- [ ] Leader `TeleopWifi` profile: bring up soft-AP; follower joins; **no home router** in mirror path
-- [ ] Teleop batches over UDP or TCP (reuse `teleop_wifi::BatchPacket`, latest-only, fire-and-forget)
-- [ ] Heartbeat over same link (or ESP-NOW keepalive when Wi-Fi teleop idle)
-- [ ] Radio budget: no concurrent router STA + AP unless OTA; document channel selection
+- [x] ESP-NOW binary offer/ack (`WifiDirectOfferPacket` / `WifiDirectAckPacket`) with random per-session PSK
+- [x] Leader `TeleopWifi` profile: soft-AP + offer over ESP-NOW (`LeaderWifiDirectSession`)
+- [x] Follower STA join + binary ack with assigned IP (`FollowerWifiDirectLink`)
+- [x] Teleop batches stay binary UDP (`teleop_wifi::BatchPacket`) on negotiated link
+- [x] OTA / other profiles tear down direct session and restore home STA when leaving `TeleopWifi`
+- [x] Native unit tests: `test/test_wifi_direct_session`
+- [ ] Bench: latency/jitter vs ESP-NOW on hardware
 - [ ] Remove router-based follower IP discovery from hot path (`soarm-follower.local` fallback = debug only)
-- [ ] Update [communication_links.md](architecture/communication_links.md) mode 4
+- [ ] Update [communication_links.md](architecture/communication_links.md) mode 4 (bench results)
 
 ---
 

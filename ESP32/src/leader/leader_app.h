@@ -3,6 +3,7 @@
 #include "../common/app_state_machine.h"
 #include "../common/interfaces/i_leader_presence_service.h"
 #include "../common/status_led_service.h"
+#include "../common/wifi/wifi_direct_radio_service.h"
 #include "../common/wifi_ota_service.h"
 #include "../common/command/command_ack_status.h"
 #include "../common/servo/servo_control_opcode.h"
@@ -16,6 +17,7 @@
 #include "leader_telemetry_state.h"
 #include "leader_telemetry_stream_server.h"
 #include "leader_usb_debug_service.h"
+#include "leader_wifi_direct_session.h"
 #include "leader_command_processor.h"
 #include "leader_teleop_mirror_task.h"
 #include "leader_teleop_pc_serial_bridge.h"
@@ -103,6 +105,8 @@ private:
       bool validatePressed,
       uint32_t nowMs);
   void handleTeleopMirrorButtons(bool confirmPressed, bool validatePressed);
+  void handleTeleopWifiButtons(bool confirmPressed, bool validatePressed);
+  void setWifiDirectPreviewStatus();
   void updateProfileSwitchStatus(ControllerOperationProfile profile);
   void applyControllerOperationProfile(uint8_t profile);
   void applyProfileExitTransitions(
@@ -122,6 +126,8 @@ private:
   void disengagePassthroughMode(ControllerOperationProfile fallbackProfile);
   void engageCalibrationMode();
   void disengageCalibrationMode(bool restoreCapturedRange);
+  void engageWifiDirectLink();
+  void disengageWifiDirectLink();
   void nudgeFollowerLinkAfterCalibration();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
   void pollFollowerCalibrationCenterAck(uint32_t nowMs);
@@ -178,6 +184,7 @@ private:
   CalibrationProfile followerCalibrationWorkingProfile_{};
   StatusLedService    statusLedService_;
   WifiOtaService      wifiOta_;
+  WifiDirectRadioService wifiDirectRadio_;
   CpuLoadService      cpuLoadService_;
   ServoBusService     servoBusService_;
   bool                servoDebugManual_{false};
@@ -189,6 +196,7 @@ private:
   LeaderTelemetryState telemetryState_;
   LeaderTelemetryStreamServer telemetryStreamServer_;
   LeaderUsbDebugService usbDebugService_{telemetryStreamServer_};
+  LeaderWifiDirectSession wifiDirectSession_{};
   ArmStateInputs      localInputs_;
   ArmRuntimeState     followerState_;
   OperationMode       mode_;
@@ -221,6 +229,8 @@ private:
   std::atomic<uint8_t> runtimeModeForTasks_{0U};
   std::atomic<bool> passthroughEngaged_{false};
   std::atomic<bool> calibrationEngaged_{false};
+  std::atomic<bool> wifiDirectLinkEngaged_{false};
+  std::atomic<bool> wifiDirectTeleopActive_{false};
   std::atomic<bool> followerCalibrationCenterPending_{false};
   uint16_t followerCalibrationCenterRequestId_{0U};
   uint32_t followerCalibrationCenterStartedMs_{0U};

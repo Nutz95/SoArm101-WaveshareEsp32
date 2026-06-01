@@ -60,11 +60,19 @@ Notable command IDs:
 
 ## USB debug (Phase 3)
 
-When Wi-Fi telemetry is paused (e.g. TeleopEspNow), connect the dashboard to the leader **USB COM** port at `USB_CDC_BAUD` (115200 default):
+When Wi-Fi telemetry is paused (e.g. TeleopEspNow), use the leader **USB COM** port (same binary protocol as `:9090`).
+
+Salon default (reads `monitor_port` / baud from `ESP32/platformio.ini`):
 
 ```powershell
 cd ESP32/tools/telemetry_dashboard
+.\start_dashboard.ps1
+```
+
+Manual override:
+
+```powershell
 python telemetry_dashboard.py --leader-serial COM7 --leader-serial-baud 115200
 ```
 
-Protocol: identical command + snapshot packets as Wi-Fi stream (`START_STREAM` / `STOP_STREAM`).
+Protocol: identical command + snapshot packets as Wi-Fi stream (`START_STREAM` / `STOP_STREAM`). Text boot logs on USB are suppressed while the stream is active so binary frames stay clean.

@@ -5,6 +5,8 @@
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
+#include "../common/wifi/wifi_direct_offer_packet.h"
+#include "../common/wifi/wifi_direct_session.h"
 #include "../common/pairing/pairing_policy.h"
 #include "../Config/leader_runtime_config.h"
 #include "../Config/common_runtime_config.h"
@@ -254,6 +256,20 @@ void LeaderPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *d
 
   const uint32_t nowMs = millis();
 
+  if (len == static_cast<int>(sizeof(WifiDirectAckPacket))) {
+    WifiDirectAckPacket ackPacket{};
+    memcpy(&ackPacket, data, sizeof(ackPacket));
+    if (ackPacket.magic != kPresenceMagic || ackPacket.version != kWifiDirectPacketVersion) {
+      return;
+    }
+    if (ackPacket.messageType != static_cast<uint8_t>(PresenceMessageType::WifiDirectAck)) {
+      return;
+    }
+    linkHeartbeat_.notifyPeerActivity(nowMs);
+    handleWifiDirectAck(mac, ackPacket);
+    return;
+  }
+
   if (len == static_cast<int>(sizeof(LinkHeartbeatPacket))) {
     LinkHeartbeatPacket hbPacket{};
     memcpy(&hbPacket, data, sizeof(hbPacket));
@@ -300,106 +316,6 @@ void LeaderPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *d
     }
   }
   // ServoScan and ServoControl frames addressed to leader are silently ignored.
-}
-
-void LeaderPresenceService::handlePairRequest(const uint8_t *mac, const PresencePacket &packet) {
-  (void)packet;
-  Serial.printf("[PAIR] RX PairRequest from %02X:%02X:%02X:%02X:%02X:%02X (paired=%d)\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-                static_cast<int>(hasPairedMac_));
-
-  if (!hasPairedMac_) {
-    memcpy(pairedFollowerMac_, mac, sizeof(pairedFollowerMac_));
-    hasPairedMac_ = pairingStore_.save(pairedFollowerMac_);
-    if (hasPairedMac_) {
-      formatMacAddress(pairedFollowerMac_, pairedFollowerMacText_);
-      Serial.printf("[PAIR] NEW pairing saved: %s\n", pairedFollowerMacText_);
-    }
-    addPeer(mac);
-    sendPairAck(mac);
-    Serial.printf("[PAIR] PairAck sent to %02X:%02X:%02X:%02X:%02X:%02X\n",
-                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    linkHeartbeat_.notifyPeerActivity(millis());
-    return;
-  }
-
-  if (PairingPolicy::shouldAcceptLeaderPairRequest(hasPairedMac_, isPairedMac(mac))) {
-    addPeer(mac);
-    sendPairAck(mac);
-    Serial.printf("[PAIR] PairAck sent to paired peer %02X:%02X:%02X:%02X:%02X:%02X\n",
-                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    linkHeartbeat_.notifyPeerActivity(millis());
-  } else {
-    Serial.printf("[PAIR] Reject PairRequest from unknown peer %02X:%02X:%02X:%02X:%02X:%02X (paired=%d)\n",
-                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-                  static_cast<int>(hasPairedMac_));
-    sendPairResetTo(mac);
-  }
-}
-
-void LeaderPresenceService::handlePresenceData(const uint8_t *mac, const PresencePacket &packet) {
-  if (!hasPairedMac_) {
-    handlePairRequest(mac, packet);
-    if (!hasPairedMac_) {
-      return;
-    }
-  }
-
-  if (!isPairedMac(mac)) {
-    Serial.printf("[PAIR] RX Presence from unknown peer while paired: %02X:%02X:%02X:%02X:%02X:%02X\n",
-                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    sendPairResetTo(mac);
-    return;
-  }
-
-  strncpy(followerIp_, packet.ip, sizeof(followerIp_) - 1);
-  followerIp_[sizeof(followerIp_) - 1] = '\0';
-  followerServoCount_ = packet.servoCount;
-  const bool debugBitInControlValue = ((packet.controlValue >> 8U) & 0x01U) != 0U;
-  const bool tempAlarmBitInControlValue = ((packet.controlValue >> 9U) & 0x01U) != 0U;
-  followerServoDebugManual_ = debugBitInControlValue || (packet.controlOp != 0U);
-  followerServoTemperatureAlarm_ = tempAlarmBitInControlValue;
-  followerLastAckStatus_ = packet.reserved;
-  followerLastAckRequestId_ = packet.reserved2;
-  followerLastAckCommandOp_ = static_cast<uint8_t>(packet.controlValue & 0xFFU);
-  followerLastAckMs_ = millis();
-  strncpy(followerServoIdsText_, packet.servoIds, sizeof(followerServoIdsText_) - 1);
-  followerServoIdsText_[sizeof(followerServoIdsText_) - 1] = '\0';
-  strncpy(followerServoTelemetryText_, packet.servoTelemetry, sizeof(followerServoTelemetryText_) - 1);
-  followerServoTelemetryText_[sizeof(followerServoTelemetryText_) - 1] = '\0';
-}
-
-void LeaderPresenceService::handleLinkHeartbeat(const uint8_t *mac, const LinkHeartbeatPacket &packet) {
-  if (!hasPairedMac_) {
-    return;
-  }
-
-  if (!isPairedMac(mac)) {
-    return;
-  }
-
-  strncpy(followerIp_, packet.ip, sizeof(followerIp_) - 1);
-  followerIp_[sizeof(followerIp_) - 1] = '\0';
-  followerServoCount_ = packet.servoCount;
-  followerLastAckStatus_ = packet.ackStatus;
-  followerLastAckRequestId_ = packet.ackRequestId;
-  followerLastAckCommandOp_ = packet.ackCommandOp;
-  followerLastAckMs_ = millis();
-}
-
-void LeaderPresenceService::handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet) {
-  if (!hasPairedMac_ || !isPairedMac(mac)) {
-    return;
-  }
-
-  followerLastAckStatus_ = packet.reserved;
-  followerLastAckRequestId_ = packet.reserved2;
-  followerLastAckCommandOp_ = packet.controlOp;
-  const bool debugBitInControlValue = ((packet.controlValue >> 8U) & 0x01U) != 0U;
-  const bool tempAlarmBitInControlValue = ((packet.controlValue >> 9U) & 0x01U) != 0U;
-  followerServoDebugManual_ = debugBitInControlValue;
-  followerServoTemperatureAlarm_ = tempAlarmBitInControlValue;
-  followerLastAckMs_ = millis();
 }
 
 } // namespace soarm

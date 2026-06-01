@@ -1,5 +1,7 @@
 #include "wifi_ota_service.h"
 
+#include "usb_debug_log_gate.h"
+
 #include <WiFi.h>
 #include <ArduinoOTA.h>
 #include <cstring>
@@ -16,7 +18,6 @@ void WifiOtaService::begin(WifiOtaCallbacks callbacks) {
 
   WiFi.mode(WIFI_STA);
 #if defined(LEADER_ENABLE_XBOX_BLE) && LEADER_ENABLE_XBOX_BLE
-  // ESP-IDF aborts when Wi-Fi + Bluetooth coexist with modem sleep disabled.
   WiFi.setSleep(true);
 #else
   WiFi.setSleep(false);
@@ -26,7 +27,7 @@ void WifiOtaService::begin(WifiOtaCallbacks callbacks) {
   const bool ssidConfigured = (ssid_ != nullptr && ssid_[0] != '\0');
   if (!ssidConfigured) {
     staConnectDesired_ = false;
-    Serial.println("[WiFi] SSID not configured (set SOARM_WIFI_SSID at build time)");
+    USB_DEBUG_LOGLN("[WiFi] SSID not configured (set SOARM_WIFI_SSID at build time)");
   } else if (staConnectDesired_) {
     WiFi.begin(ssid_, password_);
   }
@@ -71,9 +72,13 @@ void WifiOtaService::setStaConnectDesired(bool desired) {
   staConnectDesired_ = desired;
 
   // Do NOT call WiFi.disconnect() here: it crashes ESP32 when ESP-NOW + NimBLE are active.
-  // "desired=false" only stops treating Wi-Fi as required for teleop; the STA link may stay up.
-  if (desired && ssid_ != nullptr && ssid_[0] != '\0' && WiFi.status() != WL_CONNECTED) {
-    WiFi.begin(ssid_, password_);
+  if (desired && ssid_ != nullptr && ssid_[0] != '\0') {
+    if (WiFi.getMode() != WIFI_STA) {
+      WiFi.mode(WIFI_STA);
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+      WiFi.begin(ssid_, password_);
+    }
   }
 }
 

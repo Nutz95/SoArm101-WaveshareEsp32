@@ -14,6 +14,8 @@ enum class PresenceMessageType : uint8_t {
   ServoCommandAck = 7,
   ServoControlBatch = 8,
   LinkHeartbeat = 9,
+  WifiDirectOffer = 10,
+  WifiDirectAck = 11,
 };
 
 } // namespace soarm

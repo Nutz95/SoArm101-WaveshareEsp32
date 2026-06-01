@@ -118,4 +118,16 @@ void OledMenuController::showCalibration(CalibrationOledScreen screen,
   }
 }
 
+void OledMenuController::showWifiDirectAwaitEnter(const char *leaderRouterIp, const char *followerRouterIp) {
+  presenter_.showWifiDirectAwaitEnter(leaderRouterIp, followerRouterIp);
+}
+
+void OledMenuController::showWifiDirectWaitingFollower(const char *leaderApIp) {
+  presenter_.showWifiDirectWaitingFollower(leaderApIp);
+}
+
+void OledMenuController::showWifiDirectAwaitStart(const char *leaderApIp, const char *followerApIp) {
+  presenter_.showWifiDirectAwaitStart(leaderApIp, followerApIp);
+}
+
 } // namespace soarm

@@ -106,13 +106,14 @@ flowchart LR
   L <-->|SoftAP or STA link negotiated over ESP-NOW| F
 ```
 
-**Intent:**
+**Implemented (Phase 4):**
 
-- **USB** only for debug / dashboard on the leader (no radio contention with teleop).
-- **Radio** only between the two ESPs: keep ESP-NOW for pairing and AP password exchange; optional **soft-AP + STA** for higher throughput TCP/UDP mirroring without a home router.
-- Follower forwards batches straight to `moveBatch` (same as today’s apply task).
+- Leader profile **TeleopWifi** starts a soft-AP; follower joins as STA (no home router on the hot path).
+- Credentials are negotiated over **binary ESP-NOW** (`WifiDirectOffer` / `WifiDirectAck`, random WPA2 PSK per session).
+- Teleop batches stay **binary UDP** (`teleop_wifi::BatchPacket`, latest-only).
+- Leaving **TeleopWifi** tears down the direct session and restores home STA for OTA.
 
-This is a larger refactor (web UI connects via leader COM, transport state machine, security on negotiated WPA2).
+**USB dashboard (Phase 3):** `ESP32/tools/telemetry_dashboard/start_dashboard.ps1` reads `monitor_port` / `USB_CDC_BAUD` from `platformio.ini` and talks to the leader over USB (same frames as `:9090`). Use when `:9090` is paused in **TeleopEspNow**.
 
 ## Throughput rough estimates
 

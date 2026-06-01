@@ -11,6 +11,8 @@
 #include "../common/teleop/teleop_transport_mode.h"
 #include "../common/servo/servo_control_opcode.h"
 #include "../common/controller/controller_operation_profile.h"
+#include "../common/usb_debug_log_gate.h"
+#include "leader_presence_service.h"
 
 #include <Arduino.h>
 #include <esp_system.h>
@@ -73,17 +75,17 @@ void LeaderApp::begin() {
   Serial.begin(USB_CDC_BAUD);
   delay(50);
   bootMs_ = millis();
-  Serial.printf(
+  USB_DEBUG_LOGF(
       "\n[BOOT] leader reset_reason=%d USB_CDC_BAUD=%lu\n",
       static_cast<int>(esp_reset_reason()),
       static_cast<unsigned long>(USB_CDC_BAUD));
 
   statusLedService_.begin();
   teleopContinuousSpeedPct_.store(config::leader::kTeleopContinuousSpeedPct);
-  Serial.println("[BOOT] stage: status led");
+  USB_DEBUG_LOGLN("[BOOT] stage: status led");
 
   const bool nvsReady = calibrationStore_.begin();
-  Serial.println("[BOOT] stage: nvs");
+  USB_DEBUG_LOGLN("[BOOT] stage: nvs");
   if (!nvsReady || !calibrationStore_.load(ArmRole::Leader, leaderCalibrationProfile_)) {
     const CalibrationProfile defaults = calibrationStore_.buildDefaultProfile();
     calibrationStore_.save(ArmRole::Leader, defaults);
@@ -96,27 +98,27 @@ void LeaderApp::begin() {
   }
 
 #if LEADER_ENABLE_XBOX_BLE
-  Serial.println("[BOOT] stage: xbox BLE");
+  USB_DEBUG_LOGLN("[BOOT] stage: xbox BLE");
   xboxControllerService_.begin();
   deferredBleReady_ = true;
 #endif
 
   WifiOtaCallbacks cb;
-  cb.onWifiConnected    = [](const char *ip) { Serial.printf("[WiFi] connected ip=%s\n", ip); };
-  cb.onWifiDisconnected = []() { Serial.println("[WiFi] disconnected"); };
-  cb.onOtaBegin         = []() { Serial.println("[OTA] begin"); };
-  cb.onOtaEnd           = []() { Serial.println("[OTA] end"); };
-  cb.onOtaError         = [](uint32_t code) { Serial.printf("[OTA] error %u\n", code); };
+  cb.onWifiConnected    = [](const char *ip) { USB_DEBUG_LOGF("[WiFi] connected ip=%s\n", ip); };
+  cb.onWifiDisconnected = []() { USB_DEBUG_LOGLN("[WiFi] disconnected"); };
+  cb.onOtaBegin         = []() { USB_DEBUG_LOGLN("[OTA] begin"); };
+  cb.onOtaEnd           = []() { USB_DEBUG_LOGLN("[OTA] end"); };
+  cb.onOtaError         = [](uint32_t code) { USB_DEBUG_LOGF("[OTA] error %u\n", code); };
   wifiOta_.begin(cb);
-  Serial.println("[BOOT] stage: wifi ota");
+  USB_DEBUG_LOGLN("[BOOT] stage: wifi ota");
 
   const bool espNowReady = presenceService_->begin();
-  Serial.printf("[BOOT] stage: esp-now ok=%d\n", static_cast<int>(espNowReady));
+  USB_DEBUG_LOGF("[BOOT] stage: esp-now ok=%d\n", static_cast<int>(espNowReady));
   if (!espNowReady) {
-    Serial.println("[WARN] ESP-NOW init failed on leader");
+    USB_DEBUG_LOGLN("[WARN] ESP-NOW init failed on leader");
   }
 
-  Serial.println("[BOOT] leader minimal begin done (heavy init deferred)");
+  USB_DEBUG_LOGLN("[BOOT] leader minimal begin done (heavy init deferred)");
 }
 
 void LeaderApp::tick() {
@@ -140,6 +142,12 @@ void LeaderApp::tickCoreServices(uint32_t uptimeMs) {
   runDeferredBootStages(uptimeMs);
 
   wifiOta_.tick();
+  if (wifiDirectLinkEngaged_.load()) {
+    auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
+    if (presence != nullptr) {
+      wifiDirectSession_.tick(*presence, wifiDirectRadio_, uptimeMs);
+    }
+  }
   presenceService_->setPairingWatchdogSuspended(
       calibrationEngaged_.load() || calibrationPhase_.load() != 0U ||
       followerCalibrationCenterPending_.load());

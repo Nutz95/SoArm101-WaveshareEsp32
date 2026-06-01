@@ -5,15 +5,38 @@
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_message_type_name.h"
+#include "../common/wifi/wifi_direct_offer_packet.h"
+#include "../common/wifi/wifi_direct_session.h"
 #include "../common/servo/servo_control_opcode.h"
 #include "../Config/common_runtime_config.h"
 
 #include <Arduino.h>
+#include <esp_now.h>
 #include <cstring>
 
 namespace soarm {
 
 void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) {
+  if (data == nullptr) {
+    return;
+  }
+
+  const uint32_t nowMs = millis();
+
+  if (len == static_cast<int>(sizeof(WifiDirectOfferPacket))) {
+    WifiDirectOfferPacket offerPacket{};
+    memcpy(&offerPacket, data, sizeof(offerPacket));
+    if (offerPacket.magic != kPresenceMagic || offerPacket.version != kWifiDirectPacketVersion) {
+      return;
+    }
+    if (offerPacket.messageType != static_cast<uint8_t>(PresenceMessageType::WifiDirectOffer)) {
+      return;
+    }
+    linkHeartbeat_.notifyPeerActivity(nowMs);
+    handleWifiDirectOfferMessage(mac, offerPacket);
+    return;
+  }
+
   if (len != static_cast<int>(sizeof(PresencePacket))) {
     return;
   }
@@ -25,7 +48,7 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
     return;
   }
 
-  linkHeartbeat_.notifyPeerActivity(millis());
+  linkHeartbeat_.notifyPeerActivity(nowMs);
 
   const PresenceMessageType msgType = static_cast<PresenceMessageType>(packet.messageType);
   if (msgType != PresenceMessageType::ServoControlBatch) {
@@ -162,6 +185,47 @@ void FollowerPresenceService::handleServoControlBatchFrame(const PresencePacket 
   lastTeleopBatchRxMs_ = nowMs;
   linkHeartbeat_.notifyPeerActivity(nowMs);
   enqueueTeleopBatch(batch);
+}
+
+void FollowerPresenceService::handleWifiDirectOfferMessage(
+    const uint8_t *mac,
+    const WifiDirectOfferPacket &packet) {
+  (void)mac;
+  WifiDirectCredentials credentials{};
+  if (!validateWifiDirectOfferPacket(packet, credentials)) {
+    return;
+  }
+  pendingWifiDirectOfferPending_ = true;
+  pendingWifiDirectCredentials_ = credentials;
+  Serial.printf("[WIFI-DIRECT] offer ssid=%s session=%lu\n",
+                credentials.ssid,
+                static_cast<unsigned long>(credentials.sessionId));
+}
+
+bool FollowerPresenceService::consumeWifiDirectOffer(WifiDirectCredentials &credentials) {
+  if (!pendingWifiDirectOfferPending_) {
+    return false;
+  }
+  credentials = pendingWifiDirectCredentials_;
+  pendingWifiDirectOfferPending_ = false;
+  return true;
+}
+
+bool FollowerPresenceService::sendWifiDirectAck(
+    uint32_t sessionId,
+    WifiDirectAckStatus status,
+    const char *followerStaIp) {
+  if (!hasPairedLeaderMac_) {
+    return false;
+  }
+
+  WifiDirectAckPacket packet{};
+  buildWifiDirectAckPacket(sessionId, status, followerStaIp, packet);
+  addPeer(pairedLeaderMac_);
+  return esp_now_send(
+             pairedLeaderMac_,
+             reinterpret_cast<const uint8_t *>(&packet),
+             sizeof(packet)) == ESP_OK;
 }
 
 void FollowerPresenceService::handlePairAckFrame(const uint8_t *mac) {

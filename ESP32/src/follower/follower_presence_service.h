@@ -6,6 +6,8 @@
 #include "../common/mac_address_utils.h"
 #include "../common/presence/espnow_presence_base.h"
 #include "../common/presence/presence_packet.h"
+#include "../common/wifi/wifi_direct_offer_packet.h"
+#include "../common/wifi/wifi_direct_session.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
 #include "../Config/common_runtime_config.h"
@@ -46,6 +48,9 @@ public:
       bool debugManual,
       bool temperatureAlarm) override;
 
+  bool consumeWifiDirectOffer(WifiDirectCredentials &credentials);
+  bool sendWifiDirectAck(uint32_t sessionId, WifiDirectAckStatus status, const char *followerStaIp);
+
 private:
   struct PendingServoControl {
     uint8_t op;
@@ -68,6 +73,7 @@ private:
   void handleServoControlMessage(const uint8_t *mac, const PresencePacket &packet);
   void handleServoControlBatchMessage(const uint8_t *mac, const PresencePacket &packet);
   void handlePairAckMessage(const uint8_t *mac, const PresencePacket &packet);
+  void handleWifiDirectOfferMessage(const uint8_t *mac, const WifiDirectOfferPacket &packet);
   void handlePairResetFrame();
   void handleServoControlFrame(const PresencePacket &packet);
   void handleServoControlBatchFrame(const PresencePacket &packet);
@@ -130,6 +136,8 @@ private:
   uint32_t lastTeleopBatchRxMs_{0U};
   uint32_t lastWifiTeleopRxMs_{0U};
   uint32_t lastServoControlRxMs_{0U};
+  bool pendingWifiDirectOfferPending_{false};
+  WifiDirectCredentials pendingWifiDirectCredentials_{};
 };
 
 } // namespace soarm
