@@ -6,6 +6,7 @@ from dashboard_server import build_dashboard_server
 from dashboard_state import DashboardState
 from serial_teleop_bridge import SerialBridgeConfig, SerialTeleopBridge
 from telemetry_client import TelemetryClient
+from telemetry_serial_client import TelemetrySerialClient
 from telemetry_com_mirror import ComMirrorConfig, TelemetryComMirror
 
 
@@ -25,6 +26,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="SoArm telemetry dashboard")
     parser.add_argument("--leader-host", default="soarm-leader.local")
     parser.add_argument("--leader-port", type=int, default=9090)
+    parser.add_argument(
+        "--leader-serial",
+        default="",
+        help="Use USB serial debug instead of Wi-Fi (e.g. COM7). Same protocol as :9090.",
+    )
+    parser.add_argument("--leader-serial-baud", type=int, default=115200)
     parser.add_argument("--dashboard-port", type=int, default=8080)
     parser.add_argument(
         "--enable-com-mirror",
@@ -57,7 +64,10 @@ def main() -> None:
     args = parser.parse_args()
 
     state = DashboardState()
-    telemetry_client = TelemetryClient(args.leader_host, args.leader_port, state)
+    if args.leader_serial:
+        telemetry_client = TelemetrySerialClient(args.leader_serial, args.leader_serial_baud, state)
+    else:
+        telemetry_client = TelemetryClient(args.leader_host, args.leader_port, state)
     telemetry_client.start()
 
     config_path = Path(__file__).resolve().parent / "serial_bridge_config.json"
@@ -90,7 +100,10 @@ def main() -> None:
     )
 
     print(f"Dashboard: http://127.0.0.1:{args.dashboard_port}")
-    print(f"ESP source: {args.leader_host}:{args.leader_port}")
+    if args.leader_serial:
+        print(f"ESP source: serial {args.leader_serial} @ {args.leader_serial_baud}")
+    else:
+        print(f"ESP source: {args.leader_host}:{args.leader_port}")
     if com_mirror is not None:
         print(f"COM mirror ready for follower port {com_mirror.snapshot().get('follower_port', follower_com)}")
 

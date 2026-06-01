@@ -26,15 +26,25 @@ void LeaderApp::refreshOled(uint32_t uptimeMs) {
   CalibrationOledInput calInput{};
   calInput.profile = profile;
   calInput.calibrationPhase = calibrationPhase_.load();
+  calInput.calibrationEngaged = calibrationEngaged_.load();
   calInput.followerCenterPending = followerCalibrationCenterPending_.load();
   calInput.activeRole = calRole;
   calInput.nowMs = uptimeMs;
+  calInput.centerConfirmArmedAtMs = calibrationCenterConfirmArmedAtMs_;
   if (calRole == ArmRole::Leader) {
     calInput.workingProfile = &leaderCalibrationWorkingProfile_;
     calInput.liveTelemetry = servoBusService_.lastTelemetryText();
   } else {
     calInput.workingProfile = &followerCalibrationWorkingProfile_;
     calInput.liveTelemetry = presenceService_->followerServoTelemetry();
+  }
+
+  if (profile == ControllerOperationProfile::CalibrationLeader ||
+      profile == ControllerOperationProfile::CalibrationFollower) {
+    const CalibrationOledScreen calScreen = calibrationOledWorkflow_.resolve(calInput);
+    const char *resultText = calibrationOledWorkflow_.resultBannerText(uptimeMs);
+    oledMenu_.showCalibration(calScreen, calInput, resultText);
+    return;
   }
 
   const CalibrationOledScreen calScreen = calibrationOledWorkflow_.resolve(calInput);

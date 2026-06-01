@@ -387,6 +387,17 @@ bool LeaderXboxControllerService::consumeButtonPress(XboxLogicalButton button) {
   return true;
 }
 
+void LeaderXboxControllerService::discardPendingButtonPress(XboxLogicalButton button) {
+  if (button == XboxLogicalButton::A) {
+    buttonAPendingCount_.store(0U);
+    return;
+  }
+
+  if (button == XboxLogicalButton::B) {
+    buttonBPendingCount_.store(0U);
+  }
+}
+
 void LeaderXboxControllerService::taskEntry(void *context) {
   if (context != nullptr) {
     LeaderXboxControllerService *service = static_cast<LeaderXboxControllerService *>(context);

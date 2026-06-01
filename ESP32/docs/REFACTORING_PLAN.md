@@ -80,11 +80,11 @@ Track progress here (no OpenSpec). Update this file and linked architecture docs
 
 **Problem:** PC serial mirror duplicated leader positions over Wi-Fi → PC → USB (choppy, unfair test).
 
-- [ ] Define `debug_protocol` on USB CDC @ `USB_CDC_BAUD` (1M): commands, snapshots, pairing status (binary, not 96-char text fields)
+- [x] USB CDC reuses dashboard command + snapshot binary (`LeaderUsbDebugService`, same magic as `:9090`)
 - [ ] Calibration leader/follower: all capture/center/scan over USB debug + ESP-NOW to follower (unchanged semantics, simpler frames)
-- [ ] Dashboard connects to leader COM only; no Wi-Fi requirement for cal/debug
-- [ ] Throttle or disable `:9090` stream unless “Wi-Fi debug” explicitly enabled
-- [ ] Update dashboard `telemetry_client.py` for new debug transport (or dual stack during migration)
+- [x] Dashboard `--leader-serial COMx` (`telemetry_serial_client.py`) — no Wi-Fi for cal/debug when TeleopEspNow pauses TCP
+- [x] `:9090` still paused in TeleopEspNow; USB path always active in `LeaderApp::tick`
+- [x] Document Xbox BLE + USB debug in [architecture/xbox_ble_controls.md](architecture/xbox_ble_controls.md)
 
 ---
 

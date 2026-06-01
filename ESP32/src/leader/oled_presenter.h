@@ -34,7 +34,8 @@ public:
     void showOtaProgress(uint8_t progressPercent);
     void showError(uint32_t errorCode, const char *message);
 
-    void showCalibrationArmPrompt(const char *armLabel);
+    void showCalibrationAwaitEnter(const char *armLabel);
+    void showCalibrationArmPrompt(const char *armLabel, uint32_t nowMs, uint32_t centerConfirmArmedAtMs);
     void showCalibrationCentering(const char *armLabel, const char *statusLine);
     void showCalibrationRangeTable(
         const char *row1,

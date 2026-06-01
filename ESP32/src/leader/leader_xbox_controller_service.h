@@ -82,6 +82,7 @@ public:
   bool consumeModeCycleRequest();
   // Consume one pending edge event for a logical button (currently A/B).
   bool consumeButtonPress(XboxLogicalButton button);
+  void discardPendingButtonPress(XboxLogicalButton button);
 
 private:
   void runLoop();

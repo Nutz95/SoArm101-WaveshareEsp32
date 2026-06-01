@@ -35,6 +35,7 @@ void LeaderApp::handleTeleopTransportCommand(uint32_t value, uint16_t requestId)
 
   if (value == kCalibrationLeader) {
     applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::CalibrationLeader));
+    engageCalibrationMode();
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
     setTransientStatus("cal leader place near ctr", config::leader::kMoveStatusHoldMs);
@@ -43,6 +44,7 @@ void LeaderApp::handleTeleopTransportCommand(uint32_t value, uint16_t requestId)
 
   if (value == kCalibrationFollower) {
     applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::CalibrationFollower));
+    engageCalibrationMode();
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
     setTransientStatus("cal follower? press A", config::leader::kMoveStatusHoldMs);

@@ -13,9 +13,10 @@ void LeaderApp::computeModeAndStatus() {
   const ControllerOperationProfile profile =
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());
   const bool rangeCaptureActive = calibrationPhase_.load() != 0U;
-  const bool calibrationProfileActive =
+  const bool calibrationProfileSelected =
       profile == ControllerOperationProfile::CalibrationLeader ||
       profile == ControllerOperationProfile::CalibrationFollower;
+  const bool calibrationProfileActive = calibrationProfileSelected && calibrationEngaged_.load();
 
   if (profile == ControllerOperationProfile::OtaReady) {
     mode_ = OperationMode::Idle;
@@ -43,8 +44,13 @@ void LeaderApp::computeModeAndStatus() {
   }
 
   if (millis() < commandStatusHoldUntilMs_) {
-    if (profile == ControllerOperationProfile::CalibrationFollower && localInputs_.espNowLinked) {
-      mode_ = OperationMode::CalibrationFollower;
+    if (calibrationProfileSelected && !calibrationEngaged_.load()) {
+      mode_ = OperationMode::Idle;
+      strncpy(
+          statusLine_,
+          profile == ControllerOperationProfile::CalibrationFollower ? "cal follower? press A"
+                                                                     : "cal leader? press A",
+          sizeof(statusLine_) - 1);
     } else if (calibrationProfileActive || !localInputs_.calibrationDone) {
       mode_ = OperationMode::CalibrationLeader;
     } else {
@@ -68,7 +74,8 @@ void LeaderApp::computeModeAndStatus() {
   if (!localInputs_.joystickPaired) {
     mode_ = OperationMode::Idle;
     strncpy(statusLine_, "pair joystick", sizeof(statusLine_) - 1);
-  } else if (profile == ControllerOperationProfile::CalibrationFollower) {
+  } else if (profile == ControllerOperationProfile::CalibrationFollower &&
+             calibrationEngaged_.load()) {
     if (followerCalibrationCenterPending_.load()) {
       mode_ = OperationMode::CalibrationFollower;
       strncpy(statusLine_, "cal follower center", sizeof(statusLine_) - 1);
@@ -85,12 +92,22 @@ void LeaderApp::computeModeAndStatus() {
       mode_ = OperationMode::Idle;
       strncpy(statusLine_, "follower offline", sizeof(statusLine_) - 1);
     }
-  } else if (profile == ControllerOperationProfile::CalibrationLeader || !localInputs_.calibrationDone) {
+  } else if (calibrationProfileSelected && !calibrationEngaged_.load()) {
+    mode_ = OperationMode::Idle;
+    strncpy(
+        statusLine_,
+        profile == ControllerOperationProfile::CalibrationFollower ? "cal follower? press A"
+                                                                   : "cal leader? press A",
+        sizeof(statusLine_) - 1);
+  } else if (profile == ControllerOperationProfile::CalibrationLeader && calibrationEngaged_.load()) {
     mode_ = OperationMode::CalibrationLeader;
     strncpy(
         statusLine_,
         rangeCaptureActive ? "cal leader range" : "cal leader center",
         sizeof(statusLine_) - 1);
+  } else if (!localInputs_.calibrationDone) {
+    mode_ = OperationMode::CalibrationLeader;
+    strncpy(statusLine_, "calibration required", sizeof(statusLine_) - 1);
   } else if (!localInputs_.espNowLinked) {
     mode_ = OperationMode::Idle;
     if (sanitizeControllerOperationProfile(controllerOperationProfile_.load()) ==

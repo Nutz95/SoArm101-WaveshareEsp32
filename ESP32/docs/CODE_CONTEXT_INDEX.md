@@ -53,6 +53,10 @@ Use it when implementing changes to avoid broad code searches.
   - NimBLE Xbox scan/connect/subscribe runtime service, telemetry snapshot, and logical button edge events.
 - `src/leader/leader_xbox_controller_input.cpp`
   - Table-driven HID report decoding for buttons/D-pad/axes with controller-specific hat and analog normalization.
+- `src/leader/leader_usb_debug_service.cpp`
+  - Phase 3 USB CDC dashboard commands + telemetry snapshots (same protocol as Wi-Fi `:9090`).
+- `src/common/presence/presence_message_type_name.cpp`
+  - Lookup table for `PresenceMessageType` log names (includes `LinkHeartbeat`).
 
 ## Follower Firmware
 
@@ -105,6 +109,8 @@ Use it when implementing changes to avoid broad code searches.
 
 - `tools/telemetry_dashboard/telemetry_client.py`
   - TCP telemetry stream client and command forwarding.
+- `tools/telemetry_dashboard/telemetry_serial_client.py`
+  - USB serial telemetry client (Phase 3, same protocol as TCP).
 - `tools/telemetry_dashboard/dashboard_server.py`
   - HTTP API and static file serving.
 - `tools/telemetry_dashboard/teleop_runtime.py`

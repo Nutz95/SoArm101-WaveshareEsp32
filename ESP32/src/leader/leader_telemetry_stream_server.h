@@ -30,6 +30,11 @@ public:
   bool consumeXboxModeCycleButtonSetRequested(uint32_t &value, uint16_t &requestId);
   bool consumeTeleopCalibrationCaptureRequested(uint32_t &value, uint16_t &requestId);
 
+  // USB CDC debug (Phase 3): same command frames as TCP dashboard.
+  void ingestDashboardCommand(const LeaderCommandProcessor::CommandFrame &frame);
+  bool isTelemetryStreamEnabled() const { return streamEnabled_; }
+  LeaderTelemetrySerializer::Packet buildTelemetryPacket() const;
+
 private:
   void handleIncomingCommands();
   void handleAction(LeaderCommandAction action, uint32_t value, uint16_t requestId);

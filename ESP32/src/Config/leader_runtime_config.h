@@ -45,6 +45,7 @@ constexpr uint8_t kFollowerAckRttClampMs = 250U;
 constexpr uint32_t kFollowerDebugAckTimeoutMs = 3500U;
 constexpr uint32_t kFollowerMoveAckTimeoutMs = 3500U;
 constexpr uint32_t kFollowerCalibrationCenterAckTimeoutMs = 180000U;
+constexpr uint32_t kCalibrationConfirmArmDelayMs = 3500U;
 constexpr uint32_t kFollowerSetIdAckTimeoutMs = 2000U;
 constexpr uint32_t kFollowerSetModeAckTimeoutMs = 1500U;
 constexpr uint32_t kFollowerScanAckTimeoutMs = 3000U;

@@ -87,12 +87,21 @@ void OledMenuController::showCalibration(CalibrationOledScreen screen,
   case CalibrationOledScreen::ResultBanner:
     presenter_.showCalibrationResultBanner(resultText != nullptr ? resultText : "Cal done");
     return;
+  case CalibrationOledScreen::AwaitEnter:
+    presenter_.showCalibrationAwaitEnter(
+        input.activeRole == ArmRole::Follower ? "Follower" : "Leader");
+    return;
   case CalibrationOledScreen::ArmPrompt:
-    presenter_.showCalibrationArmPrompt(input.activeRole == ArmRole::Follower ? "Follower" : "Leader");
+    presenter_.showCalibrationArmPrompt(
+        input.activeRole == ArmRole::Follower ? "Follower" : "Leader",
+        input.nowMs,
+        input.centerConfirmArmedAtMs);
     return;
-  case CalibrationOledScreen::Centering:
-    presenter_.showCalibrationCentering("Follower", "centering...");
+  case CalibrationOledScreen::Centering: {
+    const char *arm = input.activeRole == ArmRole::Follower ? "Follower" : "Leader";
+    presenter_.showCalibrationCentering(arm, "centering...");
     return;
+  }
   case CalibrationOledScreen::RangeTable: {
     char line1[22]{};
     char line2[22]{};

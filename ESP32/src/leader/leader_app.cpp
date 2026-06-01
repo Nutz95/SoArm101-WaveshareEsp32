@@ -129,12 +129,11 @@ void LeaderApp::tick() {
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());
   const bool passthroughActive = passthroughEngaged_.load();
   presenceService_->setPairingWatchdogSuspended(
-      (profile == ControllerOperationProfile::CalibrationLeader ||
-       profile == ControllerOperationProfile::CalibrationFollower) ||
-      calibrationPhase_.load() != 0U ||
+      calibrationEngaged_.load() || calibrationPhase_.load() != 0U ||
       followerCalibrationCenterPending_.load());
   presenceService_->tick();
   telemetryStreamServer_.tick();
+  usbDebugService_.tick();
 
   handlePairingCommands();
   if (!passthroughActive) {
@@ -150,7 +149,7 @@ void LeaderApp::tick() {
   }
   updateLocalInputs(uptimeMs);
   handleControllerModeCycleEvents();
-  if (!passthroughActive && calibrationPhase_.load() == 1U) {
+  if (!passthroughActive && calibrationEngaged_.load() && calibrationPhase_.load() == 1U) {
     (void)sampleCalibrationRangeCapture();
   }
   if (!passthroughActive) {
@@ -256,7 +255,7 @@ void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
   const bool profileCalibration =
       profile == ControllerOperationProfile::CalibrationLeader ||
       profile == ControllerOperationProfile::CalibrationFollower;
-  if (profileCalibration) {
+  if (profileCalibration && calibrationEngaged_.load()) {
     localInputs_.calibrationDone = false;
   } else {
     localInputs_.calibrationDone = !config::leader::kCalibrationRequired ||

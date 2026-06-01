@@ -162,10 +162,27 @@ void OledPresenter::showOtaProgress(uint8_t progressPercent) {
     display_->display();
 }
 
-void OledPresenter::showCalibrationArmPrompt(const char *armLabel) {
+void OledPresenter::showCalibrationAwaitEnter(const char *armLabel) {
     char line2[22]{};
     snprintf(line2, sizeof(line2), "%s arm", armLabel != nullptr ? armLabel : "?");
-    printLines("Calibration", line2, "A:Validate", "B:Cancel");
+    printLines("Calibration", line2, "Not started", "Enter? (A)");
+}
+
+void OledPresenter::showCalibrationArmPrompt(const char *armLabel,
+                                             uint32_t nowMs,
+                                             uint32_t centerConfirmArmedAtMs) {
+    char line2[22]{};
+    char line4[22]{};
+    snprintf(line2, sizeof(line2), "%s arm", armLabel != nullptr ? armLabel : "?");
+
+    if (centerConfirmArmedAtMs != 0U && nowMs < centerConfirmArmedAtMs) {
+        const uint32_t waitSec = ((centerConfirmArmedAtMs - nowMs) + 999U) / 1000U;
+        snprintf(line4, sizeof(line4), "Wait %lus", static_cast<unsigned long>(waitSec));
+    } else {
+        snprintf(line4, sizeof(line4), "A:Center B:Can");
+    }
+
+    printLines("Calibration", line2, "Place center", line4);
 }
 
 void OledPresenter::showCalibrationCentering(const char *armLabel, const char *statusLine) {

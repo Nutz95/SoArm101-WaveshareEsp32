@@ -29,6 +29,10 @@ CalibrationOledScreen LeaderCalibrationOledWorkflow::resolve(const CalibrationOl
     return CalibrationOledScreen::Inactive;
   }
 
+  if (!input.calibrationEngaged) {
+    return CalibrationOledScreen::AwaitEnter;
+  }
+
   if (input.followerCenterPending) {
     return CalibrationOledScreen::Centering;
   }
@@ -55,6 +59,11 @@ void LeaderCalibrationOledWorkflow::showCommittedResult(ArmRole role, uint32_t n
 void LeaderCalibrationOledWorkflow::showCanceledResult(ArmRole role, uint32_t nowMs) {
   snprintf(resultText_, sizeof(resultText_), "Cal %s canceled", armLabel(role));
   resultUntilMs_ = nowMs + kResultBannerMs;
+}
+
+void LeaderCalibrationOledWorkflow::clearResultBanner() {
+  resultUntilMs_ = 0U;
+  resultText_[0] = '\0';
 }
 
 } // namespace soarm

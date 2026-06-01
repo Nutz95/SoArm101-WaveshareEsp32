@@ -15,6 +15,7 @@
 #include "oled_display_config.h"
 #include "leader_telemetry_state.h"
 #include "leader_telemetry_stream_server.h"
+#include "leader_usb_debug_service.h"
 #include "leader_command_processor.h"
 #include "leader_teleop_mirror_task.h"
 #include "leader_teleop_pc_serial_bridge.h"
@@ -76,7 +77,8 @@ private:
   void handleXboxModeCycleButtonSetCommand(uint32_t value, uint16_t requestId);
   void handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t requestId);
   ArmRole activeCalibrationRole() const;
-  bool beginCalibrationRangeCapture();
+  bool applyCalibrationCenter();
+  void enterCalibrationRangePhase(ArmRole role);
   bool sampleCalibrationRangeCapture();
   bool commitCalibrationRangeCapture();
   void cancelCalibrationRangeCapture();
@@ -85,6 +87,8 @@ private:
   void applyControllerOperationProfile(uint8_t profile);
   void engagePassthroughMode();
   void disengagePassthroughMode(ControllerOperationProfile fallbackProfile);
+  void engageCalibrationMode();
+  void disengageCalibrationMode(bool restoreCapturedRange);
   void nudgeFollowerLinkAfterCalibration();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
   void pollFollowerCalibrationCenterAck(uint32_t nowMs);
@@ -134,6 +138,7 @@ private:
   LeaderCalibrationOledWorkflow calibrationOledWorkflow_;
   LeaderTelemetryState telemetryState_;
   LeaderTelemetryStreamServer telemetryStreamServer_;
+  LeaderUsbDebugService usbDebugService_{telemetryStreamServer_};
   ArmStateInputs      localInputs_;
   ArmRuntimeState     followerState_;
   OperationMode       mode_;
@@ -165,9 +170,11 @@ private:
   std::atomic<uint8_t> calibrationPhase_{0U};
   std::atomic<uint8_t> runtimeModeForTasks_{0U};
   std::atomic<bool> passthroughEngaged_{false};
+  std::atomic<bool> calibrationEngaged_{false};
   std::atomic<bool> followerCalibrationCenterPending_{false};
   uint16_t followerCalibrationCenterRequestId_{0U};
   uint32_t followerCalibrationCenterStartedMs_{0U};
+  uint32_t calibrationCenterConfirmArmedAtMs_{0U};
   TeleopMirrorLatencyMetrics teleopMirrorLatencyMetrics_{};
   LeaderTeleopWifiBridge teleopWifiBridge_{};
   LeaderTeleopPcSerialBridge teleopPcSerialBridge_{};

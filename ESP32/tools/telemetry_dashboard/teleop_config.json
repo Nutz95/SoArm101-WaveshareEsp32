@@ -1,7 +1,7 @@
 {
   "enabled": true,
   "same_id_mapping": true,
-  "calibration_required": false,
+  "calibration_required": true,
   "speed_pct": 100,
-  "transport_mode": 1
+  "transport_mode": 0
 }

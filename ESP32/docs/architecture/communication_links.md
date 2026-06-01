@@ -151,7 +151,11 @@ This is a larger refactor (web UI connects via leader COM, transport state machi
 
 **Serial monitor**
 
-- Leader USB CDC is **1 000 000** baud (`USB_CDC_BAUD` in `platformio.ini`). Use `pio device monitor -b 1000000` — 115200 / 100000 shows garbage and hides crash logs.
+- Leader USB CDC default is **115200** (`USB_CDC_BAUD` in `env:leader`). Match `monitor_speed` / `pio device monitor -b 115200`. Use `env:leader-usb1m` for 1 Mbaud passthrough bench only.
+
+**USB dashboard debug (Phase 3)**
+
+- When `:9090` is paused (TeleopEspNow), run the dashboard on the leader COM port: see [xbox_ble_controls.md](./xbox_ble_controls.md).
 
 ## SVG diagram
 

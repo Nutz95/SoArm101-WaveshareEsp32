@@ -285,9 +285,21 @@ void LeaderTelemetryStreamServer::handleAction(LeaderCommandAction action, uint3
 }
 
 void LeaderTelemetryStreamServer::streamTelemetryFrame() {
-  const LeaderTelemetrySnapshot snapshot = telemetryState_.snapshot();
-  const LeaderTelemetrySerializer::Packet packet = serializer_.serialize(snapshot);
+  if (!client_ || !client_.connected()) {
+    return;
+  }
+
+  const LeaderTelemetrySerializer::Packet packet = buildTelemetryPacket();
   client_.write(reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+}
+
+void LeaderTelemetryStreamServer::ingestDashboardCommand(const LeaderCommandProcessor::CommandFrame &frame) {
+  const LeaderCommandAction action = commandProcessor_.process(frame);
+  handleAction(action, frame.value, frame.requestId);
+}
+
+LeaderTelemetrySerializer::Packet LeaderTelemetryStreamServer::buildTelemetryPacket() const {
+  return serializer_.serialize(telemetryState_.snapshot());
 }
 
 } // namespace soarm

@@ -24,6 +24,18 @@ ArmRole LeaderApp::activeCalibrationRole() const {
              : ArmRole::Leader;
 }
 
+void LeaderApp::enterCalibrationRangePhase(ArmRole role) {
+  calibrationPhase_.store(1U);
+  if (role == ArmRole::Leader) {
+    leaderCalibrationProfileBackup_ = leaderCalibrationProfile_;
+    resetWorkingProfile(leaderCalibrationWorkingProfile_);
+  } else {
+    followerCalibrationProfileBackup_ = followerCalibrationProfile_;
+    resetWorkingProfile(followerCalibrationWorkingProfile_);
+  }
+  releaseCalibrationTorqueForActiveRole();
+}
+
 void LeaderApp::releaseCalibrationTorqueForActiveRole() {
   if (activeCalibrationRole() == ArmRole::Leader) {
     servoBusService_.setDebugManual(false);
@@ -43,42 +55,40 @@ void LeaderApp::releaseCalibrationTorqueForActiveRole() {
       requestId);
 }
 
-bool LeaderApp::beginCalibrationRangeCapture() {
+bool LeaderApp::applyCalibrationCenter() {
+  if (!calibrationEngaged_.load() || calibrationPhase_.load() != 0U ||
+      followerCalibrationCenterPending_.load()) {
+    return false;
+  }
+
   const ArmRole role = activeCalibrationRole();
   if (role == ArmRole::Leader) {
     if (!servoBusService_.calibrateOffsetsForDetectedServos()) {
       return false;
     }
-  } else {
-    if (!presenceService_->isFollowerAvailable()) {
-      return false;
-    }
-    const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
-    teleopContinuousRequestCounter_ = requestId;
-    if (!presenceService_->requestServoControl(
-            static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter),
-            0U,
-            requestId)) {
-      return false;
-    }
-    followerCalibrationCenterRequestId_ = requestId;
-    followerCalibrationCenterStartedMs_ = millis();
-    followerCalibrationCenterPending_.store(true);
+
+    enterCalibrationRangePhase(ArmRole::Leader);
+    (void)sampleCalibrationRangeCapture();
     return true;
   }
 
-  calibrationPhase_.store(1U);
-  releaseCalibrationTorqueForActiveRole();
-
-  if (role == ArmRole::Leader) {
-    leaderCalibrationProfileBackup_ = leaderCalibrationProfile_;
-    resetWorkingProfile(leaderCalibrationWorkingProfile_);
-  } else {
-    followerCalibrationProfileBackup_ = followerCalibrationProfile_;
-    resetWorkingProfile(followerCalibrationWorkingProfile_);
+  if (!presenceService_->isFollowerAvailable()) {
+    return false;
   }
 
-  return role == ArmRole::Leader ? sampleCalibrationRangeCapture() : true;
+  const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
+  teleopContinuousRequestCounter_ = requestId;
+  if (!presenceService_->requestServoControl(
+          static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter),
+          0U,
+          requestId)) {
+    return false;
+  }
+
+  followerCalibrationCenterRequestId_ = requestId;
+  followerCalibrationCenterStartedMs_ = millis();
+  followerCalibrationCenterPending_.store(true);
+  return true;
 }
 
 void LeaderApp::pollFollowerCalibrationCenterAck(uint32_t nowMs) {
@@ -95,10 +105,7 @@ void LeaderApp::pollFollowerCalibrationCenterAck(uint32_t nowMs) {
         static_cast<CommandAckStatus>(presenceService_->followerLastAckStatus());
     if (status == CommandAckStatus::Applied) {
       followerCalibrationCenterPending_.store(false);
-      calibrationPhase_.store(1U);
-      followerCalibrationProfileBackup_ = followerCalibrationProfile_;
-      resetWorkingProfile(followerCalibrationWorkingProfile_);
-      releaseCalibrationTorqueForActiveRole();
+      enterCalibrationRangePhase(ArmRole::Follower);
       presenceService_->refreshFollowerLinkGrace();
       setTransientStatus("cal follower move extremes", config::leader::kMoveStatusHoldMs);
     } else if (status == CommandAckStatus::Failed || status == CommandAckStatus::Rejected) {
@@ -195,8 +202,21 @@ bool LeaderApp::handleTeleopCalibrationCaptureValueCommand() {
 }
 
 void LeaderApp::handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t requestId) {
+  if (!calibrationEngaged_.load()) {
+    setLeaderCommandStatus(CommandAckStatus::Rejected);
+    setFollowerCommandStatus(CommandAckStatus::Rejected);
+    setTransientStatus("calibration not started", config::leader::kMoveStatusHoldMs);
+    return;
+  }
+
   if (value == kCalibrationConfirmCenter) {
-    if (!beginCalibrationRangeCapture()) {
+    if (calibrationPhase_.load() != 0U || followerCalibrationCenterPending_.load()) {
+      setLeaderCommandStatus(CommandAckStatus::Rejected);
+      setFollowerCommandStatus(CommandAckStatus::Rejected);
+      return;
+    }
+
+    if (!applyCalibrationCenter()) {
       setLeaderCommandStatus(CommandAckStatus::Rejected);
       setFollowerCommandStatus(CommandAckStatus::Rejected);
       setTransientStatus("cal center failed", config::leader::kMoveStatusHoldMs);
@@ -206,7 +226,7 @@ void LeaderApp::handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t r
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
     setTransientStatus(
-        activeCalibrationRole() == ArmRole::Leader ? "cal leader move extremes" : "cal follower center",
+        activeCalibrationRole() == ArmRole::Leader ? "cal leader centering" : "cal follower center",
         config::leader::kMoveStatusHoldMs);
     return;
   }
@@ -220,6 +240,7 @@ void LeaderApp::handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t r
       return;
     }
     calibrationOledWorkflow_.showCommittedResult(role, millis());
+    calibrationEngaged_.store(false);
     applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
@@ -229,9 +250,8 @@ void LeaderApp::handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t r
 
   if (value == kCalibrationCancel) {
     const ArmRole role = activeCalibrationRole();
-    cancelCalibrationRangeCapture();
     calibrationOledWorkflow_.showCanceledResult(role, millis());
-    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow)); // return to teleop_espnow so the user is never stuck in cal mode
+    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
     setTransientStatus("calibration canceled", config::leader::kMoveStatusHoldMs);

@@ -12,6 +12,7 @@ Actor-level diagrams (Mermaid + SVG) for LeRobot, ESP-NOW/Wi-Fi mirror, COM mirr
 
 - [communication_links.md](./communication_links.md)
 - [communication_links.svg](./communication_links.svg)
+- [xbox_ble_controls.md](./xbox_ble_controls.md) — BLE manette, cycle de profils, boutons cal/OTA
 
 ## Refactor roadmap
 
