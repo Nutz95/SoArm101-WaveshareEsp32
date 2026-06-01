@@ -73,11 +73,14 @@ if (-not $NoBuild) {
 
 # Upload step.
 Write-Host "--- Uploading ---" -ForegroundColor Yellow
+$uploadArgs = @("run", "-e", $env_name, "-t", "upload")
 if ($NoBuild) {
-    & $pio run -e $env_name -t nobuild -t upload
-} else {
-    & $pio run -e $env_name -t nobuild -t upload
+    $uploadArgs = @("run", "-e", $env_name, "-t", "nobuild", "-t", "upload")
 }
+if (-not $Ota) {
+    $uploadArgs += @("--upload-port", $Port)
+}
+& $pio @uploadArgs
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "UPLOAD FAILED (exit $LASTEXITCODE)" -ForegroundColor Red

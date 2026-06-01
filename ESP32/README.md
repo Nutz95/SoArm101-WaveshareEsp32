@@ -111,6 +111,8 @@ Notes:
 > 2. Press and release `EN` (reset) while holding `BOOT`.
 > 3. Release `BOOT` and retry.
 
+> **Tip:** After flashing the follower, PlatformIO / the IDE may reuse COM8 for the next leader upload. The scripts pass `--upload-port` explicitly; see [docs/SALON_FLASH.md](docs/SALON_FLASH.md) for salon workflow (USB, OTA engage, Wi‑Fi direct without router).
+
 ---
 
 ### Method 2 — OTA / WiFi (normal workflow after first flash)
