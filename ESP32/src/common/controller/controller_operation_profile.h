@@ -11,13 +11,19 @@ enum class ControllerOperationProfile : uint8_t {
   TeleopEspNow = 2,
   TeleopWifi = 3,
   Passthrough = 4,
-  TeleopPcSerial = 5,
-  OtaReady = 6,
+  OtaReady = 5,
 };
 
-constexpr uint8_t kControllerOperationProfileCount = 7U;
+constexpr uint8_t kControllerOperationProfileCount = 6U;
 
 inline ControllerOperationProfile sanitizeControllerOperationProfile(uint8_t raw) {
+  if (raw == 5U) {
+    return ControllerOperationProfile::OtaReady;
+  }
+  if (raw == 6U) {
+    // Legacy firmware stored OtaReady at id 6 before TeleopPcSerial removal.
+    return ControllerOperationProfile::OtaReady;
+  }
   if (raw >= kControllerOperationProfileCount) {
     return ControllerOperationProfile::TeleopEspNow;
   }

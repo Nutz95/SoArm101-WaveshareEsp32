@@ -17,7 +17,6 @@ constexpr Profile kProfileCalibrationLeader = Profile::CalibrationLeader;
 constexpr Profile kProfileCalibrationFollower = Profile::CalibrationFollower;
 constexpr Profile kProfileTeleopEspNow = Profile::TeleopEspNow;
 constexpr Profile kProfileTeleopWifi = Profile::TeleopWifi;
-constexpr Profile kProfileTeleopPcSerial = Profile::TeleopPcSerial;
 constexpr Profile kProfilePassthrough = Profile::Passthrough;
 constexpr Profile kProfileOtaReady = Profile::OtaReady;
 
@@ -113,6 +112,11 @@ void LeaderApp::handleControllerModeCycleEvents() {
 
   if (profile == kProfileTeleopWifi) {
     handleTeleopWifiButtons(confirmPressed, validatePressed);
+    return;
+  }
+
+  if (profile == kProfileOtaReady) {
+    handleOtaButtons(confirmPressed, validatePressed);
     return;
   }
 
@@ -244,12 +248,10 @@ void LeaderApp::updateProfileSwitchStatus(ControllerOperationProfile profile) {
     setTransientStatus("xbox profile teleop espnow", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfileTeleopWifi) {
     setTransientStatus("wifi teleop? press A", config::leader::kMoveStatusHoldMs);
-  } else if (profile == kProfileTeleopPcSerial) {
-    setTransientStatus("xbox profile teleop pc serial", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfilePassthrough) {
     setTransientStatus("passthrough? press A", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfileOtaReady) {
-    setTransientStatus("OTA: wifi on, flash now", config::leader::kMoveStatusHoldMs);
+    setTransientStatus("OTA? press A", config::leader::kMoveStatusHoldMs);
   } else {
     setTransientStatus("profile changed", config::leader::kMoveStatusHoldMs);
   }
@@ -282,8 +284,7 @@ void LeaderApp::applyControllerOperationProfile(uint8_t profileRaw) {
   applyProfileTransportMode(safeProfile);
 
   if (leavingEngagedCalibration &&
-      (safeProfile == kProfileTeleopEspNow || safeProfile == kProfileTeleopWifi ||
-       safeProfile == kProfileTeleopPcSerial)) {
+      (safeProfile == kProfileTeleopEspNow || safeProfile == kProfileTeleopWifi)) {
     nudgeFollowerLinkAfterCalibration();
   }
 
@@ -313,6 +314,12 @@ void LeaderApp::applyProfileExitTransitions(
     teleopContinuousEnabled_.store(false);
     xboxControllerService_.discardPendingButtonPress(XboxLogicalButton::A);
     lastOledRefreshMs_ = 0U;
+  } else if (next == kProfileOtaReady && previous != kProfileOtaReady) {
+    otaEngaged_.store(false);
+    xboxControllerService_.discardPendingButtonPress(XboxLogicalButton::A);
+    lastOledRefreshMs_ = 0U;
+  } else if (previous == kProfileOtaReady && next != kProfileOtaReady) {
+    otaEngaged_.store(false);
   }
 
   if (leavingEngagedCalibration) {
@@ -353,8 +360,6 @@ void LeaderApp::applyProfileCalibrationState(
 void LeaderApp::applyProfileTransportMode(ControllerOperationProfile profile) {
   if (profile == kProfileTeleopWifi) {
     teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::WifiUdp));
-  } else if (profile == kProfileTeleopPcSerial) {
-    teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::PcSerialBridge));
   } else if (profile == kProfileTeleopEspNow) {
     teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::EspNow));
   }

@@ -23,6 +23,7 @@ void LeaderPresenceService::handlePairRequest(const uint8_t *mac, const Presence
       formatMacAddress(pairedFollowerMac_, pairedFollowerMacText_);
       USB_DEBUG_LOGF("[PAIR] NEW pairing saved: %s\n", pairedFollowerMacText_);
     }
+    (void)ensureEspNowTransportReady();
     addPeer(mac);
     sendPairAck(mac);
     USB_DEBUG_LOGF("[PAIR] PairAck sent to %02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -32,6 +33,7 @@ void LeaderPresenceService::handlePairRequest(const uint8_t *mac, const Presence
   }
 
   if (PairingPolicy::shouldAcceptLeaderPairRequest(hasPairedMac_, isPairedMac(mac))) {
+    (void)ensureEspNowTransportReady();
     addPeer(mac);
     sendPairAck(mac);
     USB_DEBUG_LOGF("[PAIR] PairAck sent to paired peer %02X:%02X:%02X:%02X:%02X:%02X\n",

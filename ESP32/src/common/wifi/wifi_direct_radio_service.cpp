@@ -13,6 +13,7 @@ bool WifiDirectRadioService::beginAccessPoint(const char *ssid, const char *pass
   }
 
   endSession(false);
+  // AP+STA keeps ESP-NOW alive on the STA interface while soft-AP runs (no full WiFi deinit).
   WiFi.mode(WIFI_AP_STA);
 #if defined(LEADER_ENABLE_XBOX_BLE) && LEADER_ENABLE_XBOX_BLE
   WiFi.setSleep(true);
@@ -41,18 +42,29 @@ bool WifiDirectRadioService::beginStation(const char *ssid, const char *password
     return false;
   }
 
-  endSession(false);
-  WiFi.mode(WIFI_STA);
+  const bool sameNetwork =
+      stationActive_ && stationSsid_[0] != '\0' &&
+      strncmp(stationSsid_, ssid, sizeof(stationSsid_)) == 0;
+
+  if (!sameNetwork) {
+    endSession(false);
+    WiFi.mode(WIFI_STA);
 #if defined(LEADER_ENABLE_XBOX_BLE) && LEADER_ENABLE_XBOX_BLE
-  WiFi.setSleep(true);
+    WiFi.setSleep(true);
 #else
-  WiFi.setSleep(false);
+    WiFi.setSleep(false);
 #endif
-  WiFi.begin(ssid, password);
-  stationActive_ = true;
+    strncpy(stationSsid_, ssid, sizeof(stationSsid_) - 1U);
+    stationSsid_[sizeof(stationSsid_) - 1U] = '\0';
+    WiFi.begin(ssid, password);
+    stationActive_ = true;
+    stationIpBuf_[0] = '\0';
+    USB_DEBUG_LOGF("[WIFI-DIRECT] STA joining ssid=%s\n", ssid);
+  } else if (WiFi.status() != WL_CONNECTED) {
+    WiFi.begin(ssid, password);
+  }
+
   accessPointActive_ = false;
-  stationIpBuf_[0] = '\0';
-  USB_DEBUG_LOGF("[WIFI-DIRECT] STA joining ssid=%s\n", ssid);
   return true;
 }
 
@@ -65,13 +77,15 @@ void WifiDirectRadioService::endSession(bool disconnectStation) {
   }
 
   if (stationActive_ && disconnectStation) {
-    WiFi.disconnect(false, true);
+    WiFi.disconnect(false);
     stationActive_ = false;
     stationIpBuf_[0] = '\0';
+    stationSsid_[0] = '\0';
     USB_DEBUG_LOGLN("[WIFI-DIRECT] STA disconnected");
   } else if (stationActive_) {
     stationActive_ = false;
     stationIpBuf_[0] = '\0';
+    stationSsid_[0] = '\0';
   }
 }
 

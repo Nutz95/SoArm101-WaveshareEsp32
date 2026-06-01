@@ -49,6 +49,7 @@ public:
   uint8_t followerLastAckStatus() const override;
   uint32_t followerLastAckMs() const override;
 
+  bool ensureEspNowTransportReady(uint8_t wifiChannel = 0U);
   bool sendWifiDirectOffer(const WifiDirectOfferPacket &packet);
   bool sendWifiDirectSessionEnd();
   const char *followerWifiDirectIp() const;

@@ -121,6 +121,9 @@ After the first USB flash the boards join your WiFi network automatically and ad
 themselves via mDNS as `soarm-leader.local` and `soarm-follower.local`.  
 From then on you can reprogram them **without touching a button**:
 
+1. Leader: cycle Xbox profile to **OTA**, press **A** (OLED `OTA ACTIVE`, router IP).
+2. Then upload:
+
 ```powershell
 .\build_upload_leader.ps1   -Ota    # build + OTA upload to soarm-leader.local
 .\build_upload_follower.ps1 -Ota    # build + OTA upload to soarm-follower.local

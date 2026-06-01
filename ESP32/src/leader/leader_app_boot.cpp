@@ -65,7 +65,6 @@ void LeaderApp::runDeferredBootStages(uint32_t uptimeMs) {
     if (!teleopWifiBridge_.begin(static_cast<uint16_t>(teleop_wifi::kFollowerListenPort + 1U))) {
       Serial.println("[WARN] Teleop Wi-Fi UDP bridge init failed on leader");
     }
-    teleopPcSerialBridge_.attach(Serial);
     syncWifiRadioPolicyForProfile(
         sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
     deferredNetworkReady_ = true;

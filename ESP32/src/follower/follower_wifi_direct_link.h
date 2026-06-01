@@ -12,6 +12,7 @@ class WifiOtaService;
 
 class FollowerWifiDirectLink {
 public:
+  bool shouldAcceptOffer(const WifiDirectCredentials &credentials) const;
   void acceptOffer(const WifiDirectCredentials &credentials);
   void tick(FollowerPresenceService &presence, WifiDirectRadioService &radio, WifiOtaService &wifiOta, uint32_t nowMs);
   bool isActive() const;
@@ -22,12 +23,14 @@ public:
       bool restoreHomeSta);
 
 private:
-  void trySendAck(FollowerPresenceService &presence, WifiDirectRadioService &radio);
+  void trySendAck(FollowerPresenceService &presence, WifiDirectRadioService &radio, const char *stationIp);
 
   WifiDirectCredentials credentials_{};
   uint32_t connectStartedMs_{0U};
   bool offerPending_{false};
   bool staReady_{false};
+  bool ackSent_{false};
+  uint8_t joinAttemptCount_{0U};
 };
 
 } // namespace soarm

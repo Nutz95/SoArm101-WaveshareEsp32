@@ -22,6 +22,7 @@ private:
   bool stationActive_{false};
   char accessPointIpBuf_[16]{};
   char stationIpBuf_[16]{};
+  char stationSsid_[33]{};
 };
 
 } // namespace soarm

@@ -2,28 +2,53 @@
 
 #include "follower_presence_service.h"
 
+#include <WiFi.h>
+
 namespace soarm {
+
+namespace {
+
+bool shouldKeepHomeStaConnected() {
+  return WiFi.status() == WL_CONNECTED;
+}
+
+} // namespace
 
 void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
   auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get());
   if (presence != nullptr) {
     if (presence->consumeWifiDirectSessionEnd()) {
       followerWifiDirectLink_.reset(*presence, wifiDirectRadio_, wifiOta_, true);
+      wifiOta_.restoreHomeStation();
+      (void)presence->ensureEspNowTransportReady();
     }
 
     WifiDirectCredentials offer{};
     if (presence->consumeWifiDirectOffer(offer)) {
-      followerWifiDirectLink_.acceptOffer(offer);
+      if (followerWifiDirectLink_.shouldAcceptOffer(offer)) {
+        wifiOta_.setStaConnectDesired(false);
+        (void)presence->ensureEspNowTransportReady();
+        followerWifiDirectLink_.acceptOffer(offer);
+        presence->setWifiDirectJoinSession(offer.sessionId);
+      }
     }
     followerWifiDirectLink_.tick(*presence, wifiDirectRadio_, wifiOta_, nowMs);
   }
 
   if (followerWifiDirectLink_.isActive()) {
     wifiOta_.setStaConnectDesired(false);
+    if (presence != nullptr) {
+      (void)presence->ensureEspNowTransportReady();
+    }
     return;
   }
 
-  wifiOta_.setStaConnectDesired(true);
+  const bool keepHomeSta =
+      (presence == nullptr || presence->preferWifiStaConnected(nowMs)) && shouldKeepHomeStaConnected();
+  wifiOta_.setStaConnectDesired(keepHomeSta);
+  if (!keepHomeSta && presence != nullptr) {
+    (void)presence->ensureEspNowTransportReady();
+  }
 }
 
 const char *FollowerApp::activeWifiIpForPresence() const {

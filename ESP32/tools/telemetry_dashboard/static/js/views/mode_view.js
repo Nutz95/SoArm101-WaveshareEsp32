@@ -12,8 +12,6 @@ const profileToTransportValue = {
 
   teleop_wifi: 1,
 
-  teleop_pcserial: 5,
-
   passthrough: 4,
 
 };
@@ -29,8 +27,6 @@ const profileLabels = {
   teleop_espnow: "Teleoperation — ESP-NOW",
 
   teleop_wifi: "Teleoperation — Wi-Fi UDP",
-
-  teleop_pcserial: "Teleoperation — PC serial bridge",
 
   passthrough: "Passthrough — USB to servo bus",
 
@@ -57,12 +53,6 @@ function profileFromSnapshot(data) {
   if (profileValue === 4) {
 
     return "passthrough";
-
-  }
-
-  if (profileValue === 5) {
-
-    return "teleop_pcserial";
 
   }
 
@@ -112,7 +102,7 @@ async function refreshSerialBridgeState() {
 
     if (!response.ok) {
 
-      statusNode.textContent = "COM mirror API unavailable (restart dashboard with --enable-com-mirror).";
+      statusNode.textContent = "Serial bridge API unavailable.";
 
       return;
 

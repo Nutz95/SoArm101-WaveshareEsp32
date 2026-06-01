@@ -5,8 +5,7 @@ param(
   [string]$LeaderSerial = "",
   [int]$LeaderSerialBaud = 0,
   [string]$FollowerCom = "",
-  [switch]$UseWifiLeader,
-  [switch]$EnableComMirror
+  [switch]$UseWifiLeader
 )
 
 Set-StrictMode -Version Latest
@@ -35,10 +34,6 @@ if ($UseWifiLeader -or [string]::IsNullOrWhiteSpace($LeaderSerial)) {
   $argsList += @("--leader-host", $LeaderHost, "--leader-port", $LeaderPort)
 } else {
   $argsList += @("--leader-serial", $LeaderSerial, "--leader-serial-baud", $LeaderSerialBaud)
-}
-
-if ($EnableComMirror -and -not [string]::IsNullOrWhiteSpace($FollowerCom)) {
-  $argsList += @("--enable-com-mirror", "--follower-com", $FollowerCom)
 }
 
 Push-Location $scriptDir

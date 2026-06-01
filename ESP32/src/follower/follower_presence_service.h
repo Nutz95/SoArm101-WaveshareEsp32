@@ -48,10 +48,14 @@ public:
       bool debugManual,
       bool temperatureAlarm) override;
 
+  bool ensureEspNowTransportReady(uint8_t wifiChannel = 0U);
   bool consumeWifiDirectOffer(WifiDirectCredentials &credentials);
   bool consumeWifiDirectSessionEnd();
   bool sendWifiDirectAck(uint32_t sessionId, WifiDirectAckStatus status, const char *followerStaIp);
   void setDirectWifiSessionActive(bool active);
+  void setWifiDirectJoinSession(uint32_t sessionId);
+  void clearWifiDirectJoinSession();
+  bool isWifiDirectJoinSession(uint32_t sessionId) const;
 
 private:
   struct PendingServoControl {
@@ -143,6 +147,7 @@ private:
   bool directWifiSessionActive_{false};
   bool pendingWifiDirectSessionEnd_{false};
   uint32_t activeWifiDirectSessionId_{0U};
+  uint32_t wifiDirectJoinSessionId_{0U};
 };
 
 } // namespace soarm

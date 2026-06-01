@@ -27,7 +27,12 @@ public:
     bool isOtaInProgress()  const;
     const char *ipAddress() const;
 
+    // Leave Wi-Fi direct AP/STA and reconnect to the home router (for OTA / salon exit).
+    void restoreHomeStation();
+
 private:
+    void suspendHomeStation();
+
     const char *ssid_;
     const char *password_;
     const char *hostname_;

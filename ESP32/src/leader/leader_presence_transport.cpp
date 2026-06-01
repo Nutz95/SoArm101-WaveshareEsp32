@@ -11,6 +11,7 @@
 
 #include <WiFi.h>
 #include <esp_now.h>
+#include <esp_wifi.h>
 #include <cstring>
 
 namespace soarm {
@@ -141,14 +142,36 @@ bool LeaderPresenceService::addBroadcastPeer() {
   return addPeer(broadcastAddr);
 }
 
+bool LeaderPresenceService::ensureEspNowTransportReady(uint8_t wifiChannel) {
+  if (!started_) {
+    return false;
+  }
+  if (!ensureEspNowReady()) {
+    return false;
+  }
+  if (wifiChannel != 0U) {
+    esp_wifi_set_channel(wifiChannel, WIFI_SECOND_CHAN_NONE);
+  }
+  if (!addBroadcastPeer()) {
+    return false;
+  }
+  if (hasPairedMac_ && !addPeer(pairedFollowerMac_, wifiChannel)) {
+    return false;
+  }
+  return true;
+}
+
 bool LeaderPresenceService::sendWifiDirectOffer(const WifiDirectOfferPacket &packet) {
   if (!hasPairedMac_) {
     return false;
   }
 
+  if (!ensureEspNowTransportReady(packet.channel == 0U ? 1U : packet.channel)) {
+    return false;
+  }
+
   followerWifiDirectSessionId_ = packet.sessionId;
   followerWifiDirectIp_[0] = '\0';
-  addPeer(pairedFollowerMac_);
   const esp_err_t result =
       esp_now_send(pairedFollowerMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
   return result == ESP_OK;
@@ -159,10 +182,13 @@ bool LeaderPresenceService::sendWifiDirectSessionEnd() {
     return false;
   }
 
+  if (!ensureEspNowTransportReady()) {
+    return false;
+  }
+
   WifiDirectAckPacket packet{};
   buildWifiDirectAckPacket(
       followerWifiDirectSessionId_, WifiDirectAckStatus::SessionEnd, nullptr, packet);
-  addPeer(pairedFollowerMac_);
   const esp_err_t result =
       esp_now_send(pairedFollowerMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
   return result == ESP_OK;

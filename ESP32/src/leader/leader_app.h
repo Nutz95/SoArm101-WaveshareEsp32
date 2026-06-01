@@ -20,7 +20,6 @@
 #include "leader_wifi_direct_session.h"
 #include "leader_command_processor.h"
 #include "leader_teleop_mirror_task.h"
-#include "leader_teleop_pc_serial_bridge.h"
 #include "leader_servo_passthrough.h"
 #include "leader_xbox_controller_service.h"
 #include "../common/teleop/teleop_transport_mode.h"
@@ -128,6 +127,8 @@ private:
   void disengageCalibrationMode(bool restoreCapturedRange);
   void engageWifiDirectLink();
   void disengageWifiDirectLink();
+  void engageOtaMode();
+  void handleOtaButtons(bool confirmPressed, bool validatePressed);
   void nudgeFollowerLinkAfterCalibration();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
   void pollFollowerCalibrationCenterAck(uint32_t nowMs);
@@ -231,13 +232,13 @@ private:
   std::atomic<bool> calibrationEngaged_{false};
   std::atomic<bool> wifiDirectLinkEngaged_{false};
   std::atomic<bool> wifiDirectTeleopActive_{false};
+  std::atomic<bool> otaEngaged_{false};
   std::atomic<bool> followerCalibrationCenterPending_{false};
   uint16_t followerCalibrationCenterRequestId_{0U};
   uint32_t followerCalibrationCenterStartedMs_{0U};
   uint32_t calibrationCenterConfirmArmedAtMs_{0U};
   TeleopMirrorLatencyMetrics teleopMirrorLatencyMetrics_{};
   LeaderTeleopWifiBridge teleopWifiBridge_{};
-  LeaderTeleopPcSerialBridge teleopPcSerialBridge_{};
   LeaderServoPassthrough servoPassthrough_{};
   LeaderXboxControllerService xboxControllerService_{};
   uint16_t            teleopContinuousRequestCounter_{40000U};

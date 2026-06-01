@@ -106,13 +106,13 @@ Track progress here (no OpenSpec). Update this file and linked architecture docs
 
 ## Phase 5 — Remove obsolete modes & code
 
-- [ ] Remove `ControllerOperationProfile::TeleopPcSerial` and transport `PcSerialBridge`
-- [ ] Remove `telemetry_com_mirror.py`, COM mirror API routes, UI in `mode_view.js`
-- [ ] Remove leader/follower PC serial bridge classes
-- [ ] Remove dashboard Wi-Fi→COM mirror from `start_dashboard.ps1` flags
-- [ ] Shrink `controller_operation_profile` count; migrate Xbox cycle order
-- [ ] Grep cleanup: `PcSerial`, `com-mirror`, `kTelemetrySnapshotPcSerialMirrorPeriodMs`
-- [ ] Native tests / structural limits green
+- [x] Remove `ControllerOperationProfile::TeleopPcSerial` and transport `PcSerialBridge`
+- [x] Remove `telemetry_com_mirror.py`, COM mirror API routes, UI in `mode_view.js`
+- [x] Remove leader/follower PC serial bridge classes
+- [x] Remove dashboard Wi-Fi→COM mirror from `start_dashboard.ps1` flags
+- [x] Shrink `controller_operation_profile` count (`OtaReady` = 5); legacy id migration in `sanitizeControllerOperationProfile`
+- [x] Grep cleanup: `PcSerial`, `com-mirror`, `kTelemetrySnapshotPcSerialMirrorPeriodMs`
+- [x] Native tests / structural limits green (firmware build leader + follower)
 
 ---
 

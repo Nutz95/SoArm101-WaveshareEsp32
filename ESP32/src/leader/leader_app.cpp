@@ -150,7 +150,8 @@ void LeaderApp::tickCoreServices(uint32_t uptimeMs) {
   }
   presenceService_->setPairingWatchdogSuspended(
       calibrationEngaged_.load() || calibrationPhase_.load() != 0U ||
-      followerCalibrationCenterPending_.load() || wifiDirectLinkEngaged_.load());
+      followerCalibrationCenterPending_.load() || wifiDirectLinkEngaged_.load() ||
+      otaEngaged_.load());
   presenceService_->tick();
   telemetryStreamServer_.tick();
   usbDebugService_.tick();
@@ -187,15 +188,10 @@ void LeaderApp::tickControlState(uint32_t uptimeMs, bool passthroughActive) {
 
 void LeaderApp::tickTelemetrySnapshot(uint32_t uptimeMs, bool passthroughActive) {
   if (!passthroughActive) {
-    const bool pcSerialMirrorBench =
-        mode_ == OperationMode::Teleoperation &&
-        static_cast<TeleopTransportMode>(teleopTransportMode_.load()) == TeleopTransportMode::PcSerialBridge;
     const uint32_t snapshotPeriodMs =
-        pcSerialMirrorBench
-            ? config::leader::kTelemetrySnapshotPcSerialMirrorPeriodMs
-            : (mode_ == OperationMode::Teleoperation
-                   ? config::leader::kTelemetrySnapshotTeleopPeriodMs
-                   : config::leader::kTelemetrySnapshotIdlePeriodMs);
+        mode_ == OperationMode::Teleoperation
+            ? config::leader::kTelemetrySnapshotTeleopPeriodMs
+            : config::leader::kTelemetrySnapshotIdlePeriodMs;
     if ((uptimeMs - lastTelemetrySnapshotMs_) >= snapshotPeriodMs) {
       lastTelemetrySnapshotMs_ = uptimeMs;
       LeaderTelemetrySnapshot snapshot{};

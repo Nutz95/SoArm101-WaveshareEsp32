@@ -11,7 +11,6 @@ using teleop_transport_set::kCalibrationFollower;
 using teleop_transport_set::kCalibrationLeader;
 using teleop_transport_set::kEspNow;
 using teleop_transport_set::kPassthrough;
-using teleop_transport_set::kPcSerial;
 using teleop_transport_set::kWifiUdp;
 
 bool LeaderApp::handleTeleopTransportValueCommand() {
@@ -57,14 +56,6 @@ void LeaderApp::handleTeleopTransportCommand(uint32_t value, uint16_t requestId)
     setLeaderCommandStatus(CommandAckStatus::Applied);
     setFollowerCommandStatus(CommandAckStatus::None);
     setTransientStatus("passthrough active", config::leader::kMoveStatusHoldMs);
-    return;
-  }
-
-  if (value == kPcSerial) {
-    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopPcSerial));
-    setLeaderCommandStatus(CommandAckStatus::Applied);
-    setFollowerCommandStatus(CommandAckStatus::None);
-    setTransientStatus("pc serial: start COM bridge", config::leader::kMoveStatusHoldMs);
     return;
   }
 

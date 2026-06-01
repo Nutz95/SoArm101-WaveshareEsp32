@@ -9,8 +9,19 @@ from typing import Optional
 
 try:
     import serial
+    from serial.tools import list_ports
 except ImportError:  # pragma: no cover
     serial = None  # type: ignore
+    list_ports = None  # type: ignore
+
+
+def list_serial_ports() -> list[dict[str, str]]:
+    if list_ports is None:
+        return []
+    return [
+        {"device": port.device, "description": port.description or ""}
+        for port in list_ports.comports()
+    ]
 
 from teleop_batch_codec import TELEOP_BATCH_PACKET_SIZE, drain_teleop_packets
 

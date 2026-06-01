@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include "../common/calibration/calibration_profile_utils.h"
+#include "../common/types/operation_mode.h"
 #include "../common/servo/servo_position_snapshot.h"
 #include "../common/teleop/teleop_follower_endpoint.h"
 #include "../common/teleop/teleop_packet_flags.h"
@@ -28,10 +29,6 @@ bool canMirrorNow(
   const bool active = continuousEnabled.load();
   const OperationMode mode = static_cast<OperationMode>(runtimeMode.load());
   const TeleopTransportMode transport = static_cast<TeleopTransportMode>(transportMode.load());
-
-  if (transport == TeleopTransportMode::PcSerialBridge) {
-    return active && mode == OperationMode::Teleoperation;
-  }
 
   if (!(active && mode == OperationMode::Teleoperation)) {
     return false;
@@ -133,7 +130,6 @@ uint8_t buildMirrorBatchFromSnapshot(
 
 void sendBatch(ILeaderPresenceService &presenceService,
                LeaderTeleopWifiBridge &teleopWifiBridge,
-               LeaderTeleopPcSerialBridge &teleopPcSerialBridge,
                uint8_t count,
                TeleopMirrorState &state,
                uint16_t &requestCounter,
@@ -152,14 +148,6 @@ void sendBatch(ILeaderPresenceService &presenceService,
   if (transportMode == TeleopTransportMode::WifiUdp) {
     sent = teleopWifiBridge.sendBatch(
         presenceService.followerIp(),
-        state.batchIds,
-        state.batchPositions,
-        count,
-        speedPercent,
-        requestCounter,
-        wifiFlags);
-  } else if (transportMode == TeleopTransportMode::PcSerialBridge) {
-    sent = teleopPcSerialBridge.sendBatch(
         state.batchIds,
         state.batchPositions,
         count,
@@ -185,9 +173,6 @@ void sendBatch(ILeaderPresenceService &presenceService,
   if (transportMode == TeleopTransportMode::WifiUdp && !wifiRequireAck) {
     return;
   }
-  if (transportMode == TeleopTransportMode::PcSerialBridge) {
-    return;
-  }
 
   registerPendingBatch(state, requestCounter, nowMs);
   latencyMetrics.pendingCount.store(countPendingBatches(state));
@@ -209,7 +194,6 @@ bool canSendNowForTransport(
 void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
                                      ILeaderPresenceService &presenceService,
                                      LeaderTeleopWifiBridge &teleopWifiBridge,
-                                     LeaderTeleopPcSerialBridge &teleopPcSerialBridge,
                                      const CalibrationProfile &leaderCalibrationProfile,
                                      const CalibrationProfile &followerCalibrationProfile,
                                      const std::atomic<bool> &continuousEnabled,
@@ -229,8 +213,7 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
     if (selectedMode == TeleopTransportMode::WifiUdp && wifiRequireAck) {
       processWifiBatchAck(state, teleopWifiBridge, latencyMetrics, nowMs);
       expireOldPendingBatches(state, nowMs, latencyMetrics);
-    } else if (selectedMode != TeleopTransportMode::WifiUdp &&
-               selectedMode != TeleopTransportMode::PcSerialBridge) {
+    } else if (selectedMode != TeleopTransportMode::WifiUdp) {
       processFollowerBatchAck(state, presenceService, latencyMetrics, nowMs);
       expireOldPendingBatches(state, nowMs, latencyMetrics);
     }
@@ -250,8 +233,7 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
     }
 
     const int16_t minPositionDelta =
-        (selectedMode == TeleopTransportMode::WifiUdp ||
-         selectedMode == TeleopTransportMode::PcSerialBridge)
+        selectedMode == TeleopTransportMode::WifiUdp
             ? config::leader::kTeleopMirrorMinPositionDeltaWifi
             : config::leader::kTeleopMirrorMinPositionDelta;
     const uint8_t batchCount = buildMirrorBatchFromSnapshot(
@@ -265,7 +247,6 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
       sendBatch(
           presenceService,
           teleopWifiBridge,
-          teleopPcSerialBridge,
           batchCount,
           state,
           requestCounter,
@@ -277,8 +258,7 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
     }
 
     const uint32_t activeDelayMs =
-        (selectedMode == TeleopTransportMode::WifiUdp ||
-         selectedMode == TeleopTransportMode::PcSerialBridge)
+        selectedMode == TeleopTransportMode::WifiUdp
             ? config::leader::kTeleopMirrorTaskWifiActiveDelayMs
             : config::leader::kTeleopMirrorTaskActiveDelayMs;
     vTaskDelay(pdMS_TO_TICKS(activeDelayMs));

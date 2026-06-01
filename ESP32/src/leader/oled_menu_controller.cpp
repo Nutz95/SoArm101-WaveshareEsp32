@@ -118,6 +118,14 @@ void OledMenuController::showCalibration(CalibrationOledScreen screen,
   }
 }
 
+void OledMenuController::showOtaAwaitEnter(const char *routerIp) {
+  presenter_.showOtaAwaitEnter(routerIp);
+}
+
+void OledMenuController::showOtaActive(const char *routerIp) {
+  presenter_.showOtaActive(routerIp);
+}
+
 void OledMenuController::showWifiDirectAwaitEnter(const char *leaderRouterIp, const char *followerRouterIp) {
   presenter_.showWifiDirectAwaitEnter(leaderRouterIp, followerRouterIp);
 }

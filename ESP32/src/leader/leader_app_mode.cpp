@@ -44,8 +44,10 @@ bool LeaderApp::applyOtaModeAndStatus(ControllerOperationProfile profile) {
   }
 
   mode_ = OperationMode::Idle;
-  if (wifiOta_.isConnected()) {
-    strncpy(statusLine_, "OTA ready", sizeof(statusLine_) - 1);
+  if (!otaEngaged_.load()) {
+    strncpy(statusLine_, "OTA? press A", sizeof(statusLine_) - 1);
+  } else if (wifiOta_.isConnected()) {
+    strncpy(statusLine_, "OTA active: flash", sizeof(statusLine_) - 1);
   } else if (wifiOta_.isStaConnectDesired()) {
     strncpy(statusLine_, "OTA: wifi connect", sizeof(statusLine_) - 1);
   } else {
@@ -79,7 +81,10 @@ bool LeaderApp::applyHeldCommandModeAndStatus(
     return false;
   }
 
-  if (profile == ControllerOperationProfile::TeleopWifi && !wifiDirectLinkEngaged_.load()) {
+  if (profile == ControllerOperationProfile::OtaReady && !otaEngaged_.load()) {
+    mode_ = OperationMode::Idle;
+    strncpy(statusLine_, "OTA? press A", sizeof(statusLine_) - 1);
+  } else if (profile == ControllerOperationProfile::TeleopWifi && !wifiDirectLinkEngaged_.load()) {
     mode_ = OperationMode::Idle;
     setWifiDirectPreviewStatus();
   } else if (calibrationProfileSelected && !calibrationEngaged_.load()) {
@@ -159,12 +164,7 @@ void LeaderApp::applyRuntimeModeAndStatus(
     strncpy(statusLine_, "calibration required", sizeof(statusLine_) - 1);
   } else if (!localInputs_.espNowLinked) {
     mode_ = OperationMode::Idle;
-    if (sanitizeControllerOperationProfile(controllerOperationProfile_.load()) ==
-            ControllerOperationProfile::TeleopPcSerial &&
-        teleopContinuousEnabled_.load()) {
-      mode_ = OperationMode::Teleoperation;
-      strncpy(statusLine_, "pc serial: COM bridge", sizeof(statusLine_) - 1);
-    } else if (presenceService_->isFollowerAvailable()) {
+    if (presenceService_->isFollowerAvailable()) {
       strncpy(statusLine_, "follower link stale", sizeof(statusLine_) - 1);
     } else if (presenceService_->followerIp()[0] != '\0' && !followerIpValid) {
       strncpy(statusLine_, "follower wifi down", sizeof(statusLine_) - 1);
@@ -173,12 +173,7 @@ void LeaderApp::applyRuntimeModeAndStatus(
     }
   } else {
     mode_ = OperationMode::Teleoperation;
-    if (sanitizeControllerOperationProfile(controllerOperationProfile_.load()) ==
-        ControllerOperationProfile::TeleopPcSerial) {
-      strncpy(statusLine_, "pc serial: COM bridge", sizeof(statusLine_) - 1);
-    } else {
-      strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
-    }
+    strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
   }
 }
 

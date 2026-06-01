@@ -121,8 +121,6 @@ void FollowerApp::begin() {
     Serial.println("[WARN] Teleop Wi-Fi UDP listener init failed on follower");
   }
 
-  teleopPcSerialBridge_.attach(Serial);
-
   startBackgroundTasks();
   publishServoTelemetry();
 }

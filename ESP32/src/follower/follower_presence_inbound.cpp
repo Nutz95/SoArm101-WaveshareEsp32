@@ -12,6 +12,7 @@
 
 #include <Arduino.h>
 #include <esp_now.h>
+#include <esp_wifi.h>
 #include <cstring>
 
 namespace soarm {
@@ -215,6 +216,15 @@ void FollowerPresenceService::handleWifiDirectOfferMessage(
   if (!validateWifiDirectOfferPacket(packet, credentials)) {
     return;
   }
+  if (directWifiSessionActive_ && activeWifiDirectSessionId_ == credentials.sessionId) {
+    return;
+  }
+  if (isWifiDirectJoinSession(credentials.sessionId)) {
+    return;
+  }
+  if (pendingWifiDirectOfferPending_ && pendingWifiDirectCredentials_.sessionId == credentials.sessionId) {
+    return;
+  }
   pendingWifiDirectOfferPending_ = true;
   pendingWifiDirectCredentials_ = credentials;
   activeWifiDirectSessionId_ = credentials.sessionId;
@@ -232,6 +242,25 @@ bool FollowerPresenceService::consumeWifiDirectOffer(WifiDirectCredentials &cred
   return true;
 }
 
+bool FollowerPresenceService::ensureEspNowTransportReady(uint8_t wifiChannel) {
+  if (!started_) {
+    return false;
+  }
+  if (!ensureEspNowReady()) {
+    return false;
+  }
+  if (wifiChannel != 0U) {
+    esp_wifi_set_channel(wifiChannel, WIFI_SECOND_CHAN_NONE);
+  }
+  if (!addBroadcastPeer()) {
+    return false;
+  }
+  if (hasPairedLeaderMac_ && !EspNowPresenceBase::addPeer(pairedLeaderMac_, wifiChannel)) {
+    return false;
+  }
+  return true;
+}
+
 bool FollowerPresenceService::sendWifiDirectAck(
     uint32_t sessionId,
     WifiDirectAckStatus status,
@@ -242,7 +271,7 @@ bool FollowerPresenceService::sendWifiDirectAck(
 
   WifiDirectAckPacket packet{};
   buildWifiDirectAckPacket(sessionId, status, followerStaIp, packet);
-  addPeer(pairedLeaderMac_);
+  EspNowPresenceBase::addPeer(pairedLeaderMac_);
   return esp_now_send(
              pairedLeaderMac_,
              reinterpret_cast<const uint8_t *>(&packet),

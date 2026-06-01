@@ -4,29 +4,82 @@
 #include "../common/controller/controller_operation_profile.h"
 #include "leader_presence_service.h"
 
+#include <WiFi.h>
+
 namespace soarm {
+
+namespace {
+
+bool shouldKeepHomeStaConnected(ControllerOperationProfile profile, bool otaEngaged) {
+  if (profile == ControllerOperationProfile::OtaReady && otaEngaged) {
+    return true;
+  }
+  if (profile == ControllerOperationProfile::TeleopEspNow ||
+      profile == ControllerOperationProfile::TeleopWifi) {
+    return false;
+  }
+  return WiFi.status() == WL_CONNECTED;
+}
+
+} // namespace
 
 void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile) {
   auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
   const bool linkEngaged = wifiDirectLinkEngaged_.load();
 
+  if (profile == ControllerOperationProfile::OtaReady) {
+    if (linkEngaged || wifiDirectSession_.isActive()) {
+      disengageWifiDirectLink();
+    }
+    teleopContinuousEnabled_.store(false);
+    wifiOta_.setStaConnectDesired(true);
+    if (otaEngaged_.load()) {
+      wifiOta_.restoreHomeStation();
+    }
+    const bool pauseDashboardTcp = (profile == ControllerOperationProfile::TeleopEspNow);
+    telemetryStreamServer_.setListeningEnabled(!pauseDashboardTcp);
+    return;
+  }
+
   if (linkEngaged && presence != nullptr) {
     wifiDirectSession_.tick(*presence, wifiDirectRadio_, millis());
     wifiOta_.setStaConnectDesired(false);
+    (void)presence->ensureEspNowTransportReady();
   } else {
     if (wifiDirectSession_.isActive()) {
       wifiDirectSession_.end(wifiDirectRadio_, true);
     }
-    wifiOta_.setStaConnectDesired(true);
-  }
-
-  if (profile == ControllerOperationProfile::OtaReady) {
-    wifiOta_.setStaConnectDesired(true);
+    const bool keepHomeSta = shouldKeepHomeStaConnected(profile, otaEngaged_.load());
+    wifiOta_.setStaConnectDesired(keepHomeSta);
+    if (!keepHomeSta && presence != nullptr) {
+      (void)presence->ensureEspNowTransportReady();
+    }
   }
 
   // Phase 3: pause :9090 TCP during ESP-NOW teleop; USB CDC debug stays active.
   const bool pauseDashboardTcp = (profile == ControllerOperationProfile::TeleopEspNow);
   telemetryStreamServer_.setListeningEnabled(!pauseDashboardTcp);
+}
+
+void LeaderApp::engageOtaMode() {
+  const ControllerOperationProfile profile =
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+  if (profile != ControllerOperationProfile::OtaReady || otaEngaged_.load()) {
+    return;
+  }
+
+  disengageWifiDirectLink();
+  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
+    (void)presence->ensureEspNowTransportReady();
+  }
+  otaEngaged_.store(true);
+  teleopContinuousEnabled_.store(false);
+  wifiDirectTeleopActive_.store(false);
+  xboxControllerService_.discardPendingButtonPress(XboxLogicalButton::A);
+  wifiOta_.restoreHomeStation();
+  syncWifiRadioPolicyForProfile(profile);
+  lastOledRefreshMs_ = 0U;
+  setTransientStatus("OTA active: flash now", config::leader::kMoveStatusHoldMs);
 }
 
 void LeaderApp::engageWifiDirectLink() {
@@ -69,9 +122,32 @@ void LeaderApp::disengageWifiDirectLink() {
 
   const ControllerOperationProfile profile =
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+  wifiOta_.restoreHomeStation();
+  if (presence != nullptr) {
+    (void)presence->ensureEspNowTransportReady();
+  }
   syncWifiRadioPolicyForProfile(profile);
   lastOledRefreshMs_ = 0U;
   setTransientStatus("wifi direct: router STA", config::leader::kMoveStatusHoldMs);
+}
+
+void LeaderApp::handleOtaButtons(bool confirmPressed, bool validatePressed) {
+  if (!otaEngaged_.load()) {
+    if (confirmPressed) {
+      engageOtaMode();
+    }
+    if (validatePressed) {
+      applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
+      setTransientStatus("OTA skipped", config::leader::kMoveStatusHoldMs);
+    }
+    return;
+  }
+
+  if (validatePressed) {
+    otaEngaged_.store(false);
+    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
+    setTransientStatus("OTA done", config::leader::kMoveStatusHoldMs);
+  }
 }
 
 void LeaderApp::handleTeleopWifiButtons(bool confirmPressed, bool validatePressed) {

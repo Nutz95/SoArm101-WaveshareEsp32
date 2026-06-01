@@ -25,9 +25,8 @@ public:
 
 private:
   static bool ingestLatestWifi(FollowerApp &app, TeleopFrame &out);
-  static bool ingestLatestPcSerial(FollowerApp &app, TeleopFrame &out);
   static bool ingestLatestEspNow(FollowerApp &app, TeleopFrame &out);
-  static const TeleopFrame *selectFrame(const TeleopFrame &pc, const TeleopFrame &wifi, const TeleopFrame &espNow);
+  static const TeleopFrame *selectFrame(const TeleopFrame &wifi, const TeleopFrame &espNow);
 };
 
 } // namespace soarm

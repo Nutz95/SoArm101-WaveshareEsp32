@@ -74,7 +74,21 @@ void FollowerPresenceService::setDirectWifiSessionActive(bool active) {
   if (!active) {
     pendingWifiDirectSessionEnd_ = false;
     activeWifiDirectSessionId_ = 0U;
+    wifiDirectJoinSessionId_ = 0U;
   }
+}
+
+void FollowerPresenceService::setWifiDirectJoinSession(uint32_t sessionId) {
+  wifiDirectJoinSessionId_ = sessionId;
+  activeWifiDirectSessionId_ = sessionId;
+}
+
+void FollowerPresenceService::clearWifiDirectJoinSession() {
+  wifiDirectJoinSessionId_ = 0U;
+}
+
+bool FollowerPresenceService::isWifiDirectJoinSession(uint32_t sessionId) const {
+  return wifiDirectJoinSessionId_ != 0U && wifiDirectJoinSessionId_ == sessionId;
 }
 
 bool FollowerPresenceService::consumeWifiDirectSessionEnd() {
@@ -89,6 +103,12 @@ bool FollowerPresenceService::consumeWifiDirectSessionEnd() {
 
 void FollowerPresenceService::tick(const char *localIp) {
   if (!started_) {
+    return;
+  }
+
+  // Wi-Fi mode transitions can deinit ESP-NOW on ESP32. Keep transport alive
+  // so pairing/presence never silently dies when router is unavailable.
+  if (!ensureEspNowTransportReady()) {
     return;
   }
 

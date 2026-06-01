@@ -29,6 +29,9 @@ void FollowerPresenceService::sendCommandAck(uint16_t requestId, uint8_t op, uin
   if (!hasPairedLeaderMac_) {
     return;
   }
+  if (!ensureEspNowTransportReady()) {
+    return;
+  }
 
   PresencePacket packet{};
   packet.magic = kPresenceMagic;
@@ -52,6 +55,10 @@ void FollowerPresenceService::sendCommandAck(uint16_t requestId, uint8_t op, uin
 }
 
 void FollowerPresenceService::sendPairRequest(const char *localIp) {
+  if (!ensureEspNowTransportReady()) {
+    return;
+  }
+
   PresencePacket packet{};
   packet.magic = kPresenceMagic;
   packet.version = kPresenceVersion;
@@ -75,6 +82,10 @@ void FollowerPresenceService::sendPairRequest(const char *localIp) {
 }
 
 void FollowerPresenceService::sendPresence(const char *localIp) {
+  if (!ensureEspNowTransportReady()) {
+    return;
+  }
+
   PresencePacket packet{};
   packet.magic = kPresenceMagic;
   packet.version = kPresenceVersion;
@@ -110,6 +121,10 @@ void FollowerPresenceService::sendPresence(const char *localIp) {
 }
 
 void FollowerPresenceService::sendLinkHeartbeat(const char *localIp) {
+  if (!ensureEspNowTransportReady()) {
+    return;
+  }
+
   LinkHeartbeatPacket packet{};
   packet.magic = kPresenceMagic;
   packet.version = kPresenceVersion;

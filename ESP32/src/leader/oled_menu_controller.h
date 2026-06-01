@@ -26,6 +26,8 @@ public:
   void showWifiDirectAwaitEnter(const char *leaderRouterIp, const char *followerRouterIp);
   void showWifiDirectWaitingFollower(const char *leaderApIp);
   void showWifiDirectAwaitStart(const char *leaderApIp, const char *followerApIp);
+  void showOtaAwaitEnter(const char *routerIp);
+  void showOtaActive(const char *routerIp);
 
 private:
   OledPresenter &presenter_;

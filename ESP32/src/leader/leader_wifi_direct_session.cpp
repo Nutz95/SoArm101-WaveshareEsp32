@@ -5,6 +5,7 @@
 #include "leader_presence_service.h"
 
 #include <Arduino.h>
+#include <WiFi.h>
 #include <cstring>
 
 namespace soarm {
@@ -23,6 +24,14 @@ void LeaderWifiDirectSession::begin(LeaderPresenceService &presence, WifiDirectR
   if (!generateWifiDirectCredentials(activeSessionId_, credentials_)) {
     USB_DEBUG_LOGLN("[WIFI-DIRECT] credential generation failed");
     return;
+  }
+
+  // Keep AP and ESP-NOW offer on the current radio channel when known.
+  // - With router: avoids "peer channel != home channel" send failures.
+  // - Without router: preserves the current ESP-NOW pairing channel instead of forcing ch1.
+  const uint8_t currentChannel = WiFi.channel();
+  if (currentChannel != 0U) {
+    credentials_.channel = currentChannel;
   }
 
   if (!radio.beginAccessPoint(credentials_.ssid, credentials_.psk, credentials_.channel)) {

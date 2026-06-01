@@ -71,8 +71,9 @@ void WifiOtaService::setStaConnectDesired(bool desired) {
 
   staConnectDesired_ = desired;
 
-  // Do NOT call WiFi.disconnect() here: it crashes ESP32 when ESP-NOW + NimBLE are active.
-  if (desired && ssid_ != nullptr && ssid_[0] != '\0') {
+  if (!desired) {
+    suspendHomeStation();
+  } else if (ssid_ != nullptr && ssid_[0] != '\0') {
     if (WiFi.getMode() != WIFI_STA) {
       WiFi.mode(WIFI_STA);
     }
@@ -122,6 +123,43 @@ bool WifiOtaService::isOtaInProgress() const {
 
 const char *WifiOtaService::ipAddress() const {
   return ipBuf_;
+}
+
+void WifiOtaService::suspendHomeStation() {
+  if (otaInProgress_) {
+    return;
+  }
+
+  WiFi.disconnect(false, false);
+  if (wasConnected_) {
+    wasConnected_ = false;
+    if (callbacks_.onWifiDisconnected) {
+      callbacks_.onWifiDisconnected();
+    }
+  }
+  ipBuf_[0] = '\0';
+  USB_DEBUG_LOGLN("[WiFi] home STA suspended");
+}
+
+void WifiOtaService::restoreHomeStation() {
+  WiFi.softAPdisconnect(true);
+  // Do not call WiFi.disconnect(true, true): deinits ESP-NOW and can panic with NimBLE.
+  WiFi.mode(WIFI_STA);
+#if defined(LEADER_ENABLE_XBOX_BLE) && LEADER_ENABLE_XBOX_BLE
+  WiFi.setSleep(true);
+#else
+  WiFi.setSleep(false);
+#endif
+  wasConnected_ = false;
+  ipBuf_[0] = '\0';
+
+  staConnectDesired_ = true;
+  if (ssid_ != nullptr && ssid_[0] != '\0') {
+    WiFi.begin(ssid_, password_);
+    USB_DEBUG_LOGLN("[WiFi] restoring home STA for OTA");
+  } else {
+    USB_DEBUG_LOGLN("[WiFi] home SSID not configured");
+  }
 }
 
 } // namespace soarm

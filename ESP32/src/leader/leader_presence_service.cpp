@@ -91,9 +91,10 @@ void LeaderPresenceService::tick() {
 }
 
 bool LeaderPresenceService::isFollowerLinked() const {
-  if (!hasPairedMac_ || !hasValidFollowerIp()) {
+  if (!hasPairedMac_) {
     return false;
   }
+  // ESP-NOW link liveness must not depend on router IP (salon / no-home-WiFi).
   return linkHeartbeat_.isPeerAlive(millis(), link::kPeerAliveTimeoutMs);
 }
 

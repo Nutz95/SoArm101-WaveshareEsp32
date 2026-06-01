@@ -9,7 +9,6 @@
 #include "../common/wifi_ota_service.h"
 #include "../common/servo/servo_bus_service.h"
 #include "follower_teleop_wifi_bridge.h"
-#include "follower_teleop_pc_serial_bridge.h"
 #include "follower_wifi_direct_link.h"
 
 #include <memory>
@@ -74,7 +73,6 @@ private:
   WifiDirectRadioService wifiDirectRadio_;
   ServoBusService     servoBusService_;
   FollowerTeleopWifiBridge teleopWifiBridge_;
-  FollowerTeleopPcSerialBridge teleopPcSerialBridge_;
   std::unique_ptr<IFollowerPresenceService> presenceService_;
   FollowerWifiDirectLink followerWifiDirectLink_{};
   ArmStateInputs      localInputs_;

@@ -23,6 +23,15 @@ void LeaderApp::refreshOled(uint32_t uptimeMs) {
   const ControllerOperationProfile profile =
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());
 
+  if (profile == ControllerOperationProfile::OtaReady) {
+    if (!otaEngaged_.load()) {
+      oledMenu_.showOtaAwaitEnter(wifiOta_.ipAddress());
+    } else {
+      oledMenu_.showOtaActive(wifiOta_.ipAddress());
+    }
+    return;
+  }
+
   if (profile == ControllerOperationProfile::TeleopWifi) {
     if (!wifiDirectLinkEngaged_.load()) {
       oledMenu_.showWifiDirectAwaitEnter(wifiOta_.ipAddress(), followerIpHint_);

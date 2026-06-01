@@ -20,9 +20,6 @@ const char *modeLabel(OperationMode mode, TeleopTransportMode transportMode) {
             if (transportMode == TeleopTransportMode::WifiUdp) {
                 return "TELEOP WIFI";
             }
-            if (transportMode == TeleopTransportMode::PcSerialBridge) {
-                return "TELEOP PC COM";
-            }
             return "TELEOP ESPNOW";
         case OperationMode::Passthrough:
             return "PASSTHROUGH";
@@ -160,6 +157,22 @@ void OledPresenter::showOtaProgress(uint8_t progressPercent) {
     display_->print(progressPercent);
     display_->println("%");
     display_->display();
+}
+
+void OledPresenter::showOtaAwaitEnter(const char *routerIp) {
+    char l2[24] = "L:?";
+    if (routerIp != nullptr && routerIp[0] != '\0') {
+        snprintf(l2, sizeof(l2), "L:%s", routerIp);
+    }
+    printLines("OTA UPDATE", l2, "router WiFi", "Enter? (A)");
+}
+
+void OledPresenter::showOtaActive(const char *routerIp) {
+    char l2[24] = "L:?";
+    if (routerIp != nullptr && routerIp[0] != '\0') {
+        snprintf(l2, sizeof(l2), "L:%s", routerIp);
+    }
+    printLines("OTA ACTIVE", l2, "pio *-ota upload", "B: done");
 }
 
 void OledPresenter::showWifiDirectAwaitEnter(const char *leaderRouterIp, const char *followerRouterIp) {

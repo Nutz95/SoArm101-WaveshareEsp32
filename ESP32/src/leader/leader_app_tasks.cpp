@@ -59,7 +59,6 @@ void LeaderApp::teleopMirrorTaskEntry(void *context) {
         app->servoBusService_,
         *app->presenceService_,
         app->teleopWifiBridge_,
-        app->teleopPcSerialBridge_,
         app->leaderCalibrationProfile_,
         app->followerCalibrationProfile_,
         app->teleopContinuousEnabled_,
