@@ -18,59 +18,99 @@ void LeaderApp::computeModeAndStatus() {
       profile == ControllerOperationProfile::CalibrationFollower;
   const bool calibrationProfileActive = calibrationProfileSelected && calibrationEngaged_.load();
 
-  if (profile == ControllerOperationProfile::OtaReady) {
+  if (applyOtaModeAndStatus(profile)) {
+    return;
+  }
+
+  if (applyPassthroughModeAndStatus(profile)) {
+    return;
+  }
+
+  if (applyHeldCommandModeAndStatus(profile, calibrationProfileSelected, calibrationProfileActive)) {
+    return;
+  }
+
+  if (applyServoFaultModeAndStatus()) {
+    return;
+  }
+
+  applyRuntimeModeAndStatus(profile, followerIpValid, rangeCaptureActive, calibrationProfileSelected);
+  statusLine_[sizeof(statusLine_) - 1] = '\0';
+}
+
+bool LeaderApp::applyOtaModeAndStatus(ControllerOperationProfile profile) {
+  if (profile != ControllerOperationProfile::OtaReady) {
+    return false;
+  }
+
+  mode_ = OperationMode::Idle;
+  if (wifiOta_.isConnected()) {
+    strncpy(statusLine_, "OTA ready", sizeof(statusLine_) - 1);
+  } else if (wifiOta_.isStaConnectDesired()) {
+    strncpy(statusLine_, "OTA: wifi connect", sizeof(statusLine_) - 1);
+  } else {
+    strncpy(statusLine_, "OTA: wifi off", sizeof(statusLine_) - 1);
+  }
+  statusLine_[sizeof(statusLine_) - 1] = '\0';
+  return true;
+}
+
+bool LeaderApp::applyPassthroughModeAndStatus(ControllerOperationProfile profile) {
+  if (profile != ControllerOperationProfile::Passthrough) {
+    return false;
+  }
+
+  if (passthroughEngaged_.load()) {
+    mode_ = OperationMode::Passthrough;
+    strncpy(statusLine_, "passthrough usb 1M", sizeof(statusLine_) - 1);
+  } else {
     mode_ = OperationMode::Idle;
-    if (wifiOta_.isConnected()) {
-      strncpy(statusLine_, "OTA ready", sizeof(statusLine_) - 1);
-    } else if (wifiOta_.isStaConnectDesired()) {
-      strncpy(statusLine_, "OTA: wifi connect", sizeof(statusLine_) - 1);
-    } else {
-      strncpy(statusLine_, "OTA: wifi off", sizeof(statusLine_) - 1);
-    }
-    statusLine_[sizeof(statusLine_) - 1] = '\0';
-    return;
+    strncpy(statusLine_, "passthrough? press A", sizeof(statusLine_) - 1);
+  }
+  statusLine_[sizeof(statusLine_) - 1] = '\0';
+  return true;
+}
+
+bool LeaderApp::applyHeldCommandModeAndStatus(
+    ControllerOperationProfile profile,
+    bool calibrationProfileSelected,
+    bool calibrationProfileActive) {
+  if (millis() >= commandStatusHoldUntilMs_) {
+    return false;
   }
 
-  if (profile == ControllerOperationProfile::Passthrough) {
-    if (passthroughEngaged_.load()) {
-      mode_ = OperationMode::Passthrough;
-      strncpy(statusLine_, "passthrough usb 1M", sizeof(statusLine_) - 1);
-    } else {
-      mode_ = OperationMode::Idle;
-      strncpy(statusLine_, "passthrough? press A", sizeof(statusLine_) - 1);
-    }
-    statusLine_[sizeof(statusLine_) - 1] = '\0';
-    return;
-  }
-
-  if (millis() < commandStatusHoldUntilMs_) {
-    if (calibrationProfileSelected && !calibrationEngaged_.load()) {
-      mode_ = OperationMode::Idle;
-      strncpy(
-          statusLine_,
-          profile == ControllerOperationProfile::CalibrationFollower ? "cal follower? press A"
-                                                                     : "cal leader? press A",
-          sizeof(statusLine_) - 1);
-    } else if (calibrationProfileActive || !localInputs_.calibrationDone) {
-      mode_ = OperationMode::CalibrationLeader;
-    } else {
-      mode_ = localInputs_.espNowLinked ? OperationMode::Teleoperation : OperationMode::Idle;
-    }
-    return;
-  }
-
-  if (leaderServoFault_ || followerServoFault_) {
+  if (calibrationProfileSelected && !calibrationEngaged_.load()) {
+    mode_ = OperationMode::Idle;
+    setCalibrationPreviewStatus(profile);
+  } else if (calibrationProfileActive || !localInputs_.calibrationDone) {
+    mode_ = OperationMode::CalibrationLeader;
+  } else {
     mode_ = localInputs_.espNowLinked ? OperationMode::Teleoperation : OperationMode::Idle;
-    snprintf(
-        statusLine_,
-        sizeof(statusLine_),
-        "servo cnt L%u F%u",
-        static_cast<unsigned>(servoBusService_.lastScanCount()),
-        static_cast<unsigned>(presenceService_->followerServoCount()));
-    statusLine_[sizeof(statusLine_) - 1] = '\0';
-    return;
+  }
+  return true;
+}
+
+bool LeaderApp::applyServoFaultModeAndStatus() {
+  if (!leaderServoFault_ && !followerServoFault_) {
+    return false;
   }
 
+  mode_ = localInputs_.espNowLinked ? OperationMode::Teleoperation : OperationMode::Idle;
+  snprintf(
+      statusLine_,
+      sizeof(statusLine_),
+      "servo cnt L%u F%u",
+      static_cast<unsigned>(servoBusService_.lastScanCount()),
+      static_cast<unsigned>(presenceService_->followerServoCount()));
+  statusLine_[sizeof(statusLine_) - 1] = '\0';
+  return true;
+}
+
+void LeaderApp::applyRuntimeModeAndStatus(
+    ControllerOperationProfile profile,
+    bool followerIpValid,
+    bool rangeCaptureActive,
+    bool calibrationProfileSelected) {
   if (!localInputs_.joystickPaired) {
     mode_ = OperationMode::Idle;
     strncpy(statusLine_, "pair joystick", sizeof(statusLine_) - 1);
@@ -94,11 +134,7 @@ void LeaderApp::computeModeAndStatus() {
     }
   } else if (calibrationProfileSelected && !calibrationEngaged_.load()) {
     mode_ = OperationMode::Idle;
-    strncpy(
-        statusLine_,
-        profile == ControllerOperationProfile::CalibrationFollower ? "cal follower? press A"
-                                                                   : "cal leader? press A",
-        sizeof(statusLine_) - 1);
+    setCalibrationPreviewStatus(profile);
   } else if (profile == ControllerOperationProfile::CalibrationLeader && calibrationEngaged_.load()) {
     mode_ = OperationMode::CalibrationLeader;
     strncpy(
@@ -131,6 +167,13 @@ void LeaderApp::computeModeAndStatus() {
       strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
     }
   }
+}
+
+void LeaderApp::setCalibrationPreviewStatus(ControllerOperationProfile profile) {
+  const char *status = profile == ControllerOperationProfile::CalibrationFollower
+                           ? "cal follower? press A"
+                           : "cal leader? press A";
+  strncpy(statusLine_, status, sizeof(statusLine_) - 1);
   statusLine_[sizeof(statusLine_) - 1] = '\0';
 }
 

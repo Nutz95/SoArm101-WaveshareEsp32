@@ -203,68 +203,88 @@ bool LeaderApp::handleTeleopCalibrationCaptureValueCommand() {
 
 void LeaderApp::handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t requestId) {
   if (!calibrationEngaged_.load()) {
-    setLeaderCommandStatus(CommandAckStatus::Rejected);
-    setFollowerCommandStatus(CommandAckStatus::Rejected);
-    setTransientStatus("calibration not started", config::leader::kMoveStatusHoldMs);
+    rejectCalibrationCommandNotStarted();
     return;
   }
 
   if (value == kCalibrationConfirmCenter) {
-    if (calibrationPhase_.load() != 0U || followerCalibrationCenterPending_.load()) {
-      setLeaderCommandStatus(CommandAckStatus::Rejected);
-      setFollowerCommandStatus(CommandAckStatus::Rejected);
-      return;
-    }
-
-    if (!applyCalibrationCenter()) {
-      setLeaderCommandStatus(CommandAckStatus::Rejected);
-      setFollowerCommandStatus(CommandAckStatus::Rejected);
-      setTransientStatus("cal center failed", config::leader::kMoveStatusHoldMs);
-      return;
-    }
-
-    setLeaderCommandStatus(CommandAckStatus::Applied);
-    setFollowerCommandStatus(CommandAckStatus::None);
-    setTransientStatus(
-        activeCalibrationRole() == ArmRole::Leader ? "cal leader centering" : "cal follower center",
-        config::leader::kMoveStatusHoldMs);
+    handleCalibrationConfirmCenterCommand();
     return;
   }
 
   if (value == kCalibrationFinish) {
-    const ArmRole role = activeCalibrationRole();
-    if (!commitCalibrationRangeCapture()) {
-      setLeaderCommandStatus(CommandAckStatus::Rejected);
-      setFollowerCommandStatus(CommandAckStatus::Rejected);
-      setTransientStatus("cal telemetry missing", config::leader::kMoveStatusHoldMs);
-      return;
-    }
-    calibrationOledWorkflow_.showCommittedResult(role, millis());
-    calibrationEngaged_.store(false);
-    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
-    setLeaderCommandStatus(CommandAckStatus::Applied);
-    setFollowerCommandStatus(CommandAckStatus::None);
-    setTransientStatus("calibration validated", config::leader::kMoveStatusHoldMs);
+    handleCalibrationFinishCommand();
     return;
   }
 
   if (value == kCalibrationCancel) {
-    const ArmRole role = activeCalibrationRole();
-    calibrationOledWorkflow_.showCanceledResult(role, millis());
-    applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
-    setLeaderCommandStatus(CommandAckStatus::Applied);
-    setFollowerCommandStatus(CommandAckStatus::None);
-    setTransientStatus("calibration canceled", config::leader::kMoveStatusHoldMs);
+    handleCalibrationCancelCommand();
     return;
   }
 
   (void)requestId;
+  handleCalibrationSampleCommand(value);
+}
+
+void LeaderApp::rejectCalibrationCommandNotStarted() {
+  setLeaderCommandStatus(CommandAckStatus::Rejected);
+  setFollowerCommandStatus(CommandAckStatus::Rejected);
+  setTransientStatus("calibration not started", config::leader::kMoveStatusHoldMs);
+}
+
+void LeaderApp::handleCalibrationConfirmCenterCommand() {
+  if (calibrationPhase_.load() != 0U || followerCalibrationCenterPending_.load()) {
+    setLeaderCommandStatus(CommandAckStatus::Rejected);
+    setFollowerCommandStatus(CommandAckStatus::Rejected);
+    return;
+  }
+
+  if (!applyCalibrationCenter()) {
+    setLeaderCommandStatus(CommandAckStatus::Rejected);
+    setFollowerCommandStatus(CommandAckStatus::Rejected);
+    setTransientStatus("cal center failed", config::leader::kMoveStatusHoldMs);
+    return;
+  }
+
+  setLeaderCommandStatus(CommandAckStatus::Applied);
+  setFollowerCommandStatus(CommandAckStatus::None);
+  setTransientStatus(
+      activeCalibrationRole() == ArmRole::Leader ? "cal leader centering" : "cal follower center",
+      config::leader::kMoveStatusHoldMs);
+}
+
+void LeaderApp::handleCalibrationFinishCommand() {
+  const ArmRole role = activeCalibrationRole();
+  if (!commitCalibrationRangeCapture()) {
+    setLeaderCommandStatus(CommandAckStatus::Rejected);
+    setFollowerCommandStatus(CommandAckStatus::Rejected);
+    setTransientStatus("cal telemetry missing", config::leader::kMoveStatusHoldMs);
+    return;
+  }
+  calibrationOledWorkflow_.showCommittedResult(role, millis());
+  calibrationEngaged_.store(false);
+  applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
+  setLeaderCommandStatus(CommandAckStatus::Applied);
+  setFollowerCommandStatus(CommandAckStatus::None);
+  setTransientStatus("calibration validated", config::leader::kMoveStatusHoldMs);
+}
+
+void LeaderApp::handleCalibrationCancelCommand() {
+  const ArmRole role = activeCalibrationRole();
+  calibrationOledWorkflow_.showCanceledResult(role, millis());
+  applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
+  setLeaderCommandStatus(CommandAckStatus::Applied);
+  setFollowerCommandStatus(CommandAckStatus::None);
+  setTransientStatus("calibration canceled", config::leader::kMoveStatusHoldMs);
+}
+
+void LeaderApp::handleCalibrationSampleCommand(uint32_t value) {
   const bool sampleOk = sampleCalibrationRangeCapture();
   setLeaderCommandStatus(sampleOk ? CommandAckStatus::Applied : CommandAckStatus::Rejected);
   setFollowerCommandStatus(CommandAckStatus::None);
-  setTransientStatus(
-      value == kCalibrationCaptureMin ? "calibration sample min" : "calibration sample max",
-      config::leader::kMoveStatusHoldMs);
+  const char *status = value == kCalibrationCaptureMin ? "calibration sample min"
+                                                        : "calibration sample max";
+  setTransientStatus(status, config::leader::kMoveStatusHoldMs);
 }
 
 } // namespace soarm

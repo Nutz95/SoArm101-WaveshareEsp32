@@ -14,31 +14,39 @@ Leader builds with `LEADER_ENABLE_XBOX_BLE=1` (`env:leader`, `env:leader-ota`, `
 Order when cycling with the Xbox **Mode** button (or dashboard `xbox_mode_cycle_button_set`):
 
 | Step | Profile | OLED / status hint |
-|------|---------|-------------------|
-| 0 | CalibrationLeader | Cal leader — **A** = center, then min/max |
-| 1 | CalibrationFollower | Cal follower — **A** = center command to follower |
+| ---- | ------- | ------------------ |
+| 0 | CalibrationLeader | Preview only: `cal leader? press A` |
+| 1 | CalibrationFollower | Preview only: `cal follower? press A` |
 | 2 | TeleopEspNow | ESP-NOW teleop (Wi-Fi `:9090` stream paused) |
 | 3 | TeleopWifi | UDP teleop via router |
 | 4 | Passthrough | USB servo bus passthrough — **A** = engage |
 | 5 | TeleopPcSerial | PC COM mirror (legacy) |
 | 6 | **OtaReady** | STA forced on — flash OTA from PC |
 
-## Calibration buttons (OLED)
+Important distinction:
 
-| Button | Phase 0 (arm prompt) | Phase 1 (min/max table) |
-|--------|----------------------|---------------------------|
-| **A** | Apply center (leader: local offsets; follower: ESP-NOW center) | Validate & save calibration |
-| **B** | Cancel (exit cal profile) | Cancel |
+- Cycling selects a profile preview.
+- Calibration does **not** start on profile selection.
+- Calibration starts only when the user confirms with **A** while a calibration profile is selected.
 
-OLED flow (leader and follower — same **A** semantics):
+## Calibration buttons (OLED, Xbox flow)
 
-1. **Place center** — `A:Center B:Can` (no servo move until **A**)
-2. **Centering…** — follower only, while ESP-NOW center runs (leader centers immediately on **A**)
-3. **Min/max table** — only after center finished; move joints, then **A:Val**
+| Button | Calibration preview (not started) | Phase 0 (arm prompt) | Phase 1 (min/max table) |
+| ------ | --------------------------------- | --------------------- | -------------------------- |
+| **A** | Enter selected calibration mode | Apply center (leader: local offsets; follower: ESP-NOW center) | Validate & save calibration |
+| **B** | Skip calibration (return TeleopEspNow) | Cancel (exit cal profile) | Cancel |
+
+OLED flow when using Xbox profile cycle:
+
+1. **Preview** — `Not started`, `Enter? (A)`; no calibration state changes yet.
+2. **On A** — calibration engages and starts a 3.5 s safety re-arm (`Wait 3s ... Wait 1s`).
+3. **Arm prompt** — `Place center`, then `A:Center B:Can` once re-arm delay has elapsed.
+4. **Centering…** — follower only, while ESP-NOW center runs (leader centers immediately on **A**).
+5. **Min/max table** — only after center finished; move joints, then `A:Val B:Can`.
 
 There is **no** auto-advance timer from arm position; phase 1 opens only after **A** and center complete.
 
-Dashboard uses the same steps via `teleop_calibration_capture` values: `2` = center, `3` = finish, `4` = cancel.
+Dashboard can still start calibration directly via `teleop_transport_set` to calibration profiles. Once calibration is engaged, `teleop_calibration_capture` values are unchanged: `2` = center, `3` = finish, `4` = cancel.
 
 ## Dashboard commands (Wi-Fi or USB)
 

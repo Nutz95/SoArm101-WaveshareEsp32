@@ -93,34 +93,7 @@ void LeaderApp::disengageCalibrationMode(bool restoreCapturedRange) {
 
 void LeaderApp::handleControllerModeCycleEvents() {
   if (xboxControllerService_.consumeModeCycleRequest()) {
-    const Profile current = sanitizeControllerOperationProfile(controllerOperationProfile_.load());
-    if (current == kProfilePassthrough) {
-      disengagePassthroughMode(kProfileTeleopEspNow);
-    }
-    const uint8_t nextRaw =
-        static_cast<uint8_t>((toProfileRaw(current) + 1U) % kControllerOperationProfileCount);
-    applyControllerOperationProfile(nextRaw);
-    const Profile next = sanitizeControllerOperationProfile(nextRaw);
-    if (next == kProfileCalibrationLeader || next == kProfileCalibrationFollower) {
-      xboxControllerService_.discardPendingButtonPress(XboxLogicalButton::A);
-    }
-    if (next == kProfileCalibrationLeader) {
-      setTransientStatus("cal leader? press A", config::leader::kMoveStatusHoldMs);
-    } else if (next == kProfileCalibrationFollower) {
-      setTransientStatus("cal follower? press A", config::leader::kMoveStatusHoldMs);
-    } else if (next == kProfileTeleopEspNow) {
-      setTransientStatus("xbox profile teleop espnow", config::leader::kMoveStatusHoldMs);
-    } else if (next == kProfileTeleopWifi) {
-      setTransientStatus("xbox profile teleop wifi", config::leader::kMoveStatusHoldMs);
-    } else if (next == kProfileTeleopPcSerial) {
-      setTransientStatus("xbox profile teleop pc serial", config::leader::kMoveStatusHoldMs);
-    } else if (next == kProfilePassthrough) {
-      setTransientStatus("passthrough? press A", config::leader::kMoveStatusHoldMs);
-    } else if (next == kProfileOtaReady) {
-      setTransientStatus("OTA: wifi on, flash now", config::leader::kMoveStatusHoldMs);
-    } else {
-      setTransientStatus("profile changed", config::leader::kMoveStatusHoldMs);
-    }
+    handleModeCycleProfileStep();
   }
 
   const bool confirmPressed = xboxControllerService_.consumeButtonPress(XboxLogicalButton::A);
@@ -129,69 +102,109 @@ void LeaderApp::handleControllerModeCycleEvents() {
   const uint32_t nowMs = millis();
 
   if (profile == kProfilePassthrough) {
-    if (confirmPressed) {
-      engagePassthroughMode();
-    }
-    if (validatePressed) {
-      disengagePassthroughMode(kProfileTeleopEspNow);
-      setTransientStatus("passthrough canceled", config::leader::kMoveStatusHoldMs);
-    }
+    handlePassthroughButtons(confirmPressed, validatePressed);
     return;
   }
 
   if (profile == kProfileCalibrationLeader || profile == kProfileCalibrationFollower) {
-    if (!calibrationEngaged_.load()) {
-      if (confirmPressed) {
-        engageCalibrationMode();
-        setTransientStatus("calibration started", config::leader::kMoveStatusHoldMs);
-      }
-      if (validatePressed) {
-        applyControllerOperationProfile(toProfileRaw(kProfileTeleopEspNow));
-        setTransientStatus("calibration skipped", config::leader::kMoveStatusHoldMs);
+    handleCalibrationButtons(profile, confirmPressed, validatePressed, nowMs);
+    return;
+  }
+
+  handleTeleopMirrorButtons(confirmPressed, validatePressed);
+}
+
+void LeaderApp::handleModeCycleProfileStep() {
+  const Profile current = sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+  if (current == kProfilePassthrough) {
+    disengagePassthroughMode(kProfileTeleopEspNow);
+  }
+
+  const uint8_t nextRaw =
+      static_cast<uint8_t>((toProfileRaw(current) + 1U) % kControllerOperationProfileCount);
+  applyControllerOperationProfile(nextRaw);
+  updateProfileSwitchStatus(sanitizeControllerOperationProfile(nextRaw));
+}
+
+void LeaderApp::handlePassthroughButtons(bool confirmPressed, bool validatePressed) {
+  if (confirmPressed) {
+    engagePassthroughMode();
+  }
+  if (validatePressed) {
+    disengagePassthroughMode(kProfileTeleopEspNow);
+    setTransientStatus("passthrough canceled", config::leader::kMoveStatusHoldMs);
+  }
+}
+
+void LeaderApp::handleCalibrationButtons(
+    ControllerOperationProfile profile,
+    bool confirmPressed,
+    bool validatePressed,
+    uint32_t nowMs) {
+  if (!calibrationEngaged_.load()) {
+    handleCalibrationPreviewButtons(confirmPressed, validatePressed);
+    return;
+  }
+
+  handleCalibrationActiveButtons(profile, confirmPressed, validatePressed, nowMs);
+}
+
+void LeaderApp::handleCalibrationPreviewButtons(bool confirmPressed, bool validatePressed) {
+  if (confirmPressed) {
+    engageCalibrationMode();
+    setTransientStatus("calibration started", config::leader::kMoveStatusHoldMs);
+  }
+  if (validatePressed) {
+    applyControllerOperationProfile(toProfileRaw(kProfileTeleopEspNow));
+    setTransientStatus("calibration skipped", config::leader::kMoveStatusHoldMs);
+  }
+}
+
+void LeaderApp::handleCalibrationActiveButtons(
+    ControllerOperationProfile profile,
+    bool confirmPressed,
+    bool validatePressed,
+    uint32_t nowMs) {
+  if (confirmPressed) {
+    if (calibrationPhase_.load() == 0U && nowMs < calibrationCenterConfirmArmedAtMs_) {
+      setTransientStatus("wait 3s then press A", config::leader::kMoveStatusHoldMs);
+      return;
+    }
+    if (followerCalibrationCenterPending_.load()) {
+      return;
+    }
+
+    if (calibrationPhase_.load() == 0U) {
+      if (applyCalibrationCenter()) {
+        const char *status = profile == kProfileCalibrationFollower
+                                 ? "cal follower center"
+                                 : "cal leader centering";
+        setTransientStatus(status, config::leader::kMoveStatusHoldMs);
+      } else {
+        setTransientStatus("cal center failed", config::leader::kMoveStatusHoldMs);
       }
       return;
     }
 
-    if (confirmPressed) {
-      if (calibrationPhase_.load() == 0U && nowMs < calibrationCenterConfirmArmedAtMs_) {
-        setTransientStatus("wait 3s then press A", config::leader::kMoveStatusHoldMs);
-        return;
-      }
-      if (followerCalibrationCenterPending_.load()) {
-        return;
-      }
-
-      if (calibrationPhase_.load() == 0U) {
-        if (applyCalibrationCenter()) {
-          if (profile == kProfileCalibrationFollower) {
-            setTransientStatus("cal follower center", config::leader::kMoveStatusHoldMs);
-          } else {
-            setTransientStatus("cal leader centering", config::leader::kMoveStatusHoldMs);
-          }
-        } else {
-          setTransientStatus("cal center failed", config::leader::kMoveStatusHoldMs);
-        }
-      } else {
-        const bool committed = commitCalibrationRangeCapture();
-        if (committed) {
-          calibrationEngaged_.store(false);
-          applyControllerOperationProfile(toProfileRaw(kProfileTeleopEspNow));
-          setTransientStatus("calibration validated", config::leader::kMoveStatusHoldMs);
-        } else {
-          setTransientStatus("cal telemetry missing", config::leader::kMoveStatusHoldMs);
-        }
-      }
-    }
-
-    if (validatePressed) {
-      const ArmRole role = activeCalibrationRole();
-      calibrationOledWorkflow_.showCanceledResult(role, millis());
+    const bool committed = commitCalibrationRangeCapture();
+    if (committed) {
+      calibrationEngaged_.store(false);
       applyControllerOperationProfile(toProfileRaw(kProfileTeleopEspNow));
-      setTransientStatus("calibration canceled", config::leader::kMoveStatusHoldMs);
+      setTransientStatus("calibration validated", config::leader::kMoveStatusHoldMs);
+    } else {
+      setTransientStatus("cal telemetry missing", config::leader::kMoveStatusHoldMs);
     }
-    return;
   }
 
+  if (validatePressed) {
+    const ArmRole role = activeCalibrationRole();
+    calibrationOledWorkflow_.showCanceledResult(role, millis());
+    applyControllerOperationProfile(toProfileRaw(kProfileTeleopEspNow));
+    setTransientStatus("calibration canceled", config::leader::kMoveStatusHoldMs);
+  }
+}
+
+void LeaderApp::handleTeleopMirrorButtons(bool confirmPressed, bool validatePressed) {
   if (confirmPressed) {
     teleopContinuousServoIdFilter_.store(0U);
     teleopContinuousEnabled_.store(true);
@@ -213,6 +226,30 @@ void LeaderApp::handleControllerModeCycleEvents() {
   }
 }
 
+void LeaderApp::updateProfileSwitchStatus(ControllerOperationProfile profile) {
+  if (profile == kProfileCalibrationLeader || profile == kProfileCalibrationFollower) {
+    xboxControllerService_.discardPendingButtonPress(XboxLogicalButton::A);
+  }
+
+  if (profile == kProfileCalibrationLeader) {
+    setTransientStatus("cal leader? press A", config::leader::kMoveStatusHoldMs);
+  } else if (profile == kProfileCalibrationFollower) {
+    setTransientStatus("cal follower? press A", config::leader::kMoveStatusHoldMs);
+  } else if (profile == kProfileTeleopEspNow) {
+    setTransientStatus("xbox profile teleop espnow", config::leader::kMoveStatusHoldMs);
+  } else if (profile == kProfileTeleopWifi) {
+    setTransientStatus("xbox profile teleop wifi", config::leader::kMoveStatusHoldMs);
+  } else if (profile == kProfileTeleopPcSerial) {
+    setTransientStatus("xbox profile teleop pc serial", config::leader::kMoveStatusHoldMs);
+  } else if (profile == kProfilePassthrough) {
+    setTransientStatus("passthrough? press A", config::leader::kMoveStatusHoldMs);
+  } else if (profile == kProfileOtaReady) {
+    setTransientStatus("OTA: wifi on, flash now", config::leader::kMoveStatusHoldMs);
+  } else {
+    setTransientStatus("profile changed", config::leader::kMoveStatusHoldMs);
+  }
+}
+
 void LeaderApp::applyControllerOperationProfile(uint8_t profileRaw) {
   const Profile safeProfile = sanitizeControllerOperationProfile(profileRaw);
   const Profile previous = sanitizeControllerOperationProfile(controllerOperationProfile_.load());
@@ -226,6 +263,34 @@ void LeaderApp::applyControllerOperationProfile(uint8_t profileRaw) {
       previous != safeProfile;
   controllerOperationProfile_.store(toProfileRaw(safeProfile));
 
+  applyProfileExitTransitions(previous, safeProfile, leavingEngagedCalibration, switchingCalibrationPreview);
+
+  if (safeProfile == kProfilePassthrough) {
+    calibrationEngaged_.store(false);
+    calibrationPhase_.store(0U);
+    teleopContinuousEnabled_.store(false);
+    teleopContinuousServoIdFilter_.store(0U);
+    return;
+  }
+
+  applyProfileCalibrationState(previous, safeProfile, switchingCalibrationPreview);
+  applyProfileTransportMode(safeProfile);
+
+  if (leavingEngagedCalibration &&
+      (safeProfile == kProfileTeleopEspNow || safeProfile == kProfileTeleopWifi ||
+       safeProfile == kProfileTeleopPcSerial)) {
+    nudgeFollowerLinkAfterCalibration();
+  }
+
+  syncWifiRadioPolicyForProfile(safeProfile);
+  applyProfileStatusTransition(previous, safeProfile);
+}
+
+void LeaderApp::applyProfileExitTransitions(
+    ControllerOperationProfile previous,
+    ControllerOperationProfile next,
+    bool leavingEngagedCalibration,
+    bool switchingCalibrationPreview) {
   if (switchingCalibrationPreview && calibrationEngaged_.load()) {
     disengageCalibrationMode(true);
   }
@@ -238,22 +303,19 @@ void LeaderApp::applyControllerOperationProfile(uint8_t profileRaw) {
   if (leavingEngagedCalibration) {
     disengageCalibrationMode(true);
   } else if ((previous == kProfileCalibrationLeader || previous == kProfileCalibrationFollower) &&
-             safeProfile != kProfileCalibrationLeader && safeProfile != kProfileCalibrationFollower) {
+             next != kProfileCalibrationLeader && next != kProfileCalibrationFollower) {
     calibrationEngaged_.store(false);
     calibrationPhase_.store(0U);
     followerCalibrationCenterPending_.store(false);
     calibrationCenterConfirmArmedAtMs_ = 0U;
   }
+}
 
-  if (safeProfile == kProfilePassthrough) {
-    calibrationEngaged_.store(false);
-    calibrationPhase_.store(0U);
-    teleopContinuousEnabled_.store(false);
-    teleopContinuousServoIdFilter_.store(0U);
-    return;
-  }
-
-  if (safeProfile == kProfileCalibrationLeader || safeProfile == kProfileCalibrationFollower) {
+void LeaderApp::applyProfileCalibrationState(
+    ControllerOperationProfile previous,
+    ControllerOperationProfile next,
+    bool switchingCalibrationPreview) {
+  if (next == kProfileCalibrationLeader || next == kProfileCalibrationFollower) {
     if (switchingCalibrationPreview ||
         (previous != kProfileCalibrationLeader && previous != kProfileCalibrationFollower)) {
       calibrationEngaged_.store(false);
@@ -265,42 +327,29 @@ void LeaderApp::applyControllerOperationProfile(uint8_t profileRaw) {
     lastOledRefreshMs_ = 0U;
     teleopContinuousEnabled_.store(false);
     teleopContinuousServoIdFilter_.store(0U);
-  } else {
-    calibrationEngaged_.store(false);
-    calibrationPhase_.store(0U);
-    calibrationCenterConfirmArmedAtMs_ = 0U;
+    return;
   }
 
-  if (safeProfile == kProfileTeleopWifi) {
+  calibrationEngaged_.store(false);
+  calibrationPhase_.store(0U);
+  calibrationCenterConfirmArmedAtMs_ = 0U;
+}
+
+void LeaderApp::applyProfileTransportMode(ControllerOperationProfile profile) {
+  if (profile == kProfileTeleopWifi) {
     teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::WifiUdp));
-  } else if (safeProfile == kProfileTeleopPcSerial) {
+  } else if (profile == kProfileTeleopPcSerial) {
     teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::PcSerialBridge));
-  } else if (safeProfile == kProfileTeleopEspNow) {
+  } else if (profile == kProfileTeleopEspNow) {
     teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::EspNow));
   }
+}
 
-  if (leavingEngagedCalibration &&
-      (safeProfile == kProfileTeleopEspNow || safeProfile == kProfileTeleopWifi ||
-       safeProfile == kProfileTeleopPcSerial)) {
-    nudgeFollowerLinkAfterCalibration();
-  }
-
-  syncWifiRadioPolicyForProfile(safeProfile);
-
-  if (previous != safeProfile) {
-    if (safeProfile == kProfileCalibrationLeader) {
-      setTransientStatus("cal leader? press A", config::leader::kMoveStatusHoldMs);
-    } else if (safeProfile == kProfileCalibrationFollower) {
-      setTransientStatus("cal follower? press A", config::leader::kMoveStatusHoldMs);
-    } else if (safeProfile == kProfileTeleopEspNow) {
-      setTransientStatus("xbox profile teleop espnow", config::leader::kMoveStatusHoldMs);
-    } else if (safeProfile == kProfileTeleopWifi) {
-      setTransientStatus("xbox profile teleop wifi", config::leader::kMoveStatusHoldMs);
-    } else if (safeProfile == kProfileTeleopPcSerial) {
-      setTransientStatus("pc serial: start COM bridge", config::leader::kMoveStatusHoldMs);
-    } else if (safeProfile == kProfileOtaReady) {
-      setTransientStatus("OTA: wifi on, flash now", config::leader::kMoveStatusHoldMs);
-    }
+void LeaderApp::applyProfileStatusTransition(
+    ControllerOperationProfile previous,
+    ControllerOperationProfile next) {
+  if (previous != next) {
+    updateProfileSwitchStatus(next);
   }
 }
 

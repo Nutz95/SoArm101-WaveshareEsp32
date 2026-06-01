@@ -121,27 +121,43 @@ void LeaderApp::begin() {
 
 void LeaderApp::tick() {
   const uint32_t uptimeMs = millis();
+  const bool passthroughActive = passthroughEngaged_.load();
 
+  tickCoreServices(uptimeMs);
+  tickCommandHandlers(passthroughActive);
+  tickControlState(uptimeMs, passthroughActive);
+  tickTelemetrySnapshot(uptimeMs, passthroughActive);
+  refreshOled(uptimeMs);
+
+  if (passthroughActive) {
+    servoPassthrough_.tick(true);
+  }
+
+  delay(passthroughActive ? 0U : config::leader::kTickDelayMs);
+}
+
+void LeaderApp::tickCoreServices(uint32_t uptimeMs) {
   runDeferredBootStages(uptimeMs);
 
   wifiOta_.tick();
-  const ControllerOperationProfile profile =
-      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
-  const bool passthroughActive = passthroughEngaged_.load();
   presenceService_->setPairingWatchdogSuspended(
       calibrationEngaged_.load() || calibrationPhase_.load() != 0U ||
       followerCalibrationCenterPending_.load());
   presenceService_->tick();
   telemetryStreamServer_.tick();
   usbDebugService_.tick();
+}
 
+void LeaderApp::tickCommandHandlers(bool passthroughActive) {
   handlePairingCommands();
   if (!passthroughActive) {
     handleServoCommands();
   } else {
     (void)handleTeleopTransportValueCommand();
   }
+}
 
+void LeaderApp::tickControlState(uint32_t uptimeMs, bool passthroughActive) {
   if (!passthroughActive) {
     runStartupServoScans(uptimeMs);
     updateFollowerAckTracking(uptimeMs);
@@ -159,7 +175,9 @@ void LeaderApp::tick() {
   runtimeModeForTasks_.store(static_cast<uint8_t>(mode_));
   updateFollowerState();
   renderStatusLeds();
+}
 
+void LeaderApp::tickTelemetrySnapshot(uint32_t uptimeMs, bool passthroughActive) {
   if (!passthroughActive) {
     const bool pcSerialMirrorBench =
         mode_ == OperationMode::Teleoperation &&
@@ -177,14 +195,6 @@ void LeaderApp::tick() {
       telemetryState_.update(snapshot);
     }
   }
-
-  refreshOled(uptimeMs);
-
-  if (passthroughActive) {
-    servoPassthrough_.tick(true);
-  }
-
-  delay(passthroughActive ? 0U : config::leader::kTickDelayMs);
 }
 
 void LeaderApp::runStartupServoScans(uint32_t nowMs) {

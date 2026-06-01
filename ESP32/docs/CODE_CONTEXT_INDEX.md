@@ -32,9 +32,11 @@ Use it when implementing changes to avoid broad code searches.
 - `src/leader/leader_app_commands_teleop_continuous.cpp`
   - Continuous teleoperation command parsing, speed update, and enable/disable handling.
 - `src/leader/leader_app_commands_teleop_transport.cpp`
-  - Runtime teleop transport mode command handling (ESP-NOW/Wi-Fi UDP) and calibration-profile activation bridge.
+  - Runtime teleop transport mode command handling (ESP-NOW/Wi-Fi UDP) and dashboard-initiated calibration engagement.
 - `src/leader/leader_app_commands_calibration.cpp`
-  - Leader-side teleop calibration capture, local NVS persistence, and follower capture forwarding.
+  - Leader-side teleop calibration capture commands (center/finish/cancel/sample), local NVS persistence, and follower capture forwarding.
+- `src/leader/leader_app_controller_profile.cpp`
+  - Xbox profile cycle handling, calibration preview (`Enter?`) versus engaged state, and profile transition side effects.
 - `src/leader/leader_calibration_workflow.cpp`
   - Pure calibration parsing helpers extracted for host-side unit tests.
 - `src/leader/leader_presence_service.cpp`

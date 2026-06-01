@@ -76,6 +76,11 @@ private:
   void handleTeleopTransportCommand(uint32_t value, uint16_t requestId);
   void handleXboxModeCycleButtonSetCommand(uint32_t value, uint16_t requestId);
   void handleTeleopCalibrationCaptureCommand(uint32_t value, uint16_t requestId);
+  void rejectCalibrationCommandNotStarted();
+  void handleCalibrationConfirmCenterCommand();
+  void handleCalibrationFinishCommand();
+  void handleCalibrationCancelCommand();
+  void handleCalibrationSampleCommand(uint32_t value);
   ArmRole activeCalibrationRole() const;
   bool applyCalibrationCenter();
   void enterCalibrationRangePhase(ArmRole role);
@@ -84,7 +89,35 @@ private:
   void cancelCalibrationRangeCapture();
   void releaseCalibrationTorqueForActiveRole();
   void handleControllerModeCycleEvents();
+  void handleModeCycleProfileStep();
+  void handlePassthroughButtons(bool confirmPressed, bool validatePressed);
+  void handleCalibrationButtons(
+      ControllerOperationProfile profile,
+      bool confirmPressed,
+      bool validatePressed,
+      uint32_t nowMs);
+  void handleCalibrationPreviewButtons(bool confirmPressed, bool validatePressed);
+  void handleCalibrationActiveButtons(
+      ControllerOperationProfile profile,
+      bool confirmPressed,
+      bool validatePressed,
+      uint32_t nowMs);
+  void handleTeleopMirrorButtons(bool confirmPressed, bool validatePressed);
+  void updateProfileSwitchStatus(ControllerOperationProfile profile);
   void applyControllerOperationProfile(uint8_t profile);
+  void applyProfileExitTransitions(
+      ControllerOperationProfile previous,
+      ControllerOperationProfile next,
+      bool leavingEngagedCalibration,
+      bool switchingCalibrationPreview);
+  void applyProfileCalibrationState(
+      ControllerOperationProfile previous,
+      ControllerOperationProfile next,
+      bool switchingCalibrationPreview);
+  void applyProfileTransportMode(ControllerOperationProfile profile);
+  void applyProfileStatusTransition(
+      ControllerOperationProfile previous,
+      ControllerOperationProfile next);
   void engagePassthroughMode();
   void disengagePassthroughMode(ControllerOperationProfile fallbackProfile);
   void engageCalibrationMode();
@@ -105,6 +138,19 @@ private:
   // State computation extracted from tick()
   void updateLocalInputs(uint32_t uptimeMs);
   void computeModeAndStatus();
+  bool applyOtaModeAndStatus(ControllerOperationProfile profile);
+  bool applyPassthroughModeAndStatus(ControllerOperationProfile profile);
+  bool applyHeldCommandModeAndStatus(
+      ControllerOperationProfile profile,
+      bool calibrationProfileSelected,
+      bool calibrationProfileActive);
+  bool applyServoFaultModeAndStatus();
+  void applyRuntimeModeAndStatus(
+      ControllerOperationProfile profile,
+      bool followerIpValid,
+      bool rangeCaptureActive,
+      bool calibrationProfileSelected);
+  void setCalibrationPreviewStatus(ControllerOperationProfile profile);
   void updateFollowerState();
   void renderStatusLeds();
 
@@ -113,6 +159,10 @@ private:
   void fillLeaderMirrorPositions(LeaderTelemetrySnapshot &snapshot);
   void refreshOled(uint32_t uptimeMs);
   void runDeferredBootStages(uint32_t uptimeMs);
+  void tickCoreServices(uint32_t uptimeMs);
+  void tickCommandHandlers(bool passthroughActive);
+  void tickControlState(uint32_t uptimeMs, bool passthroughActive);
+  void tickTelemetrySnapshot(uint32_t uptimeMs, bool passthroughActive);
 
   void startBackgroundTasks();
   static void telemetryPollTaskEntry(void *context);
