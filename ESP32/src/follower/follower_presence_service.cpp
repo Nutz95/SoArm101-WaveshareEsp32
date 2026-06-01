@@ -69,8 +69,30 @@ bool FollowerPresenceService::isTeleopTrafficActive(uint32_t nowMs) const {
   return espNowTeleopActive || wifiTeleopActive;
 }
 
+void FollowerPresenceService::setDirectWifiSessionActive(bool active) {
+  directWifiSessionActive_ = active;
+  if (!active) {
+    pendingWifiDirectSessionEnd_ = false;
+    activeWifiDirectSessionId_ = 0U;
+  }
+}
+
+bool FollowerPresenceService::consumeWifiDirectSessionEnd() {
+  if (!pendingWifiDirectSessionEnd_) {
+    return false;
+  }
+  pendingWifiDirectSessionEnd_ = false;
+  directWifiSessionActive_ = false;
+  activeWifiDirectSessionId_ = 0U;
+  return true;
+}
+
 void FollowerPresenceService::tick(const char *localIp) {
   if (!started_) {
+    return;
+  }
+
+  if (directWifiSessionActive_) {
     return;
   }
 

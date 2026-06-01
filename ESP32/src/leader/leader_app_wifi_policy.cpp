@@ -57,6 +57,11 @@ void LeaderApp::disengageWifiDirectLink() {
     return;
   }
 
+  auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
+  if (presence != nullptr) {
+    (void)presence->sendWifiDirectSessionEnd();
+  }
+
   wifiDirectLinkEngaged_.store(false);
   wifiDirectTeleopActive_.store(false);
   teleopContinuousEnabled_.store(false);

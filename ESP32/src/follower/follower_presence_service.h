@@ -49,7 +49,9 @@ public:
       bool temperatureAlarm) override;
 
   bool consumeWifiDirectOffer(WifiDirectCredentials &credentials);
+  bool consumeWifiDirectSessionEnd();
   bool sendWifiDirectAck(uint32_t sessionId, WifiDirectAckStatus status, const char *followerStaIp);
+  void setDirectWifiSessionActive(bool active);
 
 private:
   struct PendingServoControl {
@@ -138,6 +140,9 @@ private:
   uint32_t lastServoControlRxMs_{0U};
   bool pendingWifiDirectOfferPending_{false};
   WifiDirectCredentials pendingWifiDirectCredentials_{};
+  bool directWifiSessionActive_{false};
+  bool pendingWifiDirectSessionEnd_{false};
+  uint32_t activeWifiDirectSessionId_{0U};
 };
 
 } // namespace soarm

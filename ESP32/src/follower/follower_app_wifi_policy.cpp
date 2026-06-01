@@ -7,6 +7,10 @@ namespace soarm {
 void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
   auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get());
   if (presence != nullptr) {
+    if (presence->consumeWifiDirectSessionEnd()) {
+      followerWifiDirectLink_.reset(*presence, wifiDirectRadio_, wifiOta_, true);
+    }
+
     WifiDirectCredentials offer{};
     if (presence->consumeWifiDirectOffer(offer)) {
       followerWifiDirectLink_.acceptOffer(offer);

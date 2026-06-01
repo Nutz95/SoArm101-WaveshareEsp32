@@ -150,7 +150,7 @@ void LeaderApp::tickCoreServices(uint32_t uptimeMs) {
   }
   presenceService_->setPairingWatchdogSuspended(
       calibrationEngaged_.load() || calibrationPhase_.load() != 0U ||
-      followerCalibrationCenterPending_.load());
+      followerCalibrationCenterPending_.load() || wifiDirectLinkEngaged_.load());
   presenceService_->tick();
   telemetryStreamServer_.tick();
   usbDebugService_.tick();
@@ -279,7 +279,11 @@ void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
     localInputs_.calibrationDone = !config::leader::kCalibrationRequired ||
                                    uptimeMs > config::leader::kCalibrationReadyMs;
   }
-  localInputs_.espNowLinked    = presenceService_->isFollowerLinked();
+  const bool wifiDirectTeleopUp =
+      profile == ControllerOperationProfile::TeleopWifi && wifiDirectTeleopActive_.load() &&
+      wifiDirectLinkEngaged_.load() && presenceService_->hasValidFollowerIp();
+  localInputs_.espNowLinked =
+      presenceService_->isFollowerLinked() || wifiDirectTeleopUp;
 }
 
 void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs) {

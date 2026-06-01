@@ -50,6 +50,13 @@ void test_validate_ack_rejects_session_mismatch() {
   TEST_ASSERT_FALSE(validateWifiDirectAckPacket(ack, 100U));
 }
 
+void test_session_end_ack_round_trip() {
+  WifiDirectAckPacket ack{};
+  buildWifiDirectAckPacket(55U, WifiDirectAckStatus::SessionEnd, nullptr, ack);
+  TEST_ASSERT_TRUE(validateWifiDirectAckPacket(ack, 55U));
+  TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(WifiDirectAckStatus::SessionEnd), ack.status);
+}
+
 void setUp() {
 }
 
@@ -64,5 +71,6 @@ int main(int argc, char **argv) {
   RUN_TEST(test_offer_ack_round_trip);
   RUN_TEST(test_validate_offer_rejects_bad_magic);
   RUN_TEST(test_validate_ack_rejects_session_mismatch);
+  RUN_TEST(test_session_end_ack_round_trip);
   return UNITY_END();
 }

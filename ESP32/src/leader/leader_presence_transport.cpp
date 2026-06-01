@@ -4,6 +4,7 @@
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
 #include "../common/wifi/wifi_direct_offer_packet.h"
+#include "../common/wifi/wifi_direct_session.h"
 #include "../common/servo/servo_control_opcode.h"
 #include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
@@ -147,6 +148,20 @@ bool LeaderPresenceService::sendWifiDirectOffer(const WifiDirectOfferPacket &pac
 
   followerWifiDirectSessionId_ = packet.sessionId;
   followerWifiDirectIp_[0] = '\0';
+  addPeer(pairedFollowerMac_);
+  const esp_err_t result =
+      esp_now_send(pairedFollowerMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+  return result == ESP_OK;
+}
+
+bool LeaderPresenceService::sendWifiDirectSessionEnd() {
+  if (!hasPairedMac_ || followerWifiDirectSessionId_ == 0U) {
+    return false;
+  }
+
+  WifiDirectAckPacket packet{};
+  buildWifiDirectAckPacket(
+      followerWifiDirectSessionId_, WifiDirectAckStatus::SessionEnd, nullptr, packet);
   addPeer(pairedFollowerMac_);
   const esp_err_t result =
       esp_now_send(pairedFollowerMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));

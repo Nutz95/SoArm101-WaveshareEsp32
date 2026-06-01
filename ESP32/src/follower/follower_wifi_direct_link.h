@@ -15,7 +15,11 @@ public:
   void acceptOffer(const WifiDirectCredentials &credentials);
   void tick(FollowerPresenceService &presence, WifiDirectRadioService &radio, WifiOtaService &wifiOta, uint32_t nowMs);
   bool isActive() const;
-  void reset(WifiDirectRadioService &radio, WifiOtaService &wifiOta, bool restoreHomeSta);
+  void reset(
+      FollowerPresenceService &presence,
+      WifiDirectRadioService &radio,
+      WifiOtaService &wifiOta,
+      bool restoreHomeSta);
 
 private:
   void trySendAck(FollowerPresenceService &presence, WifiDirectRadioService &radio);

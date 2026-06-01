@@ -9,6 +9,7 @@ namespace soarm {
 enum class WifiDirectAckStatus : uint8_t {
   Rejected = 0,
   Connected = 1,
+  SessionEnd = 2,
 };
 
 struct WifiDirectCredentials {

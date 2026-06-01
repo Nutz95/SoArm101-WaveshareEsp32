@@ -23,6 +23,26 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
 
   const uint32_t nowMs = millis();
 
+  if (len == static_cast<int>(sizeof(WifiDirectAckPacket))) {
+    WifiDirectAckPacket ackPacket{};
+    memcpy(&ackPacket, data, sizeof(ackPacket));
+    if (ackPacket.magic != kPresenceMagic || ackPacket.version != kWifiDirectPacketVersion) {
+      return;
+    }
+    if (ackPacket.messageType != static_cast<uint8_t>(PresenceMessageType::WifiDirectAck)) {
+      return;
+    }
+    if (activeWifiDirectSessionId_ != 0U &&
+        ackPacket.sessionId != activeWifiDirectSessionId_) {
+      return;
+    }
+    if (ackPacket.status == static_cast<uint8_t>(WifiDirectAckStatus::SessionEnd)) {
+      Serial.println("[WIFI-DIRECT] session end from leader");
+      pendingWifiDirectSessionEnd_ = true;
+    }
+    return;
+  }
+
   if (len == static_cast<int>(sizeof(WifiDirectOfferPacket))) {
     WifiDirectOfferPacket offerPacket{};
     memcpy(&offerPacket, data, sizeof(offerPacket));
@@ -197,6 +217,7 @@ void FollowerPresenceService::handleWifiDirectOfferMessage(
   }
   pendingWifiDirectOfferPending_ = true;
   pendingWifiDirectCredentials_ = credentials;
+  activeWifiDirectSessionId_ = credentials.sessionId;
   Serial.printf("[WIFI-DIRECT] offer ssid=%s session=%lu\n",
                 credentials.ssid,
                 static_cast<unsigned long>(credentials.sessionId));

@@ -18,7 +18,12 @@ void FollowerWifiDirectLink::acceptOffer(const WifiDirectCredentials &credential
   USB_DEBUG_LOGF("[WIFI-DIRECT] offer queued ssid=%s\n", credentials_.ssid);
 }
 
-void FollowerWifiDirectLink::reset(WifiDirectRadioService &radio, WifiOtaService &wifiOta, bool restoreHomeSta) {
+void FollowerWifiDirectLink::reset(
+    FollowerPresenceService &presence,
+    WifiDirectRadioService &radio,
+    WifiOtaService &wifiOta,
+    bool restoreHomeSta) {
+  presence.setDirectWifiSessionActive(false);
   (void)wifiOta;
   radio.endSession(true);
   if (restoreHomeSta && wifiOta.isStaConnectDesired() && WiFi.status() != WL_CONNECTED) {
@@ -45,7 +50,7 @@ void FollowerWifiDirectLink::tick(
 
   if (staReady_ && WiFi.status() != WL_CONNECTED) {
     USB_DEBUG_LOGLN("[WIFI-DIRECT] lost AP, restoring router STA");
-    reset(radio, wifiOta, true);
+    reset(presence, radio, wifiOta, true);
     return;
   }
 
@@ -74,7 +79,7 @@ void FollowerWifiDirectLink::tick(
 
   if ((nowMs - connectStartedMs_) >= config::follower::kWifiDirectStaConnectTimeoutMs) {
     USB_DEBUG_LOGLN("[WIFI-DIRECT] STA connect timeout");
-    reset(radio, wifiOta, true);
+    reset(presence, radio, wifiOta, true);
   }
 }
 
@@ -84,6 +89,7 @@ void FollowerWifiDirectLink::trySendAck(FollowerPresenceService &presence, WifiD
     return;
   }
   if (presence.sendWifiDirectAck(credentials_.sessionId, WifiDirectAckStatus::Connected, ip)) {
+    presence.setDirectWifiSessionActive(true);
     USB_DEBUG_LOGF("[WIFI-DIRECT] ESP-NOW ack sent ip=%s\n", ip);
   } else {
     USB_DEBUG_LOGLN("[WIFI-DIRECT] ESP-NOW ack send failed");

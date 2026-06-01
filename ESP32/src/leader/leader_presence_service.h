@@ -50,6 +50,7 @@ public:
   uint32_t followerLastAckMs() const override;
 
   bool sendWifiDirectOffer(const WifiDirectOfferPacket &packet);
+  bool sendWifiDirectSessionEnd();
   const char *followerWifiDirectIp() const;
   void clearFollowerWifiDirectState();
 
