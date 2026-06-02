@@ -79,6 +79,7 @@ private:
   uint32_t            lastServoTelemetryPublishMs_{0U};
   uint32_t            lastPresenceNudgeMs_{0U};
   uint32_t            lastTeleopActivityMs_{0U};
+  uint32_t            calibrationTelemetryBoostUntilMs_{0U};
   bool                teleopPreparedById_[256]{};
   TaskHandle_t        teleopApplyTaskHandle_{nullptr};
 };

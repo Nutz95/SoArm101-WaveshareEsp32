@@ -4,7 +4,6 @@
 #include "../common/controller/controller_operation_profile.h"
 #include "../common/servo/servo_control_opcode.h"
 #include "../common/teleop/teleop_transport_mode.h"
-
 #include <Arduino.h>
 
 namespace soarm {
@@ -56,20 +55,17 @@ void LeaderApp::engageCalibrationMode() {
     return;
   }
 
+  releaseFollowerTeleopHold();
   calibrationEngaged_.store(true);
   calibrationPhase_.store(0U);
   followerCalibrationCenterPending_.store(false);
-  calibrationCenterConfirmArmedAtMs_ = millis() + config::leader::kCalibrationConfirmArmDelayMs;
+  calibrationCenterConfirmArmedAtMs_ = 0U;
   calibrationOledWorkflow_.clearResultBanner();
   xboxControllerService_.discardPendingButtonPress(XboxLogicalButton::A);
   lastOledRefreshMs_ = 0U;
-  teleopContinuousEnabled_.store(false);
-  teleopContinuousServoIdFilter_.store(0U);
   servoDebugManual_ = false;
   servoBusService_.setDebugManual(false);
-  if (profile == kProfileCalibrationLeader) {
-    servoBusService_.setTorqueEnabledForDetectedServos(false);
-  }
+  servoBusService_.setTorqueEnabledForDetectedServos(false);
   refreshOled(millis());
 }
 
@@ -175,10 +171,6 @@ void LeaderApp::handleCalibrationActiveButtons(
     bool validatePressed,
     uint32_t nowMs) {
   if (confirmPressed) {
-    if (calibrationPhase_.load() == 0U && nowMs < calibrationCenterConfirmArmedAtMs_) {
-      setTransientStatus("wait 3s then press A", config::leader::kMoveStatusHoldMs);
-      return;
-    }
     if (followerCalibrationCenterPending_.load()) {
       return;
     }
@@ -223,38 +215,6 @@ void LeaderApp::handleTeleopMirrorButtons(bool confirmPressed, bool validatePres
   if (validatePressed) {
     releaseFollowerTeleopHold();
     setTransientStatus("teleop mirror stop", config::leader::kMoveStatusHoldMs);
-  }
-}
-
-void LeaderApp::releaseFollowerTeleopHold() {
-  teleopContinuousEnabled_.store(false);
-  teleopContinuousServoIdFilter_.store(0U);
-
-  if (!presenceService_->isFollowerLinked()) {
-    return;
-  }
-
-  const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
-  teleopContinuousRequestCounter_ = requestId;
-
-  beginCommandTracking(requestId, static_cast<uint8_t>(ServoControlOpcode::DebugDisable));
-  setLeaderCommandStatus(CommandAckStatus::None);
-  const bool sent = presenceService_->requestServoControl(
-      static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
-      0U,
-      requestId);
-  if (sent) {
-    setFollowerCommandStatus(CommandAckStatus::Accepted);
-    setFollowerRetryPayload(
-        static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
-        0U,
-        config::leader::kFollowerCommandMaxRetries);
-    awaitFollowerAck(
-        requestId,
-        static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
-        config::leader::kFollowerDebugAckTimeoutMs);
-  } else {
-    setFollowerCommandStatus(CommandAckStatus::Failed);
   }
 }
 

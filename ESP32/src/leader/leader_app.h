@@ -131,6 +131,7 @@ private:
   void handleOtaButtons(bool confirmPressed, bool validatePressed);
   void nudgeFollowerLinkAfterCalibration();
   void releaseFollowerTeleopHold();
+  void clearDeferHomeStaReconnectIfDone();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
   void pollFollowerCalibrationCenterAck(uint32_t nowMs);
   void setTransientStatus(const char *text, uint32_t holdMs);
@@ -234,6 +235,7 @@ private:
   std::atomic<bool> wifiDirectLinkEngaged_{false};
   std::atomic<bool> wifiDirectTeleopActive_{false};
   std::atomic<bool> otaEngaged_{false};
+  std::atomic<bool> deferHomeStaReconnect_{false};
   std::atomic<bool> followerCalibrationCenterPending_{false};
   uint16_t followerCalibrationCenterRequestId_{0U};
   uint32_t followerCalibrationCenterStartedMs_{0U};

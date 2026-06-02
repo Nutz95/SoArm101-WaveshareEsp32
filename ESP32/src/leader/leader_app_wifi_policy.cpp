@@ -49,7 +49,8 @@ void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile
     if (wifiDirectSession_.isActive()) {
       wifiDirectSession_.end(wifiDirectRadio_, true);
     }
-    const bool keepHomeSta = shouldKeepHomeStaConnected(profile, otaEngaged_.load());
+    const bool keepHomeSta =
+        !deferHomeStaReconnect_.load() && shouldKeepHomeStaConnected(profile, otaEngaged_.load());
     wifiOta_.setStaConnectDesired(keepHomeSta);
     if (!keepHomeSta && presence != nullptr) {
       (void)presence->ensureEspNowTransportReady();
@@ -122,7 +123,6 @@ void LeaderApp::disengageWifiDirectLink() {
 
   const ControllerOperationProfile profile =
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());
-  wifiOta_.restoreHomeStation();
   if (presence != nullptr) {
     (void)presence->ensureEspNowTransportReady();
   }

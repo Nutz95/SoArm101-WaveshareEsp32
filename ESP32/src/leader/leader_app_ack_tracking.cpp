@@ -66,6 +66,7 @@ void LeaderApp::updateFollowerAckTracking(uint32_t nowMs) {
                                                      : rttMs);
     followerAckPending_ = false;
     followerRetryEnabled_ = false;
+    clearDeferHomeStaReconnectIfDone();
     return;
   }
 
@@ -96,6 +97,7 @@ void LeaderApp::updateFollowerAckTracking(uint32_t nowMs) {
     }
     followerAckPending_ = false;
     followerRetryEnabled_ = false;
+    clearDeferHomeStaReconnectIfDone();
   }
 }
 

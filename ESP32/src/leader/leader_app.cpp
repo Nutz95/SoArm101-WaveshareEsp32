@@ -153,6 +153,7 @@ void LeaderApp::tickCoreServices(uint32_t uptimeMs) {
       followerCalibrationCenterPending_.load() || wifiDirectLinkEngaged_.load() ||
       otaEngaged_.load());
   presenceService_->tick();
+  clearDeferHomeStaReconnectIfDone();
   telemetryStreamServer_.tick();
   usbDebugService_.tick();
 }
@@ -208,7 +209,7 @@ void LeaderApp::runStartupServoScans(uint32_t nowMs) {
     leaderServoFault_ = localScanCount != config::common::kExpectedLeaderServoCount;
   }
 
-  if (teleopContinuousEnabled_.load()) {
+  if (teleopContinuousEnabled_.load() || deferHomeStaReconnect_.load() || followerAckPending_) {
     return;
   }
 

@@ -23,6 +23,7 @@ constexpr int16_t kTeleopMirrorMinPositionDelta = 3;
 constexpr int16_t kTeleopMirrorMinPositionDeltaWifi = 0;
 constexpr uint32_t kServoTelemetryTaskActiveDelayMs = kTeleopTargetPeriodMs;
 constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
+constexpr uint32_t kServoTelemetryTaskCalibrationDelayMs = 20U;
 constexpr uint32_t kTeleopMirrorTaskActiveDelayMs = kTeleopTargetPeriodMs;
 constexpr uint32_t kTeleopMirrorTaskIdleDelayMs = 1U;
 constexpr uint32_t kTeleopMirrorTaskWifiActiveDelayMs = kTeleopTargetPeriodMs;
@@ -44,7 +45,8 @@ constexpr uint8_t kFollowerAckRttClampMs = 250U;
 constexpr uint32_t kFollowerDebugAckTimeoutMs = 3500U;
 constexpr uint32_t kFollowerMoveAckTimeoutMs = 3500U;
 constexpr uint32_t kFollowerCalibrationCenterAckTimeoutMs = 180000U;
-constexpr uint32_t kCalibrationConfirmArmDelayMs = 3500U;
+// Center capture is on button A only (no timed auto-center).
+constexpr uint32_t kCalibrationConfirmArmDelayMs = 0U;
 constexpr uint32_t kWifiDirectAckTimeoutMs = 25000U;
 constexpr uint32_t kWifiDirectOfferResendMs = 5000U;
 constexpr uint32_t kFollowerSetIdAckTimeoutMs = 2000U;

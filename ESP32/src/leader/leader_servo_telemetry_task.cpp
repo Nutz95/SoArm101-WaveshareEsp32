@@ -22,8 +22,14 @@ void LeaderServoTelemetryTask::runLoop(
     const bool calibrationMode =
         mode == OperationMode::CalibrationLeader || mode == OperationMode::CalibrationFollower;
 
-    if (mode == OperationMode::Passthrough || calibrationMode) {
+    if (mode == OperationMode::Passthrough) {
       vTaskDelay(pdMS_TO_TICKS(50U));
+      continue;
+    }
+
+    if (calibrationMode) {
+      servoBusService.refreshKnownTelemetryFast();
+      vTaskDelay(pdMS_TO_TICKS(config::leader::kServoTelemetryTaskCalibrationDelayMs));
       continue;
     }
 

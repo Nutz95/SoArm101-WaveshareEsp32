@@ -1,5 +1,6 @@
 #include "leader_app.h"
 #include "leader_calibration_workflow_internal.h"
+#include "leader_presence_service.h"
 
 #include "../Config/leader_runtime_config.h"
 #include "../common/calibration/calibration_profile_utils.h"
@@ -43,12 +44,15 @@ void LeaderApp::releaseCalibrationTorqueForActiveRole() {
     return;
   }
 
-  if (!presenceService_->isFollowerAvailable()) {
+  if (!presenceService_->isFollowerLinked()) {
     return;
   }
 
   const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
   teleopContinuousRequestCounter_ = requestId;
+  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
+    (void)presence->ensureEspNowTransportReady();
+  }
   (void)presenceService_->requestServoControl(
       static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
       0U,
@@ -72,12 +76,15 @@ bool LeaderApp::applyCalibrationCenter() {
     return true;
   }
 
-  if (!presenceService_->isFollowerAvailable()) {
+  if (!presenceService_->isFollowerLinked()) {
     return false;
   }
 
   const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
   teleopContinuousRequestCounter_ = requestId;
+  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
+    (void)presence->ensureEspNowTransportReady();
+  }
   if (!presenceService_->requestServoControl(
           static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter),
           0U,
@@ -133,6 +140,7 @@ bool LeaderApp::sampleCalibrationRangeCapture() {
         servoBusService_.lastTelemetryText());
   }
 
+  presenceService_->refreshFollowerLinkGrace();
   return expandWorkingProfileFromTelemetry(
       followerCalibrationWorkingProfile_,
       presenceService_->followerServoTelemetry());
@@ -159,7 +167,7 @@ bool LeaderApp::commitCalibrationRangeCapture() {
       return false;
     }
 
-    if (presenceService_->isFollowerAvailable()) {
+    if (presenceService_->isFollowerLinked()) {
       const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
       teleopContinuousRequestCounter_ = requestId;
       (void)presenceService_->requestServoControl(

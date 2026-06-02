@@ -245,6 +245,7 @@ CommandAckStatus FollowerApp::handleDebugDisable(uint32_t value) {
   (void)value;
   memset(teleopPreparedById_, 0, sizeof(teleopPreparedById_));
   lastTeleopActivityMs_ = 0U;
+  calibrationTelemetryBoostUntilMs_ = millis() + config::follower::kCalibrationTelemetryBoostMs;
   if (auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get())) {
     presence->resetTeleopTransportState();
   }
@@ -267,6 +268,9 @@ CommandAckStatus FollowerApp::handleCenterAll(uint32_t value) {
 CommandAckStatus FollowerApp::handleCalibrationCenter(uint32_t value) {
   (void)value;
   const uint32_t startMs = millis();
+  calibrationTelemetryBoostUntilMs_ = startMs + config::follower::kCalibrationTelemetryBoostMs;
+  lastTeleopActivityMs_ = 0U;
+  memset(teleopPreparedById_, 0, sizeof(teleopPreparedById_));
   Serial.println("[CAL] follower center start");
   presenceService_->sendLinkKeepalive(activeWifiIpForPresence());
   const bool ok = servoBusService_.calibrateOffsetsForDetectedServos();

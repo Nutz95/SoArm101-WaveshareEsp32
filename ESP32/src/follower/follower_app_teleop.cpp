@@ -35,6 +35,9 @@ void FollowerApp::markTeleopActivity(uint32_t nowMs) {
 }
 
 bool FollowerApp::isTeleopBusPaused(uint32_t nowMs) const {
+  if (calibrationTelemetryBoostUntilMs_ > 0U && nowMs < calibrationTelemetryBoostUntilMs_) {
+    return false;
+  }
   return lastTeleopActivityMs_ > 0U &&
          (nowMs - lastTeleopActivityMs_) < config::follower::kTeleopTrafficRecentMs;
 }
