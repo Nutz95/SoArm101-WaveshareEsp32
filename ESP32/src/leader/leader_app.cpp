@@ -208,6 +208,10 @@ void LeaderApp::runStartupServoScans(uint32_t nowMs) {
     leaderServoFault_ = localScanCount != config::common::kExpectedLeaderServoCount;
   }
 
+  if (teleopContinuousEnabled_.load()) {
+    return;
+  }
+
   if (!presenceService_->isFollowerLinked() || followerStartupScanDone_) {
     return;
   }

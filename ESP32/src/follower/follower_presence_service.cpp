@@ -278,6 +278,14 @@ bool FollowerPresenceService::dequeueTeleopBatch(PendingTeleopBatch &batch) {
   return true;
 }
 
+void FollowerPresenceService::resetTeleopTransportState() {
+  teleopBatchQueueHead_ = 0U;
+  teleopBatchQueueTail_ = 0U;
+  teleopBatchQueueCount_ = 0U;
+  lastTeleopBatchRxMs_ = 0U;
+  lastWifiTeleopRxMs_ = 0U;
+}
+
 void FollowerPresenceService::updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) {
   lastAckRequestId_ = requestId;
   lastAckCommandOp_ = op;

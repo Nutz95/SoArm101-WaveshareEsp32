@@ -243,9 +243,14 @@ CommandAckStatus FollowerApp::handleDebugEnable(uint32_t value) {
 
 CommandAckStatus FollowerApp::handleDebugDisable(uint32_t value) {
   (void)value;
+  memset(teleopPreparedById_, 0, sizeof(teleopPreparedById_));
+  lastTeleopActivityMs_ = 0U;
+  if (auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get())) {
+    presence->resetTeleopTransportState();
+  }
   servoBusService_.setDebugManual(false);
   servoBusService_.setTorqueEnabledForDetectedServos(false);
-  Serial.println("[SERVO] debug manual disabled");
+  Serial.println("[SERVO] teleop released (torque off)");
   return CommandAckStatus::Applied;
 }
 

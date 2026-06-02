@@ -186,7 +186,7 @@ void LeaderApp::handleTeleopWifiButtons(bool confirmPressed, bool validatePresse
 
   if (validatePressed) {
     wifiDirectTeleopActive_.store(false);
-    teleopContinuousEnabled_.store(false);
+    releaseFollowerTeleopHold();
     disengageWifiDirectLink();
     applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
     setTransientStatus("teleop wifi stop", config::leader::kMoveStatusHoldMs);

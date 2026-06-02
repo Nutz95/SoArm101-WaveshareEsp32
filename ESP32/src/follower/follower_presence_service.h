@@ -56,6 +56,7 @@ public:
   void setWifiDirectJoinSession(uint32_t sessionId);
   void clearWifiDirectJoinSession();
   bool isWifiDirectJoinSession(uint32_t sessionId) const;
+  void resetTeleopTransportState();
 
 private:
   struct PendingServoControl {

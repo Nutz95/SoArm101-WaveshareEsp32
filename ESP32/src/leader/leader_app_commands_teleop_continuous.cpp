@@ -27,16 +27,7 @@ void LeaderApp::handleTeleopContinuousCommand(uint32_t value, uint16_t requestId
   }
 
   if (!enable) {
-    teleopContinuousServoIdFilter_.store(0U);
-    teleopContinuousEnabled_.store(false);
-    if (presenceService_->isFollowerLinked()) {
-      const uint16_t followerRequestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
-      teleopContinuousRequestCounter_ = followerRequestId;
-      (void)presenceService_->requestServoControl(
-          static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
-          0U,
-          followerRequestId);
-    }
+    releaseFollowerTeleopHold();
   } else {
     teleopContinuousServoIdFilter_.store(servoIdFilter);
     teleopContinuousEnabled_.store(true);

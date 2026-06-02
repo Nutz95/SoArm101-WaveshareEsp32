@@ -221,17 +221,40 @@ void LeaderApp::handleTeleopMirrorButtons(bool confirmPressed, bool validatePres
   }
 
   if (validatePressed) {
-    teleopContinuousEnabled_.store(false);
-    teleopContinuousServoIdFilter_.store(0U);
-    if (presenceService_->isFollowerLinked()) {
-      const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
-      teleopContinuousRequestCounter_ = requestId;
-      (void)presenceService_->requestServoControl(
-          static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
-          0U,
-          requestId);
-    }
+    releaseFollowerTeleopHold();
     setTransientStatus("teleop mirror stop", config::leader::kMoveStatusHoldMs);
+  }
+}
+
+void LeaderApp::releaseFollowerTeleopHold() {
+  teleopContinuousEnabled_.store(false);
+  teleopContinuousServoIdFilter_.store(0U);
+
+  if (!presenceService_->isFollowerLinked()) {
+    return;
+  }
+
+  const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
+  teleopContinuousRequestCounter_ = requestId;
+
+  beginCommandTracking(requestId, static_cast<uint8_t>(ServoControlOpcode::DebugDisable));
+  setLeaderCommandStatus(CommandAckStatus::None);
+  const bool sent = presenceService_->requestServoControl(
+      static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
+      0U,
+      requestId);
+  if (sent) {
+    setFollowerCommandStatus(CommandAckStatus::Accepted);
+    setFollowerRetryPayload(
+        static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
+        0U,
+        config::leader::kFollowerCommandMaxRetries);
+    awaitFollowerAck(
+        requestId,
+        static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
+        config::leader::kFollowerDebugAckTimeoutMs);
+  } else {
+    setFollowerCommandStatus(CommandAckStatus::Failed);
   }
 }
 
@@ -304,6 +327,12 @@ void LeaderApp::applyProfileExitTransitions(
   if (previous == kProfilePassthrough && passthroughEngaged_.load()) {
     passthroughEngaged_.store(false);
     servoPassthrough_.exit();
+  }
+
+  if (previous == kProfileTeleopEspNow && next != kProfileTeleopEspNow) {
+    releaseFollowerTeleopHold();
+  } else if (previous == kProfileTeleopWifi && next != kProfileTeleopWifi) {
+    releaseFollowerTeleopHold();
   }
 
   if (previous == kProfileTeleopWifi && (wifiDirectLinkEngaged_.load() || wifiDirectSession_.isActive())) {

@@ -130,6 +130,7 @@ private:
   void engageOtaMode();
   void handleOtaButtons(bool confirmPressed, bool validatePressed);
   void nudgeFollowerLinkAfterCalibration();
+  void releaseFollowerTeleopHold();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
   void pollFollowerCalibrationCenterAck(uint32_t nowMs);
   void setTransientStatus(const char *text, uint32_t holdMs);
