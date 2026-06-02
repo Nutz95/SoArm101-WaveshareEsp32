@@ -40,7 +40,7 @@ private:
     bool        otaInProgress_{false};
     bool        wasConnected_{false};
     bool        staConnectDesired_{true};
-    char        ipBuf_[16]{};
+    mutable char ipBuf_[16]{};
 };
 
 } // namespace soarm

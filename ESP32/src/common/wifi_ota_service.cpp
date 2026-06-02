@@ -90,11 +90,18 @@ bool WifiOtaService::isStaConnectDesired() const {
 void WifiOtaService::tick() {
   ArduinoOTA.handle();
 
+  const bool connected = (WiFi.status() == WL_CONNECTED);
+  if (connected) {
+    const String liveIp = WiFi.localIP().toString();
+    if (liveIp.length() > 0U && liveIp != "0.0.0.0") {
+      strncpy(ipBuf_, liveIp.c_str(), sizeof(ipBuf_) - 1);
+      ipBuf_[sizeof(ipBuf_) - 1] = '\0';
+    }
+  }
+
   if (!staConnectDesired_ && !otaInProgress_) {
     return;
   }
-
-  const bool connected = (WiFi.status() == WL_CONNECTED);
 
   if (connected && !wasConnected_) {
     wasConnected_ = true;
@@ -122,6 +129,13 @@ bool WifiOtaService::isOtaInProgress() const {
 }
 
 const char *WifiOtaService::ipAddress() const {
+  if (WiFi.status() == WL_CONNECTED) {
+    const String liveIp = WiFi.localIP().toString();
+    if (liveIp.length() > 0U && liveIp != "0.0.0.0") {
+      strncpy(ipBuf_, liveIp.c_str(), sizeof(ipBuf_) - 1);
+      ipBuf_[sizeof(ipBuf_) - 1] = '\0';
+    }
+  }
   return ipBuf_;
 }
 
