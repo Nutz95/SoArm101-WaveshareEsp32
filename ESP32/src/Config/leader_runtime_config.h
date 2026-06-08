@@ -52,6 +52,8 @@ constexpr uint32_t kWifiDirectOfferResendMs = 5000U;
 constexpr uint32_t kFollowerSetIdAckTimeoutMs = 2000U;
 constexpr uint32_t kFollowerSetModeAckTimeoutMs = 1500U;
 constexpr uint32_t kFollowerScanAckTimeoutMs = 3000U;
+constexpr uint32_t kFollowerCalibrationCenterResendMs = 400U;
+constexpr uint8_t kFollowerCalibrationCenterMaxResends = 12U;
 
 // Xbox BLE controller runtime.
 constexpr uint32_t kXboxScanWindowMs = 4000U;

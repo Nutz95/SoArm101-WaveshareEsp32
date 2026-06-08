@@ -239,6 +239,8 @@ private:
   std::atomic<bool> followerCalibrationCenterPending_{false};
   uint16_t followerCalibrationCenterRequestId_{0U};
   uint32_t followerCalibrationCenterStartedMs_{0U};
+  uint32_t followerCalibrationCenterLastResendMs_{0U};
+  uint8_t followerCalibrationCenterResendRemaining_{0U};
   uint32_t calibrationCenterConfirmArmedAtMs_{0U};
   TeleopMirrorLatencyMetrics teleopMirrorLatencyMetrics_{};
   LeaderTeleopWifiBridge teleopWifiBridge_{};

@@ -140,6 +140,7 @@ void LeaderPresenceService::handleServoCommandAck(const uint8_t *mac, const Pres
   followerServoDebugManual_ = debugBitInControlValue;
   followerServoTemperatureAlarm_ = tempAlarmBitInControlValue;
   followerLastAckMs_ = millis();
+  linkHeartbeat_.notifyPeerActivity(millis());
 }
 
 } // namespace soarm

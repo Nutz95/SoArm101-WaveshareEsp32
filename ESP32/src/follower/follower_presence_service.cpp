@@ -112,10 +112,6 @@ void FollowerPresenceService::tick(const char *localIp) {
     return;
   }
 
-  if (directWifiSessionActive_) {
-    return;
-  }
-
   if (localIp != nullptr && localIp[0] != '\0') {
     strncpy(lastLocalIp_, localIp, sizeof(lastLocalIp_) - 1);
     lastLocalIp_[sizeof(lastLocalIp_) - 1] = '\0';
@@ -124,6 +120,10 @@ void FollowerPresenceService::tick(const char *localIp) {
   const uint32_t nowMs = millis();
   const bool teleopActive = isTeleopTrafficActive(nowMs);
   const bool mustTransmit = forcePresenceTx_ || stagedAckPending_;
+
+  if (directWifiSessionActive_ && !mustTransmit) {
+    return;
+  }
 
   if (!hasPairedLeader()) {
     if ((nowMs - lastPairRequestMs_) >= config::follower::kPairRequestIntervalMs) {

@@ -98,6 +98,18 @@ bool LeaderPresenceService::isFollowerLinked() const {
   return linkHeartbeat_.isPeerAlive(millis(), link::kPeerAliveTimeoutMs);
 }
 
+bool LeaderPresenceService::canCommandPairedFollower() const {
+  if (!hasPairedMac_) {
+    return false;
+  }
+  const uint32_t nowMs = millis();
+  if (linkHeartbeat_.isPeerAlive(nowMs, link::kPeerAliveTimeoutMs)) {
+    return true;
+  }
+  // Paired in NVS and we had traffic before (e.g. teleop without router IP).
+  return linkHeartbeat_.lastPeerActivityMs() > 0U;
+}
+
 bool LeaderPresenceService::isFollowerAvailable() const {
   return hasPairedMac_ && hasValidFollowerIp();
 }
@@ -217,6 +229,18 @@ bool LeaderPresenceService::requestServoScan(uint16_t requestId) {
 }
 
 bool LeaderPresenceService::requestServoControl(uint8_t op, uint32_t value, uint16_t requestId) {
+  if (!started_) {
+    return false;
+  }
+
+  uint8_t channel = WiFi.channel();
+  if (channel < 1U || channel > 14U) {
+    channel = 1U;
+  }
+  if (!ensureEspNowTransportReady(channel)) {
+    return false;
+  }
+
   bool sent = false;
   if (hasPairedMac_) {
     sent = sendServoControl(pairedFollowerMac_, op, value, requestId);

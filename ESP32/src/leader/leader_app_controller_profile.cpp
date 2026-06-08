@@ -176,6 +176,11 @@ void LeaderApp::handleCalibrationActiveButtons(
     }
 
     if (calibrationPhase_.load() == 0U) {
+      if (followerAckPending_ &&
+          followerAckCommandOp_ == static_cast<uint8_t>(ServoControlOpcode::DebugDisable)) {
+        setTransientStatus("wait follower unlock", config::leader::kMoveStatusHoldMs);
+        return;
+      }
       if (applyCalibrationCenter()) {
         const char *status = profile == kProfileCalibrationFollower
                                  ? "cal follower center"

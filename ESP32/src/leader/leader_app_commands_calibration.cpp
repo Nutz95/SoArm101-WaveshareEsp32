@@ -44,15 +44,13 @@ void LeaderApp::releaseCalibrationTorqueForActiveRole() {
     return;
   }
 
-  if (!presenceService_->isFollowerLinked()) {
+  auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
+  if (presence == nullptr || !presence->canCommandPairedFollower()) {
     return;
   }
 
   const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
   teleopContinuousRequestCounter_ = requestId;
-  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
-    (void)presence->ensureEspNowTransportReady();
-  }
   (void)presenceService_->requestServoControl(
       static_cast<uint8_t>(ServoControlOpcode::DebugDisable),
       0U,
@@ -76,15 +74,15 @@ bool LeaderApp::applyCalibrationCenter() {
     return true;
   }
 
-  if (!presenceService_->isFollowerLinked()) {
+  auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
+  if (presence == nullptr || !presence->canCommandPairedFollower()) {
     return false;
   }
 
+  presenceService_->refreshFollowerLinkGrace();
+
   const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
   teleopContinuousRequestCounter_ = requestId;
-  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
-    (void)presence->ensureEspNowTransportReady();
-  }
   if (!presenceService_->requestServoControl(
           static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter),
           0U,
@@ -94,6 +92,8 @@ bool LeaderApp::applyCalibrationCenter() {
 
   followerCalibrationCenterRequestId_ = requestId;
   followerCalibrationCenterStartedMs_ = millis();
+  followerCalibrationCenterLastResendMs_ = followerCalibrationCenterStartedMs_;
+  followerCalibrationCenterResendRemaining_ = config::leader::kFollowerCalibrationCenterMaxResends;
   followerCalibrationCenterPending_.store(true);
   return true;
 }
@@ -112,18 +112,31 @@ void LeaderApp::pollFollowerCalibrationCenterAck(uint32_t nowMs) {
         static_cast<CommandAckStatus>(presenceService_->followerLastAckStatus());
     if (status == CommandAckStatus::Applied) {
       followerCalibrationCenterPending_.store(false);
+      followerCalibrationCenterResendRemaining_ = 0U;
       enterCalibrationRangePhase(ArmRole::Follower);
       presenceService_->refreshFollowerLinkGrace();
       setTransientStatus("cal follower move extremes", config::leader::kMoveStatusHoldMs);
     } else if (status == CommandAckStatus::Failed || status == CommandAckStatus::Rejected) {
       followerCalibrationCenterPending_.store(false);
+      followerCalibrationCenterResendRemaining_ = 0U;
       setTransientStatus("cal follower center fail", config::leader::kMoveStatusHoldMs);
     }
     return;
   }
 
+  if (followerCalibrationCenterResendRemaining_ > 0U &&
+      (nowMs - followerCalibrationCenterLastResendMs_) >= config::leader::kFollowerCalibrationCenterResendMs) {
+    followerCalibrationCenterLastResendMs_ = nowMs;
+    --followerCalibrationCenterResendRemaining_;
+    (void)presenceService_->requestServoControl(
+        static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter),
+        0U,
+        followerCalibrationCenterRequestId_);
+  }
+
   if ((nowMs - followerCalibrationCenterStartedMs_) >= config::leader::kFollowerCalibrationCenterAckTimeoutMs) {
     followerCalibrationCenterPending_.store(false);
+    followerCalibrationCenterResendRemaining_ = 0U;
     setTransientStatus("cal follower center timeout", config::leader::kMoveStatusHoldMs);
   }
 }
@@ -167,7 +180,8 @@ bool LeaderApp::commitCalibrationRangeCapture() {
       return false;
     }
 
-    if (presenceService_->isFollowerLinked()) {
+    auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
+    if (presence != nullptr && presence->canCommandPairedFollower()) {
       const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
       teleopContinuousRequestCounter_ = requestId;
       (void)presenceService_->requestServoControl(

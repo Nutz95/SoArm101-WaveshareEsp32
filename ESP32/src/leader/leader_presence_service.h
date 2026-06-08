@@ -24,6 +24,7 @@ public:
   void refreshFollowerLinkGrace() override;
   void notifyPeerLinkActivity() override;
   bool isFollowerLinked() const override;
+  bool canCommandPairedFollower() const;
   bool isFollowerAvailable() const override;
   bool hasValidFollowerIp() const override;
   const char *followerIp() const override;

@@ -136,9 +136,13 @@ void FollowerPresenceService::handlePairResetFrame() {
 
 void FollowerPresenceService::handleServoControlFrame(const PresencePacket &packet) {
   lastServoControlRxMs_ = millis();
-  Serial.printf("[FOLLOWER] ServoControl op=%u req=%u\n",
-                static_cast<unsigned>(packet.controlOp),
-                static_cast<unsigned>(packet.reserved2));
+  if (packet.controlOp == static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter)) {
+    Serial.printf("[FOLLOWER] CalibrationCenter req=%u\n", static_cast<unsigned>(packet.reserved2));
+  } else {
+    Serial.printf("[FOLLOWER] ServoControl op=%u req=%u\n",
+                  static_cast<unsigned>(packet.controlOp),
+                  static_cast<unsigned>(packet.reserved2));
+  }
 
   if (isDuplicateControlFrame(packet.controlOp, packet.controlValue, packet.reserved2, packet.reserved)) {
     if (lastAckRequestId_ == packet.reserved2 && lastAckCommandOp_ == packet.controlOp) {

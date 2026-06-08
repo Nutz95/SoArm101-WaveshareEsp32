@@ -33,6 +33,9 @@ void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
       }
     }
     followerWifiDirectLink_.tick(*presence, wifiDirectRadio_, wifiOta_, nowMs);
+    if (!followerWifiDirectLink_.isActive()) {
+      presence->setDirectWifiSessionActive(false);
+    }
   }
 
   if (followerWifiDirectLink_.isActive()) {
