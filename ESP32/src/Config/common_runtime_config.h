@@ -27,6 +27,8 @@ constexpr uint8_t kServoSetIdVerifyAttempts = 6U;
 constexpr uint32_t kServoSetIdVerifyRetryDelayMs = 15U;
 constexpr uint8_t kExpectedLeaderServoCount = static_cast<uint8_t>(EXPECTED_LEADER_SERVO_COUNT);
 constexpr uint8_t kExpectedFollowerServoCount = static_cast<uint8_t>(EXPECTED_FOLLOWER_SERVO_COUNT);
+// Shared leader/follower teleop control cadence (~83 Hz).
+constexpr uint32_t kTeleopControlPeriodMs = 12U;
 
 } // namespace common
 } // namespace config

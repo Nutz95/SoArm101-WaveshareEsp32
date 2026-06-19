@@ -24,7 +24,7 @@ If you make changes to coding rules, update `CODING_RULES.md`.
 
 ## Ponytail (minimal code policy)
 
-For feature work and refactors, follow `.cursor/rules/ponytail.mdc`: simplest working solution, stdlib/native first, no speculative abstractions. Deliberate shortcuts use a `ponytail:` comment with ceiling and upgrade path. Debt scan: grep `ponytail:` in the repo.
+For feature work and refactors, follow `.cursor/rules/ponytail.mdc`: simplest working solution, stdlib/native first, no speculative abstractions. Deliberate shortcuts use a `ponytail:` comment with ceiling and upgrade path. Tracked debt: [`PONYTAIL-DEBT.md`](PONYTAIL-DEBT.md). CString copies: use `copyCString()` (`ESP32/src/common/cstring_copy.h`), not `strncpy`.
 
 ## Architecture Context
 

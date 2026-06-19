@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common_runtime_config.h"
+
 #include <cstdint>
 
 namespace soarm {
@@ -17,9 +19,9 @@ constexpr uint32_t kCalibrationReadyMs = 6000U;
 constexpr bool kCalibrationRequired = false;
 constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
 constexpr uint8_t kTeleopContinuousSpeedPct = 100U;
-// ~60 Hz teleop loop (LeRobot-aligned target).
-constexpr uint32_t kTeleopTargetPeriodMs = 17U;
-constexpr int16_t kTeleopMirrorMinPositionDelta = 3;
+// ~83 Hz teleop loop (shared with follower apply task).
+constexpr uint32_t kTeleopTargetPeriodMs = config::common::kTeleopControlPeriodMs;
+constexpr int16_t kTeleopMirrorMinPositionDelta = 1;
 constexpr int16_t kTeleopMirrorMinPositionDeltaWifi = 0;
 constexpr uint32_t kServoTelemetryTaskActiveDelayMs = kTeleopTargetPeriodMs;
 constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
@@ -58,9 +60,8 @@ constexpr uint8_t kFollowerCalibrationCenterMaxResends = 12U;
 // Xbox BLE controller runtime.
 constexpr uint32_t kXboxScanWindowMs = 4000U;
 constexpr uint32_t kXboxScanRetryDelayMs = 1000U;
-// While teleop mirror is active, poll for controller reconnect on this interval.
-constexpr uint32_t kXboxTeleopReconnectPollMs = 4000U;
-constexpr uint32_t kXboxTeleopPassiveScanMs = 1500U;
+// While teleop mirror is active, retry direct cached-address connect on this interval (no BLE scan).
+constexpr uint32_t kXboxTeleopReconnectPollMs = 1500U;
 constexpr uint32_t kXboxConnectedTickDelayMs = 20U;
 constexpr uint32_t kXboxDisconnectedTickDelayMs = 200U;
 constexpr uint32_t kXboxInputReportStaleMs = 2000U;

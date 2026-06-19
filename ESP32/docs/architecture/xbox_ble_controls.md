@@ -2,6 +2,21 @@
 
 Leader builds with `LEADER_ENABLE_XBOX_BLE=1` (`env:leader`, `env:leader-ota`, `build_upload_leader.ps1`).
 
+## Pairing and stored address
+
+On **every leader boot**:
+
+1. Any previously stored Xbox BLE address is **cleared from NVS**.
+2. Firmware runs a **full active BLE scan** (4 s window) to find a HID / Xbox controller.
+3. After a successful connect, the controller **BLE address is saved to NVS** (`xbox_ble` / `ctrl_mac`) and kept in RAM for the rest of the session.
+
+While the leader keeps running (no reboot):
+
+- If the pad disconnects or sleeps, reconnect uses the **stored address first** (direct connect, no scan).
+- During **active teleop mirror**, reconnect retries are **address-only** (no BLE scan) to avoid radio glitches on ESP-NOW / Wi-Fi teleop.
+
+**Pair a different Xbox controller:** power-cycle or reboot the leader so boot clears the old address and runs a full scan again. Mid-session pairing of a new pad is not supported.
+
 ## Radio / boot
 
 1. After NVS: **NimBLE init** (`[BOOT] stage: xbox BLE`).

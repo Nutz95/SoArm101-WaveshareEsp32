@@ -4,6 +4,7 @@
 #include "../Config/controller_mapping_config.h"
 #include "../Config/leader_runtime_config.h"
 #include "../common/cstring_copy.h"
+#include "../common/mac_address_utils.h"
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
@@ -17,6 +18,34 @@ namespace {
 constexpr uint16_t kHidServiceUuid = 0x1812;
 constexpr uint16_t kHidInputReportUuid = 0x2A4D;
 } // namespace
+
+void LeaderXboxControllerService::persistPeerAddress(const NimBLEAddress &peer) {
+  const std::string addrStr = peer.toString();
+  copyCString(lastPeerAddress_, sizeof(lastPeerAddress_), addrStr.c_str());
+
+  const uint8_t *native = peer.getNative();
+  if (native == nullptr) {
+    return;
+  }
+
+  if (xboxAddressStore_.save(native)) {
+    Serial.printf("[XBOX] stored controller address: %s\n", lastPeerAddress_);
+  }
+}
+
+bool LeaderXboxControllerService::hydrateCachedAddress() {
+  if (lastPeerAddress_[0] != '\0') {
+    return true;
+  }
+
+  uint8_t mac[6]{};
+  if (!xboxAddressStore_.load(mac)) {
+    return false;
+  }
+
+  formatMacAddress(mac, lastPeerAddress_);
+  return true;
+}
 
 void LeaderXboxControllerService::tearDownBleClient() {
   inputSubscribed_.store(false);
@@ -58,8 +87,8 @@ bool LeaderXboxControllerService::finishConnectHandshake() {
   }
   copyCString(controllerName_, sizeof(controllerName_), name.c_str());
 
-  const NimBLEAddress peer = g_xboxClient->getPeerAddress();
-  copyCString(lastPeerAddress_, sizeof(lastPeerAddress_), peer.toString().c_str());
+  persistPeerAddress(g_xboxClient->getPeerAddress());
+  bootFullScanPending_ = false;
 
   const bool subscribed = subscribeToInputReport();
   inputSubscribed_.store(subscribed);
@@ -79,7 +108,7 @@ bool LeaderXboxControllerService::finishConnectHandshake() {
 }
 
 bool LeaderXboxControllerService::tryConnectCachedPeer() {
-  if (lastPeerAddress_[0] == '\0') {
+  if (!hydrateCachedAddress()) {
     return false;
   }
 

@@ -6,7 +6,7 @@ This document describes how leader–follower mirroring is tuned, how it compare
 
 | Goal | Approach |
 |------|----------|
-| LeRobot-like cadence | ~60 Hz control loop (`kTeleopTargetPeriodMs = 17`) |
+| LeRobot-like cadence | ~60 Hz control loop (`kTeleopControlPeriodMs = 12`, ~83 Hz) |
 | LeRobot-like bus I/O | `syncRead` present position + `SyncWritePosEx` goal batch |
 | No fragile PC files | Calibration min/max in NVS profiles on each ESP32 |
 | Salon robustness | Default **ESP-NOW** teleop; Wi-Fi for OTA + dashboard |

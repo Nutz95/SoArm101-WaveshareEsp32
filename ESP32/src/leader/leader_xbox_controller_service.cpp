@@ -95,6 +95,10 @@ void LeaderXboxControllerService::begin() {
 
   g_xboxService = this;
   controllerName_[0] = '\0';
+  lastPeerAddress_[0] = '\0';
+  bootFullScanPending_ = true;
+  xboxAddressStore_.clear();
+  Serial.println("[XBOX] boot: cleared stored address, full scan pending");
 
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(true);
@@ -203,17 +207,22 @@ void LeaderXboxControllerService::runLoop() {
     tearDownBleClient();
     controllerPaired_.store(false);
 
-    // ponytail: RAM-cached BLE address only; NVS bond store if salon reconnect stays flaky.
+    if (bootFullScanPending_) {
+      if (!scanForController(false, config::leader::kXboxScanWindowMs)) {
+        setRuntimeState(XboxRuntimeState::Disconnected);
+      }
+      vTaskDelay(pdMS_TO_TICKS(config::leader::kXboxScanRetryDelayMs));
+      continue;
+    }
+
     if (tryConnectCachedPeer()) {
       continue;
     }
 
     const bool teleopPriority = backgroundReconnectDeferred_.load();
     if (teleopPriority) {
-      // ponytail: passive scan during teleop, upgrade to timed active scan if wake misses persist.
-      if (!scanForController(true, config::leader::kXboxTeleopPassiveScanMs)) {
-        setRuntimeState(XboxRuntimeState::Disconnected);
-      }
+      // ponytail: direct-address reconnect only during teleop (no BLE scan = no radio glitch).
+      setRuntimeState(XboxRuntimeState::Disconnected);
       vTaskDelay(pdMS_TO_TICKS(config::leader::kXboxTeleopReconnectPollMs));
       continue;
     }

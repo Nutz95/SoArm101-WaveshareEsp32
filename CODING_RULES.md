@@ -122,6 +122,11 @@ Enforcement guidance:
 - The comment must describe purpose and side effects/contract at a high level.
 - This rule is enforced by structural checks on changed header files.
 
+**13. Bounded C string copies (ponytail)**
+- Do not use `strncpy` or `strncpy_s` in firmware code. MSVC may warn on `strncpy`; ESP32 GCC does not ship `strncpy_s`.
+- Use `copyCString(dst, dstSize, src)` from `ESP32/src/common/cstring_copy.h` (wraps `snprintf`).
+- Remaining legacy `strncpy` calls are tracked in `PONYTAIL-DEBT.md` until migrated.
+
 ---
 
 If you want, I can add a pre-commit hook or an editorconfig snippet to help enforce the indentation and newline rules automatically.

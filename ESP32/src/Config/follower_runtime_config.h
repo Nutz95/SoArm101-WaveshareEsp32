@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common_runtime_config.h"
+
 #include <cstdint>
 
 namespace soarm {
@@ -13,7 +15,7 @@ constexpr uint16_t kTeleopServoMaxSpeedRaw = 7000U;
 constexpr uint32_t kPairRequestIntervalMs = 5000U;
 constexpr uint32_t kPairRequestIntervalTeleopMs = 30000U;
 constexpr uint32_t kTeleopWifiDrainMaxBatchesPerTick = 16U;
-constexpr uint32_t kTeleopApplyTaskPeriodMs = 17U;
+constexpr uint32_t kTeleopApplyTaskPeriodMs = config::common::kTeleopControlPeriodMs;
 constexpr uint32_t kTeleopApplyTaskIdleDelayMs = 1U;
 constexpr uint32_t kTeleopTrafficRecentMs = 2500U;
 constexpr uint32_t kWifiDirectStaConnectTimeoutMs = 20000U;

@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include "../common/peer_pairing_store.h"
 #include <NimBLEDevice.h>
 
 namespace soarm {
@@ -95,8 +96,12 @@ private:
   bool connectToTarget();
   bool subscribeToInputReport();
   bool waitForSecureLink(uint32_t timeoutMs);
+  void persistPeerAddress(const NimBLEAddress &peer);
+  bool hydrateCachedAddress();
 
   static void taskEntry(void *context);
+
+  PeerPairingStore xboxAddressStore_{"xbox_ble", "ctrl_mac"};
 
   std::atomic<uint8_t> runtimeState_{static_cast<uint8_t>(XboxRuntimeState::Disconnected)};
   std::atomic<bool> controllerPaired_{false};
@@ -124,6 +129,7 @@ private:
   char controllerName_[32]{0};
   char lastPeerAddress_[18]{0};
   bool started_{false};
+  bool bootFullScanPending_{true};
 };
 
 } // namespace soarm
