@@ -58,6 +58,8 @@ constexpr uint8_t kFollowerCalibrationCenterMaxResends = 12U;
 // Xbox BLE controller runtime.
 constexpr uint32_t kXboxScanWindowMs = 4000U;
 constexpr uint32_t kXboxScanRetryDelayMs = 1000U;
+// While teleop mirror is active, defer BLE scan/reconnect to reduce radio contention.
+constexpr uint32_t kXboxScanDeferWhileTeleopMs = 15000U;
 constexpr uint32_t kXboxConnectedTickDelayMs = 20U;
 constexpr uint32_t kXboxDisconnectedTickDelayMs = 200U;
 constexpr uint32_t kXboxInputReportStaleMs = 2000U;

@@ -160,6 +160,10 @@ bool LeaderXboxControllerService::isControllerPaired() const {
   return controllerPaired_.load();
 }
 
+void LeaderXboxControllerService::setBackgroundReconnectDeferred(bool deferred) {
+  backgroundReconnectDeferred_.store(deferred);
+}
+
 void LeaderXboxControllerService::snapshot(XboxRuntimeSnapshot &out) const {
   out.state = runtimeState_.load();
   out.controllerPaired = controllerPaired_.load();
@@ -196,6 +200,12 @@ void LeaderXboxControllerService::runLoop() {
         inputSubscribed_.store(subscribeToInputReport());
       }
       vTaskDelay(pdMS_TO_TICKS(config::leader::kXboxConnectedTickDelayMs));
+      continue;
+    }
+
+    if (backgroundReconnectDeferred_.load()) {
+      setRuntimeState(XboxRuntimeState::Disconnected);
+      vTaskDelay(pdMS_TO_TICKS(config::leader::kXboxScanDeferWhileTeleopMs));
       continue;
     }
 

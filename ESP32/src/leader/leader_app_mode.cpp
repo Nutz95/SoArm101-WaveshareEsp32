@@ -8,6 +8,24 @@
 
 namespace soarm {
 
+namespace {
+
+bool shouldHoldTeleopRuntime(
+    ControllerOperationProfile profile,
+    bool teleopContinuousEnabled,
+    bool espNowLinked,
+    bool wifiDirectTeleopActive) {
+  if (!teleopContinuousEnabled || !espNowLinked) {
+    return false;
+  }
+  if (profile == ControllerOperationProfile::TeleopEspNow) {
+    return true;
+  }
+  return profile == ControllerOperationProfile::TeleopWifi && wifiDirectTeleopActive;
+}
+
+} // namespace
+
 void LeaderApp::computeModeAndStatus() {
   const bool followerIpValid = presenceService_->hasValidFollowerIp();
   const ControllerOperationProfile profile =
@@ -119,7 +137,18 @@ void LeaderApp::applyRuntimeModeAndStatus(
     bool followerIpValid,
     bool rangeCaptureActive,
     bool calibrationProfileSelected) {
+  const bool holdTeleopRuntime = shouldHoldTeleopRuntime(
+      profile,
+      teleopContinuousEnabled_.load(),
+      localInputs_.espNowLinked,
+      wifiDirectTeleopActive_.load());
+
   if (!localInputs_.joystickPaired) {
+    if (holdTeleopRuntime) {
+      mode_ = OperationMode::Teleoperation;
+      strncpy(statusLine_, "teleop (no pad)", sizeof(statusLine_) - 1);
+      return;
+    }
     mode_ = OperationMode::Idle;
     strncpy(statusLine_, "pair joystick", sizeof(statusLine_) - 1);
   } else if (profile == ControllerOperationProfile::CalibrationFollower &&

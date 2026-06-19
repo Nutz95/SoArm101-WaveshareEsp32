@@ -268,6 +268,7 @@ void LeaderApp::updateServoHealthFlags() {
 void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
   (void)uptimeMs;
   xboxControllerService_.tick();
+  xboxControllerService_.setBackgroundReconnectDeferred(teleopContinuousEnabled_.load());
   localInputs_.joystickPaired = xboxControllerService_.isControllerPaired();
   const ControllerOperationProfile profile =
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());

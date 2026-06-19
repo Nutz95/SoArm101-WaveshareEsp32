@@ -76,6 +76,8 @@ public:
   void updateInputState(const uint8_t *data, size_t length);
   // Return true when controller input path is fully operational for teleop.
   bool isReadyForTeleop() const;
+  // When true, disconnected workflow waits instead of starting BLE scans (teleop radio priority).
+  void setBackgroundReconnectDeferred(bool deferred);
   // Configure which logical button triggers operation-profile cycling.
   void setModeCycleButton(XboxLogicalButton button);
   // Consume one pending mode-cycle edge event.
@@ -114,6 +116,7 @@ private:
   std::atomic<uint8_t> buttonBPendingCount_{0U};
   std::atomic<bool> buttonAPressedLast_{false};
   std::atomic<bool> buttonBPressedLast_{false};
+  std::atomic<bool> backgroundReconnectDeferred_{false};
   char controllerName_[32]{0};
   bool started_{false};
 };
