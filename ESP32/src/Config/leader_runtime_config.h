@@ -22,7 +22,7 @@ constexpr uint8_t kTeleopContinuousSpeedPct = 100U;
 // ~83 Hz teleop loop (shared with follower apply task).
 constexpr uint32_t kTeleopTargetPeriodMs = config::common::kTeleopControlPeriodMs;
 constexpr int16_t kTeleopMirrorMinPositionDelta = 1;
-constexpr int16_t kTeleopMirrorMinPositionDeltaWifi = 0;
+constexpr int16_t kTeleopMirrorMinPositionDeltaWifi = 1;
 constexpr uint32_t kServoTelemetryTaskActiveDelayMs = kTeleopTargetPeriodMs;
 constexpr uint32_t kServoTelemetryTaskIdleDelayMs = 10U;
 constexpr uint32_t kServoTelemetryTaskCalibrationDelayMs = 20U;
