@@ -76,7 +76,7 @@ public:
   void updateInputState(const uint8_t *data, size_t length);
   // Return true when controller input path is fully operational for teleop.
   bool isReadyForTeleop() const;
-  // When true, disconnected workflow waits instead of starting BLE scans (teleop radio priority).
+  // When true, use passive scan + cached-address connect (teleop radio priority).
   void setBackgroundReconnectDeferred(bool deferred);
   // Configure which logical button triggers operation-profile cycling.
   void setModeCycleButton(XboxLogicalButton button);
@@ -88,6 +88,10 @@ public:
 
 private:
   void runLoop();
+  void tearDownBleClient();
+  bool tryConnectCachedPeer();
+  bool scanForController(bool passiveScan, uint32_t windowMs);
+  bool finishConnectHandshake();
   bool connectToTarget();
   bool subscribeToInputReport();
   bool waitForSecureLink(uint32_t timeoutMs);
@@ -118,6 +122,7 @@ private:
   std::atomic<bool> buttonBPressedLast_{false};
   std::atomic<bool> backgroundReconnectDeferred_{false};
   char controllerName_[32]{0};
+  char lastPeerAddress_[18]{0};
   bool started_{false};
 };
 

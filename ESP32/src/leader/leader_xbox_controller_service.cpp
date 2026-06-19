@@ -1,7 +1,9 @@
 #include "leader_xbox_controller_service.h"
+#include "leader_xbox_controller_service_internal.h"
 
 #include "../Config/controller_mapping_config.h"
 #include "../Config/leader_runtime_config.h"
+#include "../common/cstring_copy.h"
 #include "leader_radio_coexistence.h"
 
 #include <Arduino.h>
@@ -9,69 +11,65 @@
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <cstring>
-#include <vector>
 
 namespace soarm {
 
 namespace {
 constexpr uint16_t kHidServiceUuid = 0x1812;
-constexpr uint16_t kHidInputReportUuid = 0x2A4D;
+} // namespace
 
-LeaderXboxControllerService *g_service = nullptr;
-NimBLEClient *g_client = nullptr;
-NimBLEAdvertisedDevice *g_targetDevice = nullptr;
+LeaderXboxControllerService *g_xboxService = nullptr;
+NimBLEClient *g_xboxClient = nullptr;
+NimBLEAdvertisedDevice *g_xboxTargetDevice = nullptr;
+XboxClientCallbacks g_xboxClientCallbacks;
+XboxAdvertisedCallbacks g_xboxAdvCallbacks;
 
-XboxClientCallbacks g_clientCallbacks;
-XboxAdvertisedCallbacks g_advCallbacks;
-
-void inputReportCallback(NimBLERemoteCharacteristic *characteristic, uint8_t *data, size_t length, bool isNotify) {
+void xboxInputReportCallback(NimBLERemoteCharacteristic *characteristic, uint8_t *data, size_t length, bool isNotify) {
   (void)characteristic;
   (void)isNotify;
 
-  if (g_service != nullptr) {
-    g_service->updateInputState(data, length);
-    g_service->markInputReport();
-    g_service->setRuntimeState(XboxRuntimeState::Connected);
+  if (g_xboxService != nullptr) {
+    g_xboxService->updateInputState(data, length);
+    g_xboxService->markInputReport();
+    g_xboxService->setRuntimeState(XboxRuntimeState::Connected);
   }
 }
-
-} // namespace
 
 void XboxClientCallbacks::onConnect(NimBLEClient *client) {
   if (client != nullptr) {
     client->updateConnParams(12, 24, 0, 60);
   }
-  if (g_service != nullptr) {
+  if (g_xboxService != nullptr) {
     Serial.println("[XBOX] BLE connected");
   }
 }
 
 void XboxClientCallbacks::onDisconnect(NimBLEClient *client) {
   (void)client;
-  if (g_service != nullptr) {
+  if (g_xboxService != nullptr) {
     Serial.println("[XBOX] BLE disconnected");
-    g_service->setRuntimeState(XboxRuntimeState::Disconnected);
+    g_xboxService->setRuntimeState(XboxRuntimeState::Disconnected);
   }
+  g_xboxTargetDevice = nullptr;
 }
 
 void XboxClientCallbacks::onAuthenticationComplete(ble_gap_conn_desc *desc) {
-  if (g_service == nullptr) {
+  if (g_xboxService == nullptr) {
     return;
   }
 
   if (desc != nullptr && desc->sec_state.encrypted) {
     Serial.println("[XBOX] BLE link encrypted");
-    g_service->setRuntimeState(XboxRuntimeState::Pairing);
+    g_xboxService->setRuntimeState(XboxRuntimeState::Pairing);
     return;
   }
 
   Serial.println("[XBOX] BLE auth failed (not encrypted)");
-  g_service->setRuntimeState(XboxRuntimeState::Disconnected);
+  g_xboxService->setRuntimeState(XboxRuntimeState::Disconnected);
 }
 
 void XboxAdvertisedCallbacks::onResult(NimBLEAdvertisedDevice *device) {
-  if (device == nullptr || g_targetDevice != nullptr || g_service == nullptr) {
+  if (device == nullptr || g_xboxTargetDevice != nullptr || g_xboxService == nullptr) {
     return;
   }
 
@@ -84,8 +82,8 @@ void XboxAdvertisedCallbacks::onResult(NimBLEAdvertisedDevice *device) {
     return;
   }
 
-  g_targetDevice = device;
-  g_service->onDeviceFound(name.c_str());
+  g_xboxTargetDevice = device;
+  g_xboxService->onDeviceFound(name.c_str());
   Serial.printf("[XBOX] candidate found: %s\n", name.empty() ? "(unnamed)" : name.c_str());
   NimBLEDevice::getScan()->stop();
 }
@@ -95,7 +93,7 @@ void LeaderXboxControllerService::begin() {
     return;
   }
 
-  g_service = this;
+  g_xboxService = this;
   controllerName_[0] = '\0';
 
   WiFi.mode(WIFI_STA);
@@ -109,7 +107,7 @@ void LeaderXboxControllerService::begin() {
 
   NimBLEScan *scan = NimBLEDevice::getScan();
   if (scan != nullptr) {
-    scan->setAdvertisedDeviceCallbacks(&g_advCallbacks, false);
+    scan->setAdvertisedDeviceCallbacks(&g_xboxAdvCallbacks, false);
     scan->setActiveScan(true);
     scan->setInterval(100);
     scan->setWindow(99);
@@ -127,7 +125,7 @@ void LeaderXboxControllerService::begin() {
 
   started_ = (created == pdPASS);
   if (!started_) {
-    g_service->setRuntimeState(XboxRuntimeState::Disconnected);
+    g_xboxService->setRuntimeState(XboxRuntimeState::Disconnected);
   }
 }
 
@@ -136,7 +134,7 @@ void LeaderXboxControllerService::tick() {
     return;
   }
 
-  if (g_client == nullptr || !g_client->isConnected()) {
+  if (g_xboxClient == nullptr || !g_xboxClient->isConnected()) {
     controllerPaired_.store(false);
     inputSubscribed_.store(false);
     linkEncrypted_.store(false);
@@ -189,13 +187,12 @@ void LeaderXboxControllerService::snapshot(XboxRuntimeSnapshot &out) const {
     out.lastReportAgeMs = static_cast<uint16_t>(age > 65535U ? 65535U : age);
   }
 
-  strncpy(out.controllerName, controllerName_, sizeof(out.controllerName) - 1U);
-  out.controllerName[sizeof(out.controllerName) - 1U] = '\0';
+  copyCString(out.controllerName, sizeof(out.controllerName), controllerName_);
 }
 
 void LeaderXboxControllerService::runLoop() {
   while (true) {
-    if (g_client != nullptr && g_client->isConnected()) {
+    if (g_xboxClient != nullptr && g_xboxClient->isConnected()) {
       if (!inputSubscribed_.load()) {
         inputSubscribed_.store(subscribeToInputReport());
       }
@@ -203,123 +200,31 @@ void LeaderXboxControllerService::runLoop() {
       continue;
     }
 
-    if (backgroundReconnectDeferred_.load()) {
-      setRuntimeState(XboxRuntimeState::Disconnected);
-      vTaskDelay(pdMS_TO_TICKS(config::leader::kXboxScanDeferWhileTeleopMs));
+    tearDownBleClient();
+    controllerPaired_.store(false);
+
+    // ponytail: RAM-cached BLE address only; NVS bond store if salon reconnect stays flaky.
+    if (tryConnectCachedPeer()) {
       continue;
     }
 
-    setRuntimeState(XboxRuntimeState::Scanning);
-    g_targetDevice = nullptr;
-
-    NimBLEScan *scan = NimBLEDevice::getScan();
-    if (scan != nullptr) {
-      const uint32_t scanWindowSec = config::leader::kXboxScanWindowMs / 1000U;
-      scan->start(scanWindowSec == 0U ? 1U : scanWindowSec, false);
-    }
-
-    if (g_targetDevice != nullptr) {
-      setRuntimeState(XboxRuntimeState::Pairing);
-      const bool connected = connectToTarget();
-      if (!connected) {
-        controllerPaired_.store(false);
+    const bool teleopPriority = backgroundReconnectDeferred_.load();
+    if (teleopPriority) {
+      // ponytail: passive scan during teleop, upgrade to timed active scan if wake misses persist.
+      if (!scanForController(true, config::leader::kXboxTeleopPassiveScanMs)) {
         setRuntimeState(XboxRuntimeState::Disconnected);
       }
-    } else {
+      vTaskDelay(pdMS_TO_TICKS(config::leader::kXboxTeleopReconnectPollMs));
+      continue;
+    }
+
+    if (!scanForController(false, config::leader::kXboxScanWindowMs)) {
       controllerPaired_.store(false);
       setRuntimeState(XboxRuntimeState::Disconnected);
     }
 
     vTaskDelay(pdMS_TO_TICKS(config::leader::kXboxScanRetryDelayMs));
   }
-}
-
-bool LeaderXboxControllerService::connectToTarget() {
-  if (g_targetDevice == nullptr) {
-    return false;
-  }
-
-  if (g_client == nullptr) {
-    g_client = NimBLEDevice::createClient();
-    if (g_client == nullptr) {
-      return false;
-    }
-    g_client->setClientCallbacks(&g_clientCallbacks, false);
-  }
-
-  if (!g_client->connect(g_targetDevice)) {
-    Serial.println("[XBOX] connect failed");
-    return false;
-  }
-
-  linkEncrypted_.store(false);
-  inputSubscribed_.store(false);
-
-  Serial.println("[XBOX] requesting secure link");
-  g_client->secureConnection();
-  if (!waitForSecureLink(2500U)) {
-    Serial.println("[XBOX] secure link timeout");
-    g_client->disconnect();
-    return false;
-  }
-
-  std::string name = g_targetDevice->getName();
-  if (name.empty()) {
-    name = config::controller::kPreferredControllerName;
-  }
-
-  strncpy(controllerName_, name.c_str(), sizeof(controllerName_) - 1U);
-  controllerName_[sizeof(controllerName_) - 1U] = '\0';
-
-  const bool subscribed = subscribeToInputReport();
-  inputSubscribed_.store(subscribed);
-  if (!subscribed) {
-    Serial.println("[XBOX] input report subscribe failed");
-    g_client->disconnect();
-    return false;
-  }
-
-  controllerPaired_.store(isReadyForTeleop());
-  setRuntimeState(isReadyForTeleop() ? XboxRuntimeState::Connected : XboxRuntimeState::Pairing);
-  Serial.printf("[XBOX] ready=%u encrypted=%u subscribed=%u\n",
-                isReadyForTeleop() ? 1U : 0U,
-                linkEncrypted_.load() ? 1U : 0U,
-                inputSubscribed_.load() ? 1U : 0U);
-  return isReadyForTeleop();
-}
-
-bool LeaderXboxControllerService::subscribeToInputReport() {
-  if (g_client == nullptr || !g_client->isConnected()) {
-    return false;
-  }
-
-  NimBLERemoteService *service = g_client->getService(NimBLEUUID(kHidServiceUuid));
-  if (service == nullptr) {
-    return false;
-  }
-
-  std::vector<NimBLERemoteCharacteristic *> *chars = service->getCharacteristics(true);
-  if (chars == nullptr) {
-    return false;
-  }
-
-  for (NimBLERemoteCharacteristic *characteristic : *chars) {
-    if (characteristic == nullptr || !characteristic->canNotify()) {
-      continue;
-    }
-
-    const bool isInputReport = (characteristic->getUUID() == NimBLEUUID(kHidInputReportUuid));
-    if (!isInputReport) {
-      continue;
-    }
-
-    if (characteristic->subscribe(true, inputReportCallback)) {
-      Serial.println("[XBOX] input report subscribed");
-      return true;
-    }
-  }
-
-  return false;
 }
 
 void LeaderXboxControllerService::setRuntimeState(XboxRuntimeState state) {
@@ -336,27 +241,7 @@ void LeaderXboxControllerService::onDeviceFound(const char *name) {
     return;
   }
 
-  strncpy(controllerName_, name, sizeof(controllerName_) - 1U);
-  controllerName_[sizeof(controllerName_) - 1U] = '\0';
-}
-
-bool LeaderXboxControllerService::waitForSecureLink(uint32_t timeoutMs) {
-  const uint32_t startedAt = millis();
-  while ((millis() - startedAt) < timeoutMs) {
-    if (g_client == nullptr || !g_client->isConnected()) {
-      return false;
-    }
-
-    NimBLEConnInfo connInfo = g_client->getConnInfo();
-    if (connInfo.isEncrypted()) {
-      linkEncrypted_.store(true);
-      return true;
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(50));
-  }
-
-  return false;
+  copyCString(controllerName_, sizeof(controllerName_), name);
 }
 
 bool LeaderXboxControllerService::isReadyForTeleop() const {
