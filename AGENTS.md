@@ -22,6 +22,10 @@ Refer to: `CODING_RULES.md` for the authoritative, project-level coding rules. A
 
 If you make changes to coding rules, update `CODING_RULES.md`.
 
+## Ponytail (minimal code policy)
+
+For feature work and refactors, follow `.cursor/rules/ponytail.mdc`: simplest working solution, stdlib/native first, no speculative abstractions. Deliberate shortcuts use a `ponytail:` comment with ceiling and upgrade path. Debt scan: grep `ponytail:` in the repo.
+
 ## Architecture Context
 
 Before changing the firmware, command flow, telemetry, or dashboard UI, read the root README and the architecture documentation:
