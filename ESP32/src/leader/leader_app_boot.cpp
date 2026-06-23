@@ -1,6 +1,7 @@
 #include "leader_app.h"
 
 #include "../Config/leader_runtime_config.h"
+#include "leader_presence_service.h"
 
 #ifndef LEADER_SERVO_BUS_RX_PIN
 #define LEADER_SERVO_BUS_RX_PIN 18
@@ -68,6 +69,18 @@ void LeaderApp::runDeferredBootStages(uint32_t uptimeMs) {
     syncWifiRadioPolicyForProfile(
         sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
     deferredNetworkReady_ = true;
+  }
+
+  // Second ESP-NOW resync: home STA may connect after the first network stage; refresh peers
+  // before teleop so cold-boot mirror does not stutter (same effect as cycling Xbox profiles).
+  if (deferredNetworkReady_ && !deferredEspNowRadioResyncDone_ &&
+      sinceBootMs >= (config::leader::kDeferredNetworkMs + config::leader::kDeferredEspNowRadioResyncMs)) {
+    syncWifiRadioPolicyForProfile(
+        sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
+    if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
+      (void)presence->ensureEspNowTransportReady(0U);
+    }
+    deferredEspNowRadioResyncDone_ = true;
   }
 
   if (!deferredBackgroundTasksReady_ && sinceBootMs >= config::leader::kDeferredBackgroundTasksMs &&

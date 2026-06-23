@@ -37,7 +37,8 @@ void LeaderServoTelemetryTask::runLoop(
       continue;
     }
 
-    const bool allowDiscoveryScan = mode != OperationMode::Teleoperation;
+    const bool allowDiscoveryScan =
+        mode != OperationMode::Teleoperation && !continuousEnabled.load();
 
     if (allowDiscoveryScan &&
         ((nowMs - lastDiscoveryScanMs) >= config::leader::kFollowerScanRetryIntervalMs ||

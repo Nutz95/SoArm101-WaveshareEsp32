@@ -209,7 +209,7 @@ void FollowerPresenceService::handleServoControlBatchFrame(const PresencePacket 
 void FollowerPresenceService::handleTeleopCompactTurboFrame(const uint8_t *data, size_t len) {
   static const TeleopEspNowTurboCompactCodec kTurboCodec;
   TeleopEspNowBatchPayload payload{};
-  if (!kTurboCodec.decode(data, len, payload)) {
+  if (!kTurboCodec.decodeWithSession(data, len, turboDecodeSession_, payload)) {
     return;
   }
   ingestTeleopMirrorPayload(payload);

@@ -11,6 +11,7 @@
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
 #include "../common/teleop/teleop_espnow_batch_payload.h"
+#include "../common/teleop/teleop_espnow_turbo_session.h"
 #include "../Config/common_runtime_config.h"
 
 #include <cstdint>
@@ -58,6 +59,7 @@ public:
   void setWifiDirectJoinSession(uint32_t sessionId);
   void clearWifiDirectJoinSession();
   bool isWifiDirectJoinSession(uint32_t sessionId) const;
+  /// Clears teleop batch queue, activity timestamps, and turbo decode session.
   void resetTeleopTransportState();
 
 private:
@@ -154,6 +156,7 @@ private:
   bool pendingWifiDirectSessionEnd_{false};
   uint32_t activeWifiDirectSessionId_{0U};
   uint32_t wifiDirectJoinSessionId_{0U};
+  TeleopEspNowTurboSession turboDecodeSession_{};
 };
 
 } // namespace soarm

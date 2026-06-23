@@ -7,6 +7,7 @@
 #include "../common/presence/link_heartbeat_packet.h"
 #include "../common/wifi/wifi_direct_offer_packet.h"
 #include "../common/presence/presence_packet.h"
+#include "../common/teleop/teleop_espnow_turbo_session.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
 
@@ -56,6 +57,8 @@ public:
   bool sendWifiDirectSessionEnd();
   const char *followerWifiDirectIp() const;
   void clearFollowerWifiDirectState();
+  /// Clears turbo sparse session state; call when mirror teleop starts (Xbox A).
+  void resetTurboTeleopSession();
 
 private:
   void onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) override;
@@ -107,6 +110,7 @@ private:
   char followerServoTelemetryText_[96]{};
   char pairedFollowerMacText_[18]{};
   char localMacText_[18]{};
+  TeleopEspNowTurboSession turboEncodeSession_{};
 };
 
 } // namespace soarm

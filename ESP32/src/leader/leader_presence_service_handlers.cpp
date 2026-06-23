@@ -127,6 +127,10 @@ void LeaderPresenceService::clearFollowerWifiDirectState() {
   followerWifiDirectSessionId_ = 0U;
 }
 
+void LeaderPresenceService::resetTurboTeleopSession() {
+  turboEncodeSession_.reset();
+}
+
 void LeaderPresenceService::handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet) {
   if (!hasPairedMac_ || !isPairedMac(mac)) {
     return;

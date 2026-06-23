@@ -8,8 +8,8 @@
 #include "../common/wifi/wifi_direct_offer_packet.h"
 #include "../common/wifi/wifi_direct_session.h"
 #include "../common/pairing/pairing_policy.h"
-#include "../Config/leader_runtime_config.h"
 #include "../Config/common_runtime_config.h"
+#include "../Config/leader_runtime_config.h"
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -233,11 +233,9 @@ bool LeaderPresenceService::requestServoControl(uint8_t op, uint32_t value, uint
     return false;
   }
 
-  uint8_t channel = WiFi.channel();
-  if (channel < 1U || channel > 14U) {
-    channel = 1U;
-  }
-  if (!ensureEspNowTransportReady(channel)) {
+  // Channel 0 keeps peers on the current radio channel. Pinning WiFi.channel() after STA
+  // suspend caused ESP-NOW jitter on cold boot until a profile cycle refreshed peers.
+  if (!ensureEspNowTransportReady(0U)) {
     return false;
   }
 

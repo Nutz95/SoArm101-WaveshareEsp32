@@ -6,13 +6,17 @@ This document tracks the segmented optimization of **TeleopEspNowTurbo** only. C
 
 | Factor | Classic ESP-NOW | Turbo (before fixes) |
 |--------|-----------------|----------------------|
-| Position source | Telemetry task refreshes snapshot every **12 ms** | Mirror loop read snapshot while telemetry slowed to **80 ms** → same goal re-sent, then **jumps** |
-| Wire payload | Full **172 B** `PresencePacket` per batch | Same 172 B (airtime overhead, not `dr` limited) |
-| Delta filter | `minPositionDelta = 1` | Was `-1` (all servos every frame), then `2` + own bus read |
-| Follower apply | **12 ms** period | **10 ms** (could pile `SyncWrite` on STS bus) |
-| Servo count OLED | Stable | Partial sync read could report **F5** falsely |
+| Position source | Telemetry task refreshes snapshot every **12 ms** | Snapshot rafraîchi **80 ms** while mirror loop ran faster → goals repeated then jumped |
+| Wire payload | Full **172 B** `PresencePacket` per batch | Was 172 B; now **9–16 B** (v2 sparse/keyframe) |
+| Delta filter | `minPositionDelta = 1` | Now `2` + direct bus read per mirror frame |
+| Follower apply | **12 ms** period | **12 ms** (aligned) |
+| Servo count OLED | Stable | Partial sync read could report **F5** falsely (fixed) |
 
-**Current metrics (user bench):** `lat 6–8 ms`, `dr0` → mirror loop and ESP-NOW send are healthy; remaining jitter was dominated by **stale goals** and **follower bus timing**, not frame loss.
+**Bench (user):** `lat 6–8 ms`, `dr0` — ESP-NOW send path healthy; jitter was stale goals + STS timing, not frame loss.
+
+### Cold-boot ESP-NOW stutter (fixed)
+
+After reboot, teleop could stutter until cycling Xbox profiles once. Root cause: leader **startup servo scan** pinned ESP-NOW peers to `WiFi.channel()` while home STA was still settling; profile cycling called `ensureEspNowTransportReady(0)` and suspended STA. Fix: never pin channel for routine commands, resync radio ~3.2 s after boot, suspend follower home STA when paired for salon ESP-NOW, refresh transport each tick on ESP-NOW profiles.
 
 ## Architecture (SOLID)
 
@@ -21,50 +25,85 @@ TeleopMirrorBatchPayload (domain)
         │
         ▼
  ITeleopEspNowBatchCodec
-   ├── TeleopEspNowLegacyBatchCodec   → PresencePacket ServoControlBatch (172 B) — classic reference
-   └── TeleopEspNowTurboCompactCodec → TeleopEspNowTurboPacket (17 B) — turbo only
+   ├── TeleopEspNowLegacyBatchCodec        → 172 B PresencePacket (classic reference)
+   └── TeleopEspNowTurboCompactCodec       → v2 sparse / keyframe wire format
+           ├── TeleopEspNowTurboSession     → slot state (leader encode + follower decode)
+           └── TeleopEspNowTurboKeyframePolicy → keyframe cadence only
 ```
 
-- **Single responsibility:** codecs only encode/decode; transport only sends bytes; mirror task only builds payloads.
-- **Open/closed:** new wire formats add a codec implementation, not a fork of mirror logic.
-- **Liskov:** both codecs implement the same `encode` / `decode` / `encodedSize`.
-- **KISS / YAGNI:** phase 1 = compact absolute frame + 12-bit slots; no zlib, no delta-on-wire yet.
+- **Codecs** encode/decode bytes only.
+- **Session** owns last-known absolute slot positions (IDs 1..6).
+- **Keyframe policy** decides full resync vs sparse delta frame.
+- **Transport** (`leader_presence_transport` / `follower_presence_inbound`) sends bytes and ingests payloads.
 
-## Phase 1 — Implemented (this change)
+## Phase 1 — Done (compact 12-bit absolute)
 
-### Wire format: `TeleopEspNowTurboPacket` (16 bytes)
+- Superseded by **v2** sparse/keyframe wire format (v1 fixed 16 B packet removed).
+- 6×12-bit STS positions (0–4095), `activeMask` for slot presence.
+- Calibration remap on leader before encode; wire carries follower STS counts.
 
-| Offset | Field | Notes |
-|--------|-------|-------|
-| 0 | `magic` | `0xA5` (`kPresenceMagic`) |
-| 1 | `version` | `1` (`kTeleopEspNowTurboPacketVersion`) |
-| 2 | `messageType` | `12` (`TeleopMirrorCompact`) |
-| 3 | `activeMask` | bit *i* → servo ID *i+1* present |
-| 4–5 | `requestId` | LE `uint16` |
-| 6 | `speedPct` | 0–100 |
-| 7–15 | `positionsPacked` | 6×12-bit STS positions (0–4095), slots 0..5 = IDs 1..6 |
+## Phase B — Done (sparse + keyframe, v2 wire)
 
-**Calibration:** leader still runs `remapServoPositionWithCalibration` before encode. Wire carries **follower STS counts** (already remapped). No calibration bytes on the wire in phase 1.
+### Wire format v2 (variable length)
 
-### Tests (native Unity)
+| Field | Size | Notes |
+|-------|------|-------|
+| Header | **7 B** | `magic`, `version=2`, `messageType=12`, `activeMask`, `requestId` LE, `control` |
+| Positions | **⌈popcount(mask)×12/8⌉ B** | 12-bit values in slot order (ID 1 = bit 0) |
 
-- `teleop_position_12bit_pack` round-trip
-- Turbo codec encode/decode + mask/id mapping
-- Legacy codec byte layout unchanged vs pre-refactor
-- Remap → turbo encode → decode position match
+**`control` byte:** bit **7** = keyframe, bits **0–6** = `speedPct` (0–100, 7 bits).
 
-## Phase 2 — Planned (not implemented)
+| Frame type | `activeMask` | Typical size (1 axis moving) |
+|------------|--------------|------------------------------|
+| **Keyframe** | all `knownMask` slots | up to **16 B** (7 + 9) |
+| **Delta** | only axes in this mirror batch | down to **9 B** (7 + 2) for 1 servo |
 
-| Item | Description | Benefit |
-|------|-------------|---------|
-| **B — Sparse + keyframe** | Bitmap + only moved axes; full keyframe every 100–150 ms or 10 frames | Fewer bytes when 1–2 joints move |
-| **C — Per-joint range codes** | Map `[min,max]` from `CalibrationProfile` to N bits per joint | Smaller than 12 bits when range is narrow |
-| **D — Delta on wire** | `int8` Δ after keyframe | Industrial CAN-style |
+**Keyframe triggers** (`teleop_espnow_turbo_config.h`):
 
-## Phase 3 — Optional
+- First frame / empty session
+- Every **10** frames (`kTurboKeyframeEveryNFrames`)
+- Every **125 ms** (`kTurboKeyframeIntervalMs`)
 
-- Separate ESP-NOW peer message type registry (like Wi-Fi `WifiDirectOfferPacket` sizing).
-- Keyframe carries `calibrationProfileHash` for mismatch detection (no runtime renegotiation yet).
+Leader holds `TeleopEspNowTurboSession turboEncodeSession_` (reset on mirror **A**).
+Follower holds `turboDecodeSession_` (reset on teleop release).
+
+### Tests (`test_teleop_espnow_codec`)
+
+- Masked 12-bit pack/unpack
+- v2 session round-trip
+- Sparse delta smaller than keyframe
+- Keyframe policy
+- Wrong turbo wire version rejected
+- Legacy 172 B path unchanged
+- Remap + codec integration
+
+## Phase C — Planned (per-joint range codes)
+
+Map `[min,max]` from `CalibrationProfile` to fewer than 12 bits per joint when range is narrow.
+
+## Phase D — Planned (signed delta on wire)
+
+`int8` Δposition after keyframe (CAN-style); builds on phase B session state.
+
+## Phase E — Planned (gripper haptic / force feedback)
+
+**Goal:** when manipulating an object, read **gripper torque/load** on the follower and send it back to the leader to stiffen the leader gripper (haptic return).
+
+```text
+Leader teleop out (turbo v2) ──► Follower STS gripper
+Follower load read ◄── periodic compact uplink (new message type, turbo-only)
+Leader Xbox / leader gripper ──► stiffness or current overlay on operator hand
+```
+
+| Step | Work |
+|------|------|
+| E1 | Follower: poll STS **present load / current** on gripper servo during turbo |
+| E2 | Compact ESP-NOW uplink (separate `TeleopGripperFeedback` packet, ~8–12 B) |
+| E3 | Leader: map feedback → gripper torque / resistance on leader arm |
+| E4 | Tunables: deadband, max stiffness, rate limit (salon-safe) |
+| E5 | Unit tests for feedback codec + clamping (no hardware in native tests) |
+
+Requires stable turbo downlink (phases 1 + B) before adding reverse traffic.
 
 ## Flash checklist
 
@@ -77,10 +116,17 @@ pio test -e native
 pio run -e leader -e follower
 ```
 
-## Acceptance criteria (phase 1)
+## Acceptance criteria
 
-- [ ] Classic ESP-NOW teleop unchanged on the wire (legacy codec).
-- [ ] Turbo uses 16-byte packet; `sizeof` verified in unit tests.
-- [ ] Round-trip position error ≤ 0 counts (12-bit exact for 0–4095).
-- [ ] `pio test -e native` green.
-- [ ] Bench: turbo visually smooth as classic; `dr` stays 0.
+### Phase 1 + B
+
+- [x] Classic ESP-NOW unchanged (legacy codec).
+- [x] Turbo v2 sparse/keyframe on the wire.
+- [x] `speedPct` in 7 bits; keyframe flag in bit 7.
+- [x] `pio test -e native` green.
+- [ ] Bench: turbo smooth; `dr` stays 0; airtime drops when few joints move.
+
+### Phase E (future)
+
+- [ ] Gripper load uplink without breaking teleop downlink cadence.
+- [ ] Perceptible stiffening when follower gripper loads; no oscillation on release.

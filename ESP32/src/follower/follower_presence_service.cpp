@@ -286,6 +286,7 @@ void FollowerPresenceService::resetTeleopTransportState() {
   teleopBatchQueueCount_ = 0U;
   lastTeleopBatchRxMs_ = 0U;
   lastWifiTeleopRxMs_ = 0U;
+  turboDecodeSession_.reset();
 }
 
 void FollowerPresenceService::updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) {

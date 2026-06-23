@@ -250,10 +250,14 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
     refreshFollowerIds(state, presenceService);
 
     ServoPositionSnapshot snapshot{};
-    if (turboEspNow) {
+    const bool useFastBusRead =
+        turboEspNow || selectedMode == TeleopTransportMode::EspNow;
+    if (useFastBusRead) {
       if (servoBusService.refreshKnownTelemetryFast() == 0U ||
           !servoBusService.copyPositionSnapshot(snapshot)) {
-        vTaskDelay(pdMS_TO_TICKS(config::common::kTeleopTurboControlPeriodMs));
+        const uint32_t missDelayMs = turboEspNow ? config::common::kTeleopTurboControlPeriodMs
+                                                 : config::leader::kTeleopMirrorTaskActiveDelayMs;
+        vTaskDelay(pdMS_TO_TICKS(missDelayMs));
         continue;
       }
     } else if (!servoBusService.copyPositionSnapshot(snapshot)) {

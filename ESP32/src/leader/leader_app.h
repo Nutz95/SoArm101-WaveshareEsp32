@@ -131,8 +131,11 @@ private:
   void handleOtaButtons(bool confirmPressed, bool validatePressed);
   void nudgeFollowerLinkAfterCalibration();
   void releaseFollowerTeleopHold();
+  void prepareEspNowTeleopMirrorStart();
   void clearDeferHomeStaReconnectIfDone();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
+  bool shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile profile) const;
+  void updateHomeStaChannelLearning(uint32_t nowMs);
   void pollFollowerCalibrationCenterAck(uint32_t nowMs);
   void setTransientStatus(const char *text, uint32_t holdMs);
   void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
@@ -265,6 +268,8 @@ private:
   bool                deferredOledReady_{false};
   bool                deferredServoBusReady_{false};
   bool                deferredNetworkReady_{false};
+  bool                deferredEspNowRadioResyncDone_{false};
+  bool                homeStaChannelLearned_{false};
   bool                deferredBackgroundTasksReady_{false};
   bool                deferredBleReady_{false};
   bool                deferredBootComplete_{false};

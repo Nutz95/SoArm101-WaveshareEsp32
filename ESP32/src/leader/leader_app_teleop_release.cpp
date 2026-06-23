@@ -7,6 +7,16 @@
 
 namespace soarm {
 
+void LeaderApp::prepareEspNowTeleopMirrorStart() {
+  updateHomeStaChannelLearning(millis());
+  syncWifiRadioPolicyForProfile(
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
+  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
+    (void)presence->ensureEspNowTransportReady(0U);
+    presence->resetTurboTeleopSession();
+  }
+}
+
 void LeaderApp::releaseFollowerTeleopHold() {
   teleopContinuousEnabled_.store(false);
   teleopContinuousServoIdFilter_.store(0U);

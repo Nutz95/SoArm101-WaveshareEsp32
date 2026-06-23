@@ -12,6 +12,7 @@
 #include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
 
+#include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
@@ -119,12 +120,14 @@ bool LeaderPresenceService::sendServoControlBatch(
 
   static const TeleopEspNowLegacyBatchCodec kLegacyCodec;
   static const TeleopEspNowTurboCompactCodec kTurboCodec;
-  const ITeleopEspNowBatchCodec &codec = turbo ? static_cast<const ITeleopEspNowBatchCodec &>(kTurboCodec)
-                                               : static_cast<const ITeleopEspNowBatchCodec &>(kLegacyCodec);
 
   uint8_t buffer[sizeof(PresencePacket)]{};
   size_t outLen = 0U;
-  if (!codec.encode(payload, buffer, sizeof(buffer), outLen)) {
+  const bool encoded = turbo
+                           ? kTurboCodec.encodeWithSession(
+                                 payload, turboEncodeSession_, millis(), buffer, sizeof(buffer), outLen)
+                           : kLegacyCodec.encode(payload, buffer, sizeof(buffer), outLen);
+  if (!encoded) {
     return false;
   }
 

@@ -1,4 +1,5 @@
 #include "leader_app.h"
+#include "leader_presence_service.h"
 
 #include "../Config/leader_runtime_config.h"
 #include "../common/controller/controller_operation_profile.h"
@@ -221,6 +222,7 @@ void LeaderApp::handleTeleopMirrorButtons(bool confirmPressed, bool validatePres
     teleopMirrorLatencyMetrics_.loopEwmaMs.store(0U);
     teleopMirrorLatencyMetrics_.loopLastMs.store(0U);
     lastTurboOledStatusMs_ = 0U;
+    prepareEspNowTeleopMirrorStart();
     setTransientStatus("teleop mirror start", config::leader::kMoveStatusHoldMs);
   }
 

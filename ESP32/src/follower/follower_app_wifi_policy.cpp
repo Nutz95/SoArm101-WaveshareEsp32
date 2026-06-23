@@ -2,24 +2,16 @@
 
 #include "follower_presence_service.h"
 
-#include <WiFi.h>
-
 namespace soarm {
-
-namespace {
-
-bool shouldKeepHomeStaConnected() {
-  return WiFi.status() == WL_CONNECTED;
-}
-
-} // namespace
 
 void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
   auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get());
+  bool restoredHomeStaThisTick = false;
   if (presence != nullptr) {
     if (presence->consumeWifiDirectSessionEnd()) {
       followerWifiDirectLink_.reset(*presence, wifiDirectRadio_, wifiOta_, true);
       wifiOta_.restoreHomeStation();
+      restoredHomeStaThisTick = true;
       (void)presence->ensureEspNowTransportReady();
     }
 
@@ -46,8 +38,8 @@ void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
     return;
   }
 
-  const bool keepHomeSta =
-      (presence == nullptr || presence->preferWifiStaConnected(nowMs)) && shouldKeepHomeStaConnected();
+  const bool preferHomeSta = presence == nullptr || presence->preferWifiStaConnected(nowMs);
+  const bool keepHomeSta = restoredHomeStaThisTick || preferHomeSta;
   wifiOta_.setStaConnectDesired(keepHomeSta);
   if (!keepHomeSta && presence != nullptr) {
     (void)presence->ensureEspNowTransportReady();

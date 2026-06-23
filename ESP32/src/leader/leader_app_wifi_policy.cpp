@@ -8,21 +8,40 @@
 
 namespace soarm {
 
-namespace {
-
-bool shouldKeepHomeStaConnected(ControllerOperationProfile profile, bool otaEngaged) {
-  if (profile == ControllerOperationProfile::OtaReady && otaEngaged) {
+bool LeaderApp::shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile profile) const {
+  if (profile != ControllerOperationProfile::TeleopEspNow &&
+      profile != ControllerOperationProfile::TeleopEspNowTurbo) {
     return true;
   }
-  if (profile == ControllerOperationProfile::TeleopEspNow ||
-      profile == ControllerOperationProfile::TeleopEspNowTurbo ||
-      profile == ControllerOperationProfile::TeleopWifi) {
+  if (homeStaChannelLearned_) {
     return false;
   }
-  return WiFi.status() == WL_CONNECTED;
+  if ((millis() - bootMs_) >= config::leader::kHomeWifiChannelPrimeTimeoutMs) {
+    return false;
+  }
+  // Prime window: stay on home STA until the router channel is learned (menu-cycle effect at boot).
+  return true;
 }
 
-} // namespace
+void LeaderApp::updateHomeStaChannelLearning(uint32_t nowMs) {
+  if (homeStaChannelLearned_) {
+    return;
+  }
+
+  const bool timedOut = (nowMs - bootMs_) >= config::leader::kHomeWifiChannelPrimeTimeoutMs;
+  const bool connected = WiFi.status() == WL_CONNECTED;
+  if (!connected && !timedOut) {
+    return;
+  }
+
+  homeStaChannelLearned_ = true;
+  syncWifiRadioPolicyForProfile(
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
+  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
+    (void)presence->ensureEspNowTransportReady(0U);
+    presence->resetTurboTeleopSession();
+  }
+}
 
 void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile) {
   auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
@@ -53,7 +72,7 @@ void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile
       wifiDirectSession_.end(wifiDirectRadio_, true);
     }
     const bool keepHomeSta =
-        !deferHomeStaReconnect_.load() && shouldKeepHomeStaConnected(profile, otaEngaged_.load());
+        !deferHomeStaReconnect_.load() && shouldKeepHomeStaConnectedForProfile(profile);
     wifiOta_.setStaConnectDesired(keepHomeSta);
     if (!keepHomeSta && presence != nullptr) {
       (void)presence->ensureEspNowTransportReady();
