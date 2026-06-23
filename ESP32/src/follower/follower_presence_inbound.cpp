@@ -8,6 +8,10 @@
 #include "../common/wifi/wifi_direct_offer_packet.h"
 #include "../common/wifi/wifi_direct_session.h"
 #include "../common/servo/servo_control_opcode.h"
+#include "../common/teleop/teleop_espnow_batch_payload.h"
+#include "../common/teleop/teleop_espnow_legacy_batch_codec.h"
+#include "../common/teleop/teleop_espnow_turbo_compact_codec.h"
+#include "../common/teleop/teleop_espnow_turbo_compact_packet.h"
 #include "../Config/common_runtime_config.h"
 
 #include <Arduino.h>
@@ -55,6 +59,12 @@ void FollowerPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t 
     }
     linkHeartbeat_.notifyPeerActivity(nowMs);
     handleWifiDirectOfferMessage(mac, offerPacket);
+    return;
+  }
+
+  if (teleop_espnow::isTeleopEspNowTurboPacket(data, static_cast<size_t>(len))) {
+    linkHeartbeat_.notifyPeerActivity(nowMs);
+    handleTeleopCompactTurboFrame(data, static_cast<size_t>(len));
     return;
   }
 
@@ -185,26 +195,35 @@ void FollowerPresenceService::handleServoControlFrame(const PresencePacket &pack
 }
 
 void FollowerPresenceService::handleServoControlBatchFrame(const PresencePacket &packet) {
-  if (packet.controlOp != static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch)) {
+  static const TeleopEspNowLegacyBatchCodec kLegacyCodec;
+  uint8_t buffer[sizeof(PresencePacket)]{};
+  memcpy(buffer, &packet, sizeof(packet));
+
+  TeleopEspNowBatchPayload payload{};
+  if (!kLegacyCodec.decode(buffer, sizeof(buffer), payload)) {
     return;
   }
+  ingestTeleopMirrorPayload(payload);
+}
 
+void FollowerPresenceService::handleTeleopCompactTurboFrame(const uint8_t *data, size_t len) {
+  static const TeleopEspNowTurboCompactCodec kTurboCodec;
+  TeleopEspNowBatchPayload payload{};
+  if (!kTurboCodec.decode(data, len, payload)) {
+    return;
+  }
+  ingestTeleopMirrorPayload(payload);
+}
+
+void FollowerPresenceService::ingestTeleopMirrorPayload(const TeleopEspNowBatchPayload &payload) {
   PendingTeleopBatch batch{};
-  const uint8_t rawCount = static_cast<uint8_t>(packet.servoTelemetry[0]);
-  const uint8_t clampedCount = (rawCount > config::common::kTeleopBatchMaxServos)
-                                   ? config::common::kTeleopBatchMaxServos
-                                   : rawCount;
-  batch.count = clampedCount;
-  batch.speedPct = static_cast<uint8_t>(packet.servoTelemetry[1] & 0x7FU);
-  batch.requestId = packet.reserved2;
-  batch.turbo = (static_cast<uint8_t>(packet.servoTelemetry[1]) & 0x80U) != 0U;
-
-  for (uint8_t i = 0U; i < clampedCount; ++i) {
-    const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));
-    batch.ids[i] = static_cast<uint8_t>(packet.servoTelemetry[offset]);
-    const uint16_t lo = static_cast<uint8_t>(packet.servoTelemetry[offset + 1U]);
-    const uint16_t hi = static_cast<uint8_t>(packet.servoTelemetry[offset + 2U]);
-    batch.positions[i] = static_cast<int16_t>((hi << 8U) | lo);
+  batch.count = payload.count;
+  batch.speedPct = payload.speedPct;
+  batch.requestId = payload.requestId;
+  batch.turbo = payload.turbo;
+  for (uint8_t i = 0U; i < payload.count && i < config::common::kTeleopBatchMaxServos; ++i) {
+    batch.ids[i] = payload.ids[i];
+    batch.positions[i] = payload.positions[i];
   }
 
   const uint32_t nowMs = millis();

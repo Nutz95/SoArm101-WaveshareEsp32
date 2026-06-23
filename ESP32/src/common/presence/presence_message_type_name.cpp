@@ -23,6 +23,7 @@ constexpr PresenceMessageTypeNameEntry kPresenceMessageTypeNames[] = {
     {PresenceMessageType::LinkHeartbeat, "LinkHeartbeat"},
     {PresenceMessageType::WifiDirectOffer, "WifiDirectOffer"},
     {PresenceMessageType::WifiDirectAck, "WifiDirectAck"},
+    {PresenceMessageType::TeleopMirrorCompact, "TeleopMirrorCompact"},
 };
 
 const char *lookupPresenceMessageTypeName(uint8_t raw) {

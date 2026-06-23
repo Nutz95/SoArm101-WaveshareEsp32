@@ -37,7 +37,8 @@ Dashboard and OLED still use the text telemetry string (`#1 p2048;…`) built fr
 - Same ESP-NOW batch path as salon teleop, **~83 Hz** (`kTeleopTurboControlPeriodMs = kTeleopControlPeriodMs`, 12 ms).
 - **Mirror task reads the STS bus directly** each frame (`refreshKnownTelemetryFast`). Dashboard telemetry stays at **80 ms** so the mirror loop is not fed stale snapshots (re-sending the same goal for several frames then jumping caused follower jitter).
 - Position-delta filter **`kTeleopMirrorMinPositionDeltaTurbo = 2`** (classic ESP-NOW / Wi-Fi use `1`).
-- Follower apply task matches turbo cadence when the turbo flag is set in the batch (`speedPct` bit `0x80`).
+- Follower apply task matches turbo cadence when the turbo flag is set in the batch (`speedPct` bit `0x80` on legacy path; compact turbo uses message type `TeleopMirrorCompact`).
+- **Turbo wire format:** 16-byte compact packet (12-bit positions) — see [teleop_espnow_turbo_codec.md](teleop_espnow_turbo_codec.md). Classic ESP-NOW keeps the 172-byte `PresencePacket` reference path.
 - Leader OLED status line (last row): **`lat Xms drY`** refreshed every **1 s** while mirror is active (`kTurboOledStatusPeriodMs`). `lat` = mirror-loop EWMA (read + send, not RTT); `dr` = ESP-NOW send-fail count. Brief **`teleop mirror start`** on **A**, then **`teleop ready`** when mirror stops.
 - Xbox / OLED profile cycle: **ESP-NOW → ESP-TURBO → Wi-Fi → …**
 

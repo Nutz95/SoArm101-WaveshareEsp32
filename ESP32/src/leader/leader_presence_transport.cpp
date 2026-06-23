@@ -3,6 +3,9 @@
 #include "../common/presence/presence_constants.h"
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
+#include "../common/teleop/teleop_espnow_batch_payload.h"
+#include "../common/teleop/teleop_espnow_legacy_batch_codec.h"
+#include "../common/teleop/teleop_espnow_turbo_compact_codec.h"
 #include "../common/wifi/wifi_direct_offer_packet.h"
 #include "../common/wifi/wifi_direct_session.h"
 #include "../common/servo/servo_control_opcode.h"
@@ -104,33 +107,32 @@ bool LeaderPresenceService::sendServoControlBatch(
                                    ? config::common::kTeleopBatchMaxServos
                                    : count;
 
-  PresencePacket packet{};
-  packet.magic = kPresenceMagic;
-  packet.version = kPresenceVersion;
-  packet.messageType = static_cast<uint8_t>(PresenceMessageType::ServoControlBatch);
-  packet.reserved = static_cast<uint8_t>(requestId & 0xFFU);
-  packet.controlOp = static_cast<uint8_t>(ServoControlOpcode::TeleopMirrorBatch);
-  packet.reserved2 = requestId;
-  packet.controlValue = 0U;
-  strncpy(packet.ip, WiFi.localIP().toString().c_str(), sizeof(packet.ip) - 1);
-  packet.ip[sizeof(packet.ip) - 1] = '\0';
-
-  packet.servoTelemetry[0] = static_cast<char>(clampedCount);
-  packet.servoTelemetry[1] =
-      static_cast<char>(speedPct | (turbo ? static_cast<uint8_t>(0x80U) : 0U));
+  TeleopEspNowBatchPayload payload{};
+  payload.count = clampedCount;
+  payload.speedPct = speedPct;
+  payload.requestId = requestId;
+  payload.turbo = turbo;
   for (uint8_t i = 0U; i < clampedCount; ++i) {
-    const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));
-    const uint16_t posRaw = static_cast<uint16_t>(positions[i]);
-    packet.servoTelemetry[offset] = static_cast<char>(ids[i]);
-    packet.servoTelemetry[offset + 1U] = static_cast<char>(posRaw & 0xFFU);
-    packet.servoTelemetry[offset + 2U] = static_cast<char>((posRaw >> 8U) & 0xFFU);
+    payload.ids[i] = ids[i];
+    payload.positions[i] = positions[i];
+  }
+
+  static const TeleopEspNowLegacyBatchCodec kLegacyCodec;
+  static const TeleopEspNowTurboCompactCodec kTurboCodec;
+  const ITeleopEspNowBatchCodec &codec = turbo ? static_cast<const ITeleopEspNowBatchCodec &>(kTurboCodec)
+                                               : static_cast<const ITeleopEspNowBatchCodec &>(kLegacyCodec);
+
+  uint8_t buffer[sizeof(PresencePacket)]{};
+  size_t outLen = 0U;
+  if (!codec.encode(payload, buffer, sizeof(buffer), outLen)) {
+    return false;
   }
 
   if (!ensureEspNowTransportReady()) {
     return false;
   }
 
-  return esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)) == ESP_OK;
+  return esp_now_send(mac, buffer, outLen) == ESP_OK;
 }
 
 bool LeaderPresenceService::sendServoControlBroadcast(uint8_t op, uint32_t value, uint16_t requestId) {

@@ -10,6 +10,7 @@
 #include "../common/wifi/wifi_direct_session.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
+#include "../common/teleop/teleop_espnow_batch_payload.h"
 #include "../Config/common_runtime_config.h"
 
 #include <cstdint>
@@ -86,6 +87,8 @@ private:
   void handlePairResetFrame();
   void handleServoControlFrame(const PresencePacket &packet);
   void handleServoControlBatchFrame(const PresencePacket &packet);
+  void handleTeleopCompactTurboFrame(const uint8_t *data, size_t len);
+  void ingestTeleopMirrorPayload(const TeleopEspNowBatchPayload &payload);
   void handlePairAckFrame(const uint8_t *mac);
 
   bool addBroadcastPeer();

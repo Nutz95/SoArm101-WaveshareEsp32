@@ -16,6 +16,7 @@ enum class PresenceMessageType : uint8_t {
   LinkHeartbeat = 9,
   WifiDirectOffer = 10,
   WifiDirectAck = 11,
+  TeleopMirrorCompact = 12,
 };
 
 } // namespace soarm

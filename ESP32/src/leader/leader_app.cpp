@@ -249,28 +249,6 @@ void LeaderApp::runStartupServoScans(uint32_t nowMs) {
   followerStartupScanDeadlineMs_ = nowMs + config::leader::kFollowerScanRetryIntervalMs;
 }
 
-void LeaderApp::updateServoHealthFlags() {
-  leaderServoFault_ = servoBusService_.lastScanCount() != config::common::kExpectedLeaderServoCount;
-
-  if (!presenceService_->isFollowerLinked()) {
-    followerServoFault_ = false;
-    return;
-  }
-
-  if (teleopContinuousEnabled_.load()) {
-    followerServoFault_ = false;
-    return;
-  }
-
-  const uint8_t followerCount = presenceService_->followerServoCount();
-  if (followerCount == 0U) {
-    followerServoFault_ = false;
-    return;
-  }
-
-  followerServoFault_ = followerCount != config::common::kExpectedFollowerServoCount;
-}
-
 void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
   (void)uptimeMs;
   xboxControllerService_.tick();
