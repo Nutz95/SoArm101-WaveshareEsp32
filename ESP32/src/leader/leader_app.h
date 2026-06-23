@@ -162,6 +162,7 @@ private:
   void setCalibrationPreviewStatus(ControllerOperationProfile profile);
   void updateFollowerState();
   void renderStatusLeds();
+  void updateTurboOledStatus(uint32_t nowMs);
 
   // Telemetry / display extracted from tick()
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
@@ -206,6 +207,7 @@ private:
   char                followerIpHint_[16];
   char                statusLine_[24];
   uint32_t            commandStatusHoldUntilMs_{0U};
+  uint32_t            lastTurboOledStatusMs_{0U};
   uint16_t            commandRequestId_{0U};
   uint8_t             commandCode_{0U};
   CommandAckStatus    leaderCommandStatus_{CommandAckStatus::None};

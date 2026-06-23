@@ -4,6 +4,7 @@
 #include "leader_teleop_mirror_task.h"
 #include "../Config/leader_runtime_config.h"
 
+#include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -47,7 +48,8 @@ void LeaderApp::telemetryPollTaskEntry(void *context) {
     LeaderServoTelemetryTask::runLoop(
         app->servoBusService_,
         app->teleopContinuousEnabled_,
-        app->runtimeModeForTasks_);
+        app->runtimeModeForTasks_,
+        app->controllerOperationProfile_);
   }
   vTaskDelete(nullptr);
 }

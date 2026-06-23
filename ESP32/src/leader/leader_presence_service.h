@@ -39,7 +39,8 @@ public:
       const int16_t *positions,
       uint8_t count,
       uint8_t speedPct,
-      uint16_t requestId) override;
+      uint16_t requestId,
+      bool turbo = false) override;
   const char *followerServoIds() const override;
   const char *followerServoTelemetry() const override;
   uint8_t followerServoCount() const override;
@@ -77,7 +78,8 @@ private:
       const int16_t *positions,
       uint8_t count,
       uint8_t speedPct,
-      uint16_t requestId);
+      uint16_t requestId,
+      bool turbo);
   bool sendServoControlBroadcast(uint8_t op, uint32_t value, uint16_t requestId);
   bool addBroadcastPeer();
   bool isPairedMac(const uint8_t mac[6]) const;

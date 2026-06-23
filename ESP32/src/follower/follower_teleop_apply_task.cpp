@@ -19,11 +19,13 @@ void copyFrame(
     uint8_t count,
     uint8_t speedPercent,
     uint16_t requestId,
-    uint8_t flags) {
+    uint8_t flags,
+    bool turbo) {
   out.count = count;
   out.speedPercent = speedPercent;
   out.requestId = requestId;
   out.flags = flags;
+  out.turbo = turbo;
   memcpy(out.ids, ids, count);
   memcpy(out.positions, positions, static_cast<size_t>(count) * sizeof(int16_t));
   out.valid = count > 0U;
@@ -42,7 +44,7 @@ bool FollowerTeleopApplyTask::ingestLatestWifi(FollowerApp &app, TeleopFrame &ou
           ids, positions, config::common::kTeleopBatchMaxServos, count, speedPercent, requestId, flags)) {
     return false;
   }
-  copyFrame(out, ids, positions, count, speedPercent, requestId, flags);
+  copyFrame(out, ids, positions, count, speedPercent, requestId, flags, false);
   return true;
 }
 
@@ -52,11 +54,12 @@ bool FollowerTeleopApplyTask::ingestLatestEspNow(FollowerApp &app, TeleopFrame &
   uint8_t count = 0U;
   uint8_t speedPct = 0U;
   uint16_t requestId = 0U;
+  bool turbo = false;
   if (!app.presenceService_->consumeTeleopMirrorBatch(
-          ids, positions, config::common::kTeleopBatchMaxServos, count, speedPct, requestId)) {
+          ids, positions, config::common::kTeleopBatchMaxServos, count, speedPct, requestId, turbo)) {
     return false;
   }
-  copyFrame(out, ids, positions, count, speedPct, requestId, 0U);
+  copyFrame(out, ids, positions, count, speedPct, requestId, 0U, turbo);
   return true;
 }
 
@@ -91,7 +94,8 @@ void FollowerTeleopApplyTask::runLoop(FollowerApp &app) {
           selected->requestId,
           selected->flags,
           fromEspNow);
-      vTaskDelay(pdMS_TO_TICKS(config::follower::kTeleopApplyTaskPeriodMs));
+      vTaskDelay(pdMS_TO_TICKS(selected->turbo ? config::follower::kTeleopTurboApplyTaskPeriodMs
+                                               : config::follower::kTeleopApplyTaskPeriodMs));
       continue;
     }
 

@@ -195,8 +195,9 @@ void FollowerPresenceService::handleServoControlBatchFrame(const PresencePacket 
                                    ? config::common::kTeleopBatchMaxServos
                                    : rawCount;
   batch.count = clampedCount;
-  batch.speedPct = static_cast<uint8_t>(packet.servoTelemetry[1]);
+  batch.speedPct = static_cast<uint8_t>(packet.servoTelemetry[1] & 0x7FU);
   batch.requestId = packet.reserved2;
+  batch.turbo = (static_cast<uint8_t>(packet.servoTelemetry[1]) & 0x80U) != 0U;
 
   for (uint8_t i = 0U; i < clampedCount; ++i) {
     const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));

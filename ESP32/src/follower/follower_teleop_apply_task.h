@@ -18,6 +18,7 @@ public:
     uint8_t speedPercent{0U};
     uint16_t requestId{0U};
     uint8_t flags{0U};
+    bool turbo{false};
     bool valid{false};
   };
 

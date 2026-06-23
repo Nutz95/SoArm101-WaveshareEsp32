@@ -182,6 +182,7 @@ void LeaderApp::tickControlState(uint32_t uptimeMs, bool passthroughActive) {
     updateServoHealthFlags();
   }
   computeModeAndStatus();
+  updateTurboOledStatus(uptimeMs);
   runtimeModeForTasks_.store(static_cast<uint8_t>(mode_));
   updateFollowerState();
   renderStatusLeds();
@@ -256,6 +257,11 @@ void LeaderApp::updateServoHealthFlags() {
     return;
   }
 
+  if (teleopContinuousEnabled_.load()) {
+    followerServoFault_ = false;
+    return;
+  }
+
   const uint8_t followerCount = presenceService_->followerServoCount();
   if (followerCount == 0U) {
     followerServoFault_ = false;
@@ -284,8 +290,11 @@ void LeaderApp::updateLocalInputs(uint32_t uptimeMs) {
   const bool wifiDirectTeleopUp =
       profile == ControllerOperationProfile::TeleopWifi && wifiDirectTeleopActive_.load() &&
       wifiDirectLinkEngaged_.load() && presenceService_->hasValidFollowerIp();
+  const bool espNowTeleopSession =
+      teleopContinuousEnabled_.load() && isEspNowTeleopProfile(profile) &&
+      presenceService_->isPaired();
   localInputs_.espNowLinked =
-      presenceService_->isFollowerLinked() || wifiDirectTeleopUp;
+      presenceService_->isFollowerLinked() || espNowTeleopSession || wifiDirectTeleopUp;
 }
 
 void LeaderApp::buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs) {

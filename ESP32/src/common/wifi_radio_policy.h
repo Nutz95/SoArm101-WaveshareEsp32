@@ -8,6 +8,7 @@ namespace soarm {
 inline bool controllerProfileNeedsWifiSta(ControllerOperationProfile profile) {
   switch (profile) {
   case ControllerOperationProfile::TeleopEspNow:
+  case ControllerOperationProfile::TeleopEspNowTurbo:
     return false;
   default:
     return true;

@@ -258,13 +258,15 @@ bool LeaderPresenceService::requestTeleopMirrorBatch(
     const int16_t *positions,
     uint8_t count,
     uint8_t speedPct,
-    uint16_t requestId) {
+    uint16_t requestId,
+    bool turbo) {
   if (ids == nullptr || positions == nullptr || count == 0U) {
     return false;
   }
 
   if (hasPairedMac_) {
-    const bool sent = sendServoControlBatch(pairedFollowerMac_, ids, positions, count, speedPct, requestId);
+    const bool sent =
+        sendServoControlBatch(pairedFollowerMac_, ids, positions, count, speedPct, requestId, turbo);
     if (sent) {
       notifyPeerLinkActivity();
     }

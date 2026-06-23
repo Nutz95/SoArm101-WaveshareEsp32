@@ -20,6 +20,9 @@ const char *modeLabel(OperationMode mode, TeleopTransportMode transportMode) {
             if (transportMode == TeleopTransportMode::WifiUdp) {
                 return "TELEOP WIFI";
             }
+            if (transportMode == TeleopTransportMode::EspNowTurbo) {
+                return "TELEOP TURBO";
+            }
             return "TELEOP ESPNOW";
         case OperationMode::Passthrough:
             return "PASSTHROUGH";

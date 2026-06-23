@@ -42,7 +42,26 @@ bool canMirrorNow(
     return resolveFollowerEndpoint(presenceService.followerIp(), endpoint, sizeof(endpoint));
   }
 
-  return presenceService.isFollowerLinked();
+  // Follower is quiet during ESP-NOW teleop (no presence spam). While mirror is active,
+  // paired MAC is enough; strict heartbeat would stall until telemetry (~2.5s) wakes the link.
+  if (presenceService.isFollowerLinked()) {
+    return true;
+  }
+  return presenceService.isPaired();
+}
+
+void recordTurboLoopSample(TeleopMirrorLatencyMetrics &metrics, uint32_t loopStartMs) {
+  const uint32_t elapsed = millis() - loopStartMs;
+  const uint8_t loopMs = static_cast<uint8_t>(elapsed > 255U ? 255U : elapsed);
+  metrics.loopLastMs.store(loopMs);
+  const uint8_t previousEwma = metrics.loopEwmaMs.load();
+  const uint16_t blended = (previousEwma == 0U)
+                               ? static_cast<uint16_t>(loopMs)
+                               : static_cast<uint16_t>(
+                                     (static_cast<uint16_t>(previousEwma) * 7U +
+                                      static_cast<uint16_t>(loopMs) + 4U) /
+                                     8U);
+  metrics.loopEwmaMs.store(static_cast<uint8_t>(blended));
 }
 
 void refreshFollowerIds(TeleopMirrorState &state, ILeaderPresenceService &presenceService) {
@@ -87,10 +106,10 @@ void tryAppendBatchItem(
                  ? config::common::kTeleopPositionClampMin
                  : unwrapped);
   const int16_t boundedPosition = static_cast<int16_t>(bounded);
-  if (state.hasLastSentPositionById[id]) {
+  if (minPositionDelta >= 0 && state.hasLastSentPositionById[id]) {
     const int32_t delta = boundedPosition - state.lastSentPositionById[id];
     const int32_t absDelta = (delta < 0) ? -delta : delta;
-    if (absDelta < config::leader::kTeleopMirrorMinPositionDelta) {
+    if (absDelta < minPositionDelta) {
       return;
     }
   }
@@ -137,7 +156,8 @@ void sendBatch(ILeaderPresenceService &presenceService,
                uint32_t nowMs,
                TeleopTransportMode transportMode,
                uint8_t speedPercent,
-               bool wifiRequireAck) {
+               bool wifiRequireAck,
+               bool turboEspNow) {
   if (count == 0U) {
     return;
   }
@@ -160,7 +180,8 @@ void sendBatch(ILeaderPresenceService &presenceService,
         state.batchPositions,
         count,
         speedPercent,
-        requestCounter);
+        requestCounter,
+        turboEspNow);
   }
   if (!sent) {
     const uint8_t previous = latencyMetrics.sendFailCount.load();
@@ -206,9 +227,11 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
   static TeleopMirrorState state{};
 
   while (true) {
-    const uint32_t nowMs = millis();
+    const uint32_t loopStartMs = millis();
+    const uint32_t nowMs = loopStartMs;
     const TeleopTransportMode selectedMode = static_cast<TeleopTransportMode>(transportMode.load());
     const bool wifiRequireAck = config::leader::kTeleopWifiRequireAck;
+    const bool turboEspNow = selectedMode == TeleopTransportMode::EspNowTurbo;
 
     if (selectedMode == TeleopTransportMode::WifiUdp && wifiRequireAck) {
       processWifiBatchAck(state, teleopWifiBridge, latencyMetrics, nowMs);
@@ -227,15 +250,23 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
     refreshFollowerIds(state, presenceService);
 
     ServoPositionSnapshot snapshot{};
-    if (!servoBusService.copyPositionSnapshot(snapshot)) {
-      vTaskDelay(pdMS_TO_TICKS(config::leader::kTeleopMirrorTaskActiveDelayMs));
+    if (turboEspNow) {
+      if (servoBusService.refreshKnownTelemetryFast() == 0U ||
+          !servoBusService.copyPositionSnapshot(snapshot)) {
+        vTaskDelay(pdMS_TO_TICKS(config::common::kTeleopTurboControlPeriodMs));
+        continue;
+      }
+    } else if (!servoBusService.copyPositionSnapshot(snapshot)) {
+      const uint32_t missDelayMs = config::leader::kTeleopMirrorTaskActiveDelayMs;
+      vTaskDelay(pdMS_TO_TICKS(missDelayMs));
       continue;
     }
 
     const int16_t minPositionDelta =
-        selectedMode == TeleopTransportMode::WifiUdp
-            ? config::leader::kTeleopMirrorMinPositionDeltaWifi
-            : config::leader::kTeleopMirrorMinPositionDelta;
+        turboEspNow ? config::leader::kTeleopMirrorMinPositionDeltaTurbo
+                    : (selectedMode == TeleopTransportMode::WifiUdp
+                           ? config::leader::kTeleopMirrorMinPositionDeltaWifi
+                           : config::leader::kTeleopMirrorMinPositionDelta);
     const uint8_t batchCount = buildMirrorBatchFromSnapshot(
         state,
         snapshot,
@@ -254,13 +285,23 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
           nowMs,
           selectedMode,
           speedPct.load(),
-          wifiRequireAck);
+          wifiRequireAck,
+          turboEspNow);
     }
 
+    if (turboEspNow) {
+      recordTurboLoopSample(latencyMetrics, loopStartMs);
+    }
+
+    const uint32_t targetPeriodMs =
+        turboEspNow ? config::common::kTeleopTurboControlPeriodMs
+                    : (selectedMode == TeleopTransportMode::WifiUdp
+                           ? config::leader::kTeleopMirrorTaskWifiActiveDelayMs
+                           : config::leader::kTeleopMirrorTaskActiveDelayMs);
+    const uint32_t elapsedMs = millis() - loopStartMs;
     const uint32_t activeDelayMs =
-        selectedMode == TeleopTransportMode::WifiUdp
-            ? config::leader::kTeleopMirrorTaskWifiActiveDelayMs
-            : config::leader::kTeleopMirrorTaskActiveDelayMs;
+        elapsedMs >= targetPeriodMs ? config::leader::kTeleopMirrorTaskIdleDelayMs
+                                    : (targetPeriodMs - elapsedMs);
     vTaskDelay(pdMS_TO_TICKS(activeDelayMs));
   }
 }

@@ -15,6 +15,7 @@ using Profile = ControllerOperationProfile;
 constexpr Profile kProfileCalibrationLeader = Profile::CalibrationLeader;
 constexpr Profile kProfileCalibrationFollower = Profile::CalibrationFollower;
 constexpr Profile kProfileTeleopEspNow = Profile::TeleopEspNow;
+constexpr Profile kProfileTeleopEspNowTurbo = Profile::TeleopEspNowTurbo;
 constexpr Profile kProfileTeleopWifi = Profile::TeleopWifi;
 constexpr Profile kProfilePassthrough = Profile::Passthrough;
 constexpr Profile kProfileOtaReady = Profile::OtaReady;
@@ -111,12 +112,14 @@ void LeaderApp::handleControllerModeCycleEvents() {
     return;
   }
 
-  if (profile == kProfileOtaReady) {
-    handleOtaButtons(confirmPressed, validatePressed);
+  if (profile == kProfileTeleopEspNow || profile == kProfileTeleopEspNowTurbo) {
+    handleTeleopMirrorButtons(confirmPressed, validatePressed);
     return;
   }
 
-  handleTeleopMirrorButtons(confirmPressed, validatePressed);
+  if (profile == kProfileOtaReady) {
+    handleOtaButtons(confirmPressed, validatePressed);
+  }
 }
 
 void LeaderApp::handleModeCycleProfileStep() {
@@ -214,6 +217,10 @@ void LeaderApp::handleTeleopMirrorButtons(bool confirmPressed, bool validatePres
   if (confirmPressed) {
     teleopContinuousServoIdFilter_.store(0U);
     teleopContinuousEnabled_.store(true);
+    teleopMirrorLatencyMetrics_.sendFailCount.store(0U);
+    teleopMirrorLatencyMetrics_.loopEwmaMs.store(0U);
+    teleopMirrorLatencyMetrics_.loopLastMs.store(0U);
+    lastTurboOledStatusMs_ = 0U;
     setTransientStatus("teleop mirror start", config::leader::kMoveStatusHoldMs);
   }
 
@@ -234,6 +241,8 @@ void LeaderApp::updateProfileSwitchStatus(ControllerOperationProfile profile) {
     setTransientStatus("cal follower? press A", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfileTeleopEspNow) {
     setTransientStatus("xbox profile teleop espnow", config::leader::kMoveStatusHoldMs);
+  } else if (profile == kProfileTeleopEspNowTurbo) {
+    setTransientStatus("xbox profile espnow turbo", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfileTeleopWifi) {
     setTransientStatus("wifi teleop? press A", config::leader::kMoveStatusHoldMs);
   } else if (profile == kProfilePassthrough) {
@@ -271,8 +280,9 @@ void LeaderApp::applyControllerOperationProfile(uint8_t profileRaw) {
   applyProfileCalibrationState(previous, safeProfile, switchingCalibrationPreview);
   applyProfileTransportMode(safeProfile);
 
-  if (leavingEngagedCalibration &&
-      (safeProfile == kProfileTeleopEspNow || safeProfile == kProfileTeleopWifi)) {
+  if (leavingEngagedCalibration && isEspNowTeleopProfile(safeProfile)) {
+    nudgeFollowerLinkAfterCalibration();
+  } else if (leavingEngagedCalibration && safeProfile == kProfileTeleopWifi) {
     nudgeFollowerLinkAfterCalibration();
   }
 
@@ -294,7 +304,7 @@ void LeaderApp::applyProfileExitTransitions(
     servoPassthrough_.exit();
   }
 
-  if (previous == kProfileTeleopEspNow && next != kProfileTeleopEspNow) {
+  if (isEspNowTeleopProfile(previous) && !isEspNowTeleopProfile(next)) {
     releaseFollowerTeleopHold();
   } else if (previous == kProfileTeleopWifi && next != kProfileTeleopWifi) {
     releaseFollowerTeleopHold();
@@ -354,6 +364,8 @@ void LeaderApp::applyProfileCalibrationState(
 void LeaderApp::applyProfileTransportMode(ControllerOperationProfile profile) {
   if (profile == kProfileTeleopWifi) {
     teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::WifiUdp));
+  } else if (profile == kProfileTeleopEspNowTurbo) {
+    teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::EspNowTurbo));
   } else if (profile == kProfileTeleopEspNow) {
     teleopTransportMode_.store(static_cast<uint8_t>(TeleopTransportMode::EspNow));
   }

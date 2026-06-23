@@ -2,6 +2,7 @@
 
 #include "follower_teleop_apply_task.h"
 
+#include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 

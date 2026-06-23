@@ -130,16 +130,17 @@ uint8_t ServoBusService::refreshKnownTelemetrySync() {
   if (availableCount == 0U) {
     strncpy(lastTelemetryText_, "-", sizeof(lastTelemetryText_) - 1U);
     lastTelemetryText_[sizeof(lastTelemetryText_) - 1U] = '\0';
-    lastScanCount_ = 0U;
     setSummary("sync read empty");
-    return 0U;
+    return lastScanCount_;
   }
 
   strncpy(lastTelemetryText_, telemetryText, sizeof(lastTelemetryText_) - 1U);
   lastTelemetryText_[sizeof(lastTelemetryText_) - 1U] = '\0';
-  lastScanCount_ = availableCount;
+  if (availableCount >= knownCount) {
+    lastScanCount_ = availableCount;
+  }
   setSummary("sync read ok");
-  return availableCount;
+  return lastScanCount_;
 }
 
 } // namespace soarm

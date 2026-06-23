@@ -29,7 +29,8 @@ public:
       const int16_t *positions,
       uint8_t count,
       uint8_t speedPct,
-      uint16_t requestId) = 0;
+      uint16_t requestId,
+      bool turbo = false) = 0;
   virtual const char *followerServoIds() const = 0;
   virtual const char *followerServoTelemetry() const = 0;
   virtual uint8_t followerServoCount() const = 0;

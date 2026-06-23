@@ -10,7 +10,7 @@ This document describes how leader–follower mirroring is tuned, how it compare
 | LeRobot-like bus I/O | `syncRead` present position + `SyncWritePosEx` goal batch |
 | No fragile PC files | Calibration min/max in NVS profiles on each ESP32 |
 | Salon robustness | Default **ESP-NOW** teleop; Wi-Fi for OTA + dashboard |
-| Optional higher rate | Wi-Fi UDP fire-and-forget (v2 packets), future “turbo” profile |
+| Optional higher rate | **TeleopEspNowTurbo** profile: same ~83 Hz loop, fresh bus read per mirror frame, OLED latency line |
 
 ## Data path (mirroring)
 
@@ -32,7 +32,18 @@ Dashboard and OLED still use the text telemetry string (`#1 p2048;…`) built fr
 - Wi-Fi stays up on both boards for OTA and the Python dashboard on the leader (`:9090`).
 - Profile: Xbox cycle → **teleop ESP-NOW** (default profile `2` on boot).
 
-### Wi-Fi UDP (bench / turbo experiments)
+### ESP-NOW turbo (TeleopEspNowTurbo)
+
+- Same ESP-NOW batch path as salon teleop, **~83 Hz** (`kTeleopTurboControlPeriodMs = kTeleopControlPeriodMs`, 12 ms).
+- **Mirror task reads the STS bus directly** each frame (`refreshKnownTelemetryFast`). Dashboard telemetry stays at **80 ms** so the mirror loop is not fed stale snapshots (re-sending the same goal for several frames then jumping caused follower jitter).
+- Position-delta filter **`kTeleopMirrorMinPositionDeltaTurbo = 2`** (classic ESP-NOW / Wi-Fi use `1`).
+- Follower apply task matches turbo cadence when the turbo flag is set in the batch (`speedPct` bit `0x80`).
+- Leader OLED status line (last row): **`lat Xms drY`** refreshed every **1 s** while mirror is active (`kTurboOledStatusPeriodMs`). `lat` = mirror-loop EWMA (read + send, not RTT); `dr` = ESP-NOW send-fail count. Brief **`teleop mirror start`** on **A**, then **`teleop ready`** when mirror stops.
+- Xbox / OLED profile cycle: **ESP-NOW → ESP-TURBO → Wi-Fi → …**
+
+**Servo count (`servo cnt L6 F5`) during turbo:** `F5` means the leader last heard **5** follower servos (expected 6). A partial STS sync read while the bus is busy used to drop the count briefly; that is now ignored on fast refresh. Follower count faults are also suppressed while continuous teleop is active so the OLED is not spammed during mirror.
+
+### Wi-Fi UDP (bench / direct link)
 
 - Binary `BatchPacket` v2 on UDP port **29110** (follower listen), leader ACK port **29111**.
 - Default: **fire-and-forget** (`kTeleopWifiRequireAck = false`) to avoid ACK traffic and lwIP `ENOMEM` (errno 12).
@@ -71,6 +82,7 @@ Future work (not all implemented yet): explicit **medium arbiter** task, presenc
 | `teleop_mirror_pending_count` | Pending ACK slots (ACK mode) |
 | `teleop_mirror_pending_count` (Wi-Fi no-ACK) | Mapped to **send fail** count for quick health check |
 | `teleop_mirror_timeout_count` | ACK timeouts |
+| Turbo OLED `dr` | Same send-fail counter surfaced on the leader status line |
 
 ## Build / flash notes
 

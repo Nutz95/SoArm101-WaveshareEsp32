@@ -1,6 +1,7 @@
 #include "leader_app.h"
 
 #include "../Config/common_runtime_config.h"
+#include "../Config/leader_runtime_config.h"
 #include "../common/controller/controller_operation_profile.h"
 
 #include <cstdio>
@@ -19,6 +20,9 @@ bool shouldHoldTeleopRuntime(
     return false;
   }
   if (profile == ControllerOperationProfile::TeleopEspNow) {
+    return true;
+  }
+  if (profile == ControllerOperationProfile::TeleopEspNowTurbo) {
     return true;
   }
   return profile == ControllerOperationProfile::TeleopWifi && wifiDirectTeleopActive;
@@ -121,6 +125,10 @@ bool LeaderApp::applyServoFaultModeAndStatus() {
     return false;
   }
 
+  if (teleopContinuousEnabled_.load()) {
+    return false;
+  }
+
   mode_ = localInputs_.espNowLinked ? OperationMode::Teleoperation : OperationMode::Idle;
   snprintf(
       statusLine_,
@@ -202,7 +210,12 @@ void LeaderApp::applyRuntimeModeAndStatus(
     }
   } else {
     mode_ = OperationMode::Teleoperation;
-    strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
+    const bool turboMirrorActive =
+        profile == ControllerOperationProfile::TeleopEspNowTurbo &&
+        teleopContinuousEnabled_.load();
+    if (!turboMirrorActive) {
+      strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
+    }
   }
 }
 
@@ -267,6 +280,45 @@ void LeaderApp::renderStatusLeds() {
   if (STATUS_LED_COUNT > 1U) {
     statusLedService_.render(1, followerLedState);
   }
+}
+
+void LeaderApp::updateTurboOledStatus(uint32_t nowMs) {
+  const ControllerOperationProfile profile =
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+  const bool turboMirrorActive =
+      profile == ControllerOperationProfile::TeleopEspNowTurbo &&
+      teleopContinuousEnabled_.load() &&
+      mode_ == OperationMode::Teleoperation &&
+      localInputs_.espNowLinked;
+
+  if (!turboMirrorActive) {
+    lastTurboOledStatusMs_ = 0U;
+    return;
+  }
+
+  if (nowMs < commandStatusHoldUntilMs_) {
+    return;
+  }
+
+  if (lastTurboOledStatusMs_ != 0U &&
+      (nowMs - lastTurboOledStatusMs_) < config::leader::kTurboOledStatusPeriodMs) {
+    return;
+  }
+  lastTurboOledStatusMs_ = nowMs;
+
+  const uint8_t loopMs = teleopMirrorLatencyMetrics_.loopEwmaMs.load();
+  const uint8_t drops = teleopMirrorLatencyMetrics_.sendFailCount.load();
+  if (loopMs == 0U) {
+    snprintf(statusLine_, sizeof(statusLine_), "turbo warmup");
+  } else {
+    snprintf(
+        statusLine_,
+        sizeof(statusLine_),
+        "lat %ums dr%u",
+        static_cast<unsigned>(loopMs),
+        static_cast<unsigned>(drops));
+  }
+  statusLine_[sizeof(statusLine_) - 1] = '\0';
 }
 
 } // namespace soarm

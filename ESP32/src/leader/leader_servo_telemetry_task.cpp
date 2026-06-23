@@ -1,6 +1,7 @@
 #include "leader_servo_telemetry_task.h"
 
 #include "../Config/leader_runtime_config.h"
+#include "../common/controller/controller_operation_profile.h"
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
@@ -11,12 +12,15 @@ namespace soarm {
 void LeaderServoTelemetryTask::runLoop(
     ServoBusService &servoBusService,
     const std::atomic<bool> &continuousEnabled,
-    const std::atomic<uint8_t> &runtimeMode) {
+    const std::atomic<uint8_t> &runtimeMode,
+    const std::atomic<uint8_t> &controllerOperationProfile) {
   uint32_t lastDiscoveryScanMs = 0U;
 
   while (true) {
     const bool active = continuousEnabled.load();
     const OperationMode mode = static_cast<OperationMode>(runtimeMode.load());
+    const ControllerOperationProfile profile =
+        sanitizeControllerOperationProfile(controllerOperationProfile.load());
     const uint32_t nowMs = millis();
 
     const bool calibrationMode =
@@ -45,8 +49,11 @@ void LeaderServoTelemetryTask::runLoop(
       servoBusService.refreshKnownTelemetryFast();
     }
 
-    const uint32_t delayMs = active ? config::leader::kServoTelemetryTaskActiveDelayMs
-                                    : config::leader::kServoTelemetryTaskIdleDelayMs;
+    uint32_t delayMs = config::leader::kServoTelemetryTaskIdleDelayMs;
+    if (active) {
+      delayMs = isEspNowTeleopTurboProfile(profile) ? config::leader::kServoTelemetryTaskTurboActiveDelayMs
+                                                    : config::leader::kServoTelemetryTaskActiveDelayMs;
+    }
     vTaskDelay(pdMS_TO_TICKS(delayMs));
   }
 }

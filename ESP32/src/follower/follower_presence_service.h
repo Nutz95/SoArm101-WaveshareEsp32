@@ -34,7 +34,8 @@ public:
       uint8_t capacity,
       uint8_t &count,
       uint8_t &speedPct,
-      uint16_t &requestId) override;
+      uint16_t &requestId,
+      bool &turbo) override;
   void updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) override;
   void stageTeleopBatchAck(uint16_t requestId, uint8_t status) override;
   void requestImmediatePresenceTx() override;
@@ -70,6 +71,7 @@ private:
     uint8_t count;
     uint8_t speedPct;
     uint16_t requestId;
+    bool turbo;
     uint8_t ids[config::common::kTeleopBatchMaxServos];
     int16_t positions[config::common::kTeleopBatchMaxServos];
   };

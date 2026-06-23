@@ -15,6 +15,7 @@ bool shouldKeepHomeStaConnected(ControllerOperationProfile profile, bool otaEnga
     return true;
   }
   if (profile == ControllerOperationProfile::TeleopEspNow ||
+      profile == ControllerOperationProfile::TeleopEspNowTurbo ||
       profile == ControllerOperationProfile::TeleopWifi) {
     return false;
   }
@@ -36,7 +37,9 @@ void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile
     if (otaEngaged_.load()) {
       wifiOta_.restoreHomeStation();
     }
-    const bool pauseDashboardTcp = (profile == ControllerOperationProfile::TeleopEspNow);
+    const bool pauseDashboardTcp =
+        profile == ControllerOperationProfile::TeleopEspNow ||
+        profile == ControllerOperationProfile::TeleopEspNowTurbo;
     telemetryStreamServer_.setListeningEnabled(!pauseDashboardTcp);
     return;
   }
@@ -58,7 +61,9 @@ void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile
   }
 
   // Phase 3: pause :9090 TCP during ESP-NOW teleop; USB CDC debug stays active.
-  const bool pauseDashboardTcp = (profile == ControllerOperationProfile::TeleopEspNow);
+  const bool pauseDashboardTcp =
+      profile == ControllerOperationProfile::TeleopEspNow ||
+      profile == ControllerOperationProfile::TeleopEspNowTurbo;
   telemetryStreamServer_.setListeningEnabled(!pauseDashboardTcp);
 }
 

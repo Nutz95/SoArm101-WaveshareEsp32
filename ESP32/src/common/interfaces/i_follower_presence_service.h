@@ -22,7 +22,8 @@ public:
       uint8_t capacity,
       uint8_t &count,
       uint8_t &speedPct,
-      uint16_t &requestId) = 0;
+      uint16_t &requestId,
+      bool &turbo) = 0;
   virtual void updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) = 0;
   // Teleop batches: update ACK fields for the next periodic presence only (no ESP-NOW ACK flood).
   virtual void stageTeleopBatchAck(uint16_t requestId, uint8_t status) = 0;

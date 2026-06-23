@@ -9,23 +9,42 @@ enum class ControllerOperationProfile : uint8_t {
   CalibrationLeader = 0,
   CalibrationFollower = 1,
   TeleopEspNow = 2,
-  TeleopWifi = 3,
-  Passthrough = 4,
-  OtaReady = 5,
+  TeleopEspNowTurbo = 3,
+  TeleopWifi = 4,
+  Passthrough = 5,
+  OtaReady = 6,
 };
 
-constexpr uint8_t kControllerOperationProfileCount = 6U;
+constexpr uint8_t kControllerOperationProfileCount = 7U;
+
+inline bool isEspNowTeleopProfile(ControllerOperationProfile profile) {
+  return profile == ControllerOperationProfile::TeleopEspNow ||
+         profile == ControllerOperationProfile::TeleopEspNowTurbo;
+}
+
+inline bool isEspNowTeleopTurboProfile(ControllerOperationProfile profile) {
+  return profile == ControllerOperationProfile::TeleopEspNowTurbo;
+}
+
+inline ControllerOperationProfile migrateLegacyControllerProfile(uint8_t raw) {
+  if (raw <= 2U) {
+    return static_cast<ControllerOperationProfile>(raw);
+  }
+  if (raw == 3U) {
+    return ControllerOperationProfile::TeleopWifi;
+  }
+  if (raw == 4U) {
+    return ControllerOperationProfile::Passthrough;
+  }
+  if (raw == 5U || raw == 6U) {
+    return ControllerOperationProfile::OtaReady;
+  }
+  return ControllerOperationProfile::TeleopEspNow;
+}
 
 inline ControllerOperationProfile sanitizeControllerOperationProfile(uint8_t raw) {
-  if (raw == 5U) {
-    return ControllerOperationProfile::OtaReady;
-  }
-  if (raw == 6U) {
-    // Legacy firmware stored OtaReady at id 6 before TeleopPcSerial removal.
-    return ControllerOperationProfile::OtaReady;
-  }
   if (raw >= kControllerOperationProfileCount) {
-    return ControllerOperationProfile::TeleopEspNow;
+    return migrateLegacyControllerProfile(raw);
   }
   return static_cast<ControllerOperationProfile>(raw);
 }

@@ -19,6 +19,8 @@ struct TeleopMirrorLatencyMetrics {
   std::atomic<uint8_t> pendingCount{0U};
   std::atomic<uint8_t> timeoutCount{0U};
   std::atomic<uint8_t> sendFailCount{0U};
+  std::atomic<uint8_t> loopLastMs{0U};
+  std::atomic<uint8_t> loopEwmaMs{0U};
 };
 
 class LeaderTeleopMirrorTask {

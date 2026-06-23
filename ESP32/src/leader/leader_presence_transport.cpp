@@ -94,7 +94,8 @@ bool LeaderPresenceService::sendServoControlBatch(
     const int16_t *positions,
     uint8_t count,
     uint8_t speedPct,
-    uint16_t requestId) {
+    uint16_t requestId,
+    bool turbo) {
   if (ids == nullptr || positions == nullptr || count == 0U) {
     return false;
   }
@@ -115,13 +116,18 @@ bool LeaderPresenceService::sendServoControlBatch(
   packet.ip[sizeof(packet.ip) - 1] = '\0';
 
   packet.servoTelemetry[0] = static_cast<char>(clampedCount);
-  packet.servoTelemetry[1] = static_cast<char>(speedPct);
+  packet.servoTelemetry[1] =
+      static_cast<char>(speedPct | (turbo ? static_cast<uint8_t>(0x80U) : 0U));
   for (uint8_t i = 0U; i < clampedCount; ++i) {
     const uint8_t offset = static_cast<uint8_t>(2U + (i * 3U));
     const uint16_t posRaw = static_cast<uint16_t>(positions[i]);
     packet.servoTelemetry[offset] = static_cast<char>(ids[i]);
     packet.servoTelemetry[offset + 1U] = static_cast<char>(posRaw & 0xFFU);
     packet.servoTelemetry[offset + 2U] = static_cast<char>((posRaw >> 8U) & 0xFFU);
+  }
+
+  if (!ensureEspNowTransportReady()) {
+    return false;
   }
 
   return esp_now_send(mac, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)) == ESP_OK;

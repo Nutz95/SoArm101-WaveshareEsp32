@@ -10,6 +10,7 @@ namespace soarm {
 void LeaderApp::releaseFollowerTeleopHold() {
   teleopContinuousEnabled_.store(false);
   teleopContinuousServoIdFilter_.store(0U);
+  lastTurboOledStatusMs_ = 0U;
   servoDebugManual_ = false;
   servoBusService_.setDebugManual(false);
   servoBusService_.setTorqueEnabledForDetectedServos(false);

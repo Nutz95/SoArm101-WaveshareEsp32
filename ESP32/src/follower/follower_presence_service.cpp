@@ -239,7 +239,8 @@ bool FollowerPresenceService::consumeTeleopMirrorBatch(
     uint8_t capacity,
     uint8_t &count,
     uint8_t &speedPct,
-    uint16_t &requestId) {
+    uint16_t &requestId,
+    bool &turbo) {
   if (ids == nullptr || positions == nullptr || capacity == 0U) {
     return false;
   }
@@ -258,6 +259,7 @@ bool FollowerPresenceService::consumeTeleopMirrorBatch(
   count = copyCount;
   speedPct = batch.speedPct;
   requestId = batch.requestId;
+  turbo = batch.turbo;
   return true;
 }
 
