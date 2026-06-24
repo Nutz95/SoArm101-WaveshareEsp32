@@ -135,7 +135,7 @@ private:
   void clearDeferHomeStaReconnectIfDone();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
   bool shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile profile) const;
-  void updateHomeStaChannelLearning(uint32_t nowMs);
+  void updateEspNowStaPrime(uint32_t nowMs);
   void pollFollowerCalibrationCenterAck(uint32_t nowMs);
   void setTransientStatus(const char *text, uint32_t holdMs);
   void beginCommandTracking(uint16_t requestId, uint8_t commandCode);
@@ -270,6 +270,8 @@ private:
   bool                deferredNetworkReady_{false};
   bool                deferredEspNowRadioResyncDone_{false};
   bool                homeStaChannelLearned_{false};
+  bool                espNowResyncAfterWifiDirectPending_{false};
+  uint32_t            espNowResyncAfterWifiDirectStartedMs_{0U};
   bool                deferredBackgroundTasksReady_{false};
   bool                deferredBleReady_{false};
   bool                deferredBootComplete_{false};

@@ -142,7 +142,7 @@ void LeaderApp::tickCoreServices(uint32_t uptimeMs) {
   runDeferredBootStages(uptimeMs);
 
   wifiOta_.tick();
-  updateHomeStaChannelLearning(uptimeMs);
+  updateEspNowStaPrime(uptimeMs);
   if (wifiDirectLinkEngaged_.load()) {
     auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
     if (presence != nullptr) {

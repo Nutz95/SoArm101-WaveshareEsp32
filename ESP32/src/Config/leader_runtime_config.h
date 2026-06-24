@@ -14,6 +14,8 @@ constexpr uint32_t kDeferredServoBusMs = 800U;
 constexpr uint32_t kDeferredNetworkMs = 1200U;
 // Keep home STA up until connected or this timeout so ESP-NOW uses the router channel.
 constexpr uint32_t kHomeWifiChannelPrimeTimeoutMs = 4000U;
+// After Wi-Fi Direct teleop, re-sync ESP-NOW on the home router channel before suspending STA.
+constexpr uint32_t kPostWifiDirectEspNowResyncTimeoutMs = 3000U;
 // Second ESP-NOW radio resync after home STA may have connected during early boot.
 constexpr uint32_t kDeferredEspNowRadioResyncMs = 2000U;
 constexpr uint32_t kDeferredBackgroundTasksMs = 1500U;

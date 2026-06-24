@@ -53,6 +53,7 @@ private:
   void publishServoTelemetry();
   void updateStateAndLeds(uint32_t uptimeMs);
   void syncWifiRadioPolicy(uint32_t nowMs);
+  void updateEspNowResyncAfterWifiDirect(uint32_t nowMs);
   const char *activeWifiIpForPresence() const;
   CommandAckStatus executeServoControl(uint8_t op, uint32_t value);
   CommandAckStatus handleDebugEnable(uint32_t value);
@@ -81,6 +82,8 @@ private:
   uint32_t            lastTeleopActivityMs_{0U};
   uint32_t            calibrationTelemetryBoostUntilMs_{0U};
   bool                teleopPreparedById_[256]{};
+  bool                espNowResyncAfterWifiDirectPending_{false};
+  uint32_t            espNowResyncAfterWifiDirectStartedMs_{0U};
   TaskHandle_t        teleopApplyTaskHandle_{nullptr};
 };
 

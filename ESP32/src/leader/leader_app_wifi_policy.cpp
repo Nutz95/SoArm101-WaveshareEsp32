@@ -8,9 +8,24 @@
 
 namespace soarm {
 
+namespace {
+
+void applyEspNowRadioRefresh(LeaderPresenceService *presence) {
+  if (presence == nullptr) {
+    return;
+  }
+  (void)presence->ensureEspNowTransportReady(0U);
+  presence->resetTurboTeleopSession();
+}
+
+} // namespace
+
 bool LeaderApp::shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile profile) const {
   if (profile != ControllerOperationProfile::TeleopEspNow &&
       profile != ControllerOperationProfile::TeleopEspNowTurbo) {
+    return true;
+  }
+  if (espNowResyncAfterWifiDirectPending_) {
     return true;
   }
   if (homeStaChannelLearned_) {
@@ -19,12 +34,31 @@ bool LeaderApp::shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile 
   if ((millis() - bootMs_) >= config::leader::kHomeWifiChannelPrimeTimeoutMs) {
     return false;
   }
-  // Prime window: stay on home STA until the router channel is learned (menu-cycle effect at boot).
   return true;
 }
 
-void LeaderApp::updateHomeStaChannelLearning(uint32_t nowMs) {
-  if (homeStaChannelLearned_) {
+void LeaderApp::updateEspNowStaPrime(uint32_t nowMs) {
+  const ControllerOperationProfile profile =
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+  const bool onEspNowProfile =
+      profile == ControllerOperationProfile::TeleopEspNow ||
+      profile == ControllerOperationProfile::TeleopEspNowTurbo;
+
+  if (espNowResyncAfterWifiDirectPending_) {
+    const bool connected = WiFi.status() == WL_CONNECTED;
+    const bool timedOut =
+        (nowMs - espNowResyncAfterWifiDirectStartedMs_) >=
+        config::leader::kPostWifiDirectEspNowResyncTimeoutMs;
+    if (!connected && !timedOut) {
+      return;
+    }
+    espNowResyncAfterWifiDirectPending_ = false;
+    syncWifiRadioPolicyForProfile(profile);
+    applyEspNowRadioRefresh(static_cast<LeaderPresenceService *>(presenceService_.get()));
+    return;
+  }
+
+  if (!onEspNowProfile || homeStaChannelLearned_) {
     return;
   }
 
@@ -35,12 +69,8 @@ void LeaderApp::updateHomeStaChannelLearning(uint32_t nowMs) {
   }
 
   homeStaChannelLearned_ = true;
-  syncWifiRadioPolicyForProfile(
-      sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
-  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
-    (void)presence->ensureEspNowTransportReady(0U);
-    presence->resetTurboTeleopSession();
-  }
+  syncWifiRadioPolicyForProfile(profile);
+  applyEspNowRadioRefresh(static_cast<LeaderPresenceService *>(presenceService_.get()));
 }
 
 void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile) {
@@ -72,14 +102,14 @@ void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile
       wifiDirectSession_.end(wifiDirectRadio_, true);
     }
     const bool keepHomeSta =
-        !deferHomeStaReconnect_.load() && shouldKeepHomeStaConnectedForProfile(profile);
+        espNowResyncAfterWifiDirectPending_ ||
+        (!deferHomeStaReconnect_.load() && shouldKeepHomeStaConnectedForProfile(profile));
     wifiOta_.setStaConnectDesired(keepHomeSta);
     if (!keepHomeSta && presence != nullptr) {
       (void)presence->ensureEspNowTransportReady();
     }
   }
 
-  // Phase 3: pause :9090 TCP during ESP-NOW teleop; USB CDC debug stays active.
   const bool pauseDashboardTcp =
       profile == ControllerOperationProfile::TeleopEspNow ||
       profile == ControllerOperationProfile::TeleopEspNowTurbo;
@@ -145,11 +175,13 @@ void LeaderApp::disengageWifiDirectLink() {
   teleopContinuousEnabled_.store(false);
   wifiDirectSession_.end(wifiDirectRadio_, true);
 
+  espNowResyncAfterWifiDirectPending_ = true;
+  espNowResyncAfterWifiDirectStartedMs_ = millis();
+  deferHomeStaReconnect_.store(false);
+  wifiOta_.restoreHomeStation();
+
   const ControllerOperationProfile profile =
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());
-  if (presence != nullptr) {
-    (void)presence->ensureEspNowTransportReady();
-  }
   syncWifiRadioPolicyForProfile(profile);
   lastOledRefreshMs_ = 0U;
   setTransientStatus("wifi direct: router STA", config::leader::kMoveStatusHoldMs);

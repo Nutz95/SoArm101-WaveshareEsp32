@@ -8,7 +8,7 @@
 namespace soarm {
 
 void LeaderApp::prepareEspNowTeleopMirrorStart() {
-  updateHomeStaChannelLearning(millis());
+  updateEspNowStaPrime(millis());
   syncWifiRadioPolicyForProfile(
       sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
   if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {

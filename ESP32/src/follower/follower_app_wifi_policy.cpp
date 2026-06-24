@@ -1,8 +1,30 @@
 #include "follower_app.h"
 
+#include "../Config/follower_runtime_config.h"
 #include "follower_presence_service.h"
 
+#include <WiFi.h>
+
 namespace soarm {
+
+void FollowerApp::updateEspNowResyncAfterWifiDirect(uint32_t nowMs) {
+  if (!espNowResyncAfterWifiDirectPending_) {
+    return;
+  }
+
+  const bool connected = WiFi.status() == WL_CONNECTED;
+  const bool timedOut =
+      (nowMs - espNowResyncAfterWifiDirectStartedMs_) >=
+      config::follower::kPostWifiDirectEspNowResyncTimeoutMs;
+  if (!connected && !timedOut) {
+    return;
+  }
+
+  espNowResyncAfterWifiDirectPending_ = false;
+  if (auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get())) {
+    (void)presence->ensureEspNowTransportReady(0U);
+  }
+}
 
 void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
   auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get());
@@ -11,8 +33,10 @@ void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
     if (presence->consumeWifiDirectSessionEnd()) {
       followerWifiDirectLink_.reset(*presence, wifiDirectRadio_, wifiOta_, true);
       wifiOta_.restoreHomeStation();
+      presence->resetTeleopTransportState();
+      espNowResyncAfterWifiDirectPending_ = true;
+      espNowResyncAfterWifiDirectStartedMs_ = nowMs;
       restoredHomeStaThisTick = true;
-      (void)presence->ensureEspNowTransportReady();
     }
 
     WifiDirectCredentials offer{};
@@ -30,6 +54,8 @@ void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
     }
   }
 
+  updateEspNowResyncAfterWifiDirect(nowMs);
+
   if (followerWifiDirectLink_.isActive()) {
     wifiOta_.setStaConnectDesired(false);
     if (presence != nullptr) {
@@ -39,7 +65,8 @@ void FollowerApp::syncWifiRadioPolicy(uint32_t nowMs) {
   }
 
   const bool preferHomeSta = presence == nullptr || presence->preferWifiStaConnected(nowMs);
-  const bool keepHomeSta = restoredHomeStaThisTick || preferHomeSta;
+  const bool keepHomeSta =
+      restoredHomeStaThisTick || espNowResyncAfterWifiDirectPending_ || preferHomeSta;
   wifiOta_.setStaConnectDesired(keepHomeSta);
   if (!keepHomeSta && presence != nullptr) {
     (void)presence->ensureEspNowTransportReady();

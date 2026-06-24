@@ -14,9 +14,15 @@ This document tracks the segmented optimization of **TeleopEspNowTurbo** only. C
 
 **Bench (user):** `lat 6–8 ms`, `dr0` — ESP-NOW send path healthy; jitter was stale goals + STS timing, not frame loss.
 
-### Cold-boot ESP-NOW stutter (fixed)
+### Cold-boot ESP-NOW stutter (mitigated)
 
-After reboot, teleop could stutter until cycling Xbox profiles once. Root cause: leader **startup servo scan** pinned ESP-NOW peers to `WiFi.channel()` while home STA was still settling; profile cycling called `ensureEspNowTransportReady(0)` and suspended STA. Fix: never pin channel for routine commands, resync radio ~3.2 s after boot, suspend follower home STA when paired for salon ESP-NOW, refresh transport each tick on ESP-NOW profiles.
+After reboot, teleop could stutter until cycling Xbox profiles once. Root causes:
+
+1. Leader **suspended home STA at 1.2 s** before learning the router Wi-Fi channel; follower stayed on the router channel → ESP-NOW channel mismatch.
+2. Leader **servo discovery scan** blocking the bus while mirror starts.
+3. Classic ESP-NOW mirror reading a **stale telemetry snapshot** (turbo already used fast bus read).
+
+Fixes: **channel priming** at boot (STA up until router channel learned); **post–Wi-Fi Direct resync** (tear down soft-AP, reconnect home STA, refresh ESP-NOW peers before suspending STA again); fast bus read for all ESP-NOW mirror modes; no discovery scan while teleop armed.
 
 ## Architecture (SOLID)
 

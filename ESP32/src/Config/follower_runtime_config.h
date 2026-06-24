@@ -20,6 +20,7 @@ constexpr uint32_t kTeleopTurboApplyTaskPeriodMs = config::common::kTeleopTurboC
 constexpr uint32_t kTeleopApplyTaskIdleDelayMs = 1U;
 constexpr uint32_t kTeleopTrafficRecentMs = 8000U;
 constexpr uint32_t kWifiDirectStaConnectTimeoutMs = 20000U;
+constexpr uint32_t kPostWifiDirectEspNowResyncTimeoutMs = 3000U;
 constexpr uint8_t kServoControlQueueCapacity = 8U;
 constexpr uint8_t kCommandAckSendBurstCount = 3U;
 constexpr uint8_t kTeleopBatchQueueCapacity = 8U;
