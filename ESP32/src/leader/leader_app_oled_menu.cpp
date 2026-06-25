@@ -12,9 +12,27 @@ namespace {
 
 using Profile = ControllerOperationProfile;
 
+Profile profileForMenuSelection(OledMenuProfileSelection selection) {
+  switch (selection) {
+  case OledMenuProfileSelection::TeleopEspNowTurbo:
+    return Profile::TeleopEspNowTurbo;
+  case OledMenuProfileSelection::TeleopWifi:
+    return Profile::TeleopWifi;
+  case OledMenuProfileSelection::Passthrough:
+    return Profile::Passthrough;
+  case OledMenuProfileSelection::TeleopEspNow:
+  default:
+    return Profile::TeleopEspNow;
+  }
+}
+
 } // namespace
 
 bool LeaderApp::shouldShowInteractiveOledMenu() const {
+  if (!oledMenuBrowseMode_.load()) {
+    return false;
+  }
+
   if (wifiOta_.isOtaInProgress()) {
     return false;
   }
@@ -62,6 +80,26 @@ void LeaderApp::buildOledMenuContext(OledMenuContext &context) const {
   context.followerServoCount = presenceService_->followerServoCount();
 }
 
+bool LeaderApp::activateProfileFromMenu(OledMenuProfileSelection selection) {
+  oledMenuBrowseMode_.store(false);
+  oledMenuNavigator_.reset();
+  const Profile profile = profileForMenuSelection(selection);
+  applyControllerOperationProfile(toProfileRaw(profile));
+  if (isEspNowTeleopProfile(profile)) {
+    prepareEspNowTeleopMirrorStart();
+  }
+  lastOledRefreshMs_ = 0U;
+  return true;
+}
+
+void LeaderApp::restoreOledMenuBrowseMode() {
+  oledMenuBrowseMode_.store(true);
+  oledMenuNavigator_.reset();
+  syncWifiRadioPolicyForProfile(
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
+  lastOledRefreshMs_ = 0U;
+}
+
 void LeaderApp::handleInteractiveOledMenuInput() {
   bool menuChanged = false;
 
@@ -92,6 +130,7 @@ void LeaderApp::handleInteractiveOledMenuInput() {
 }
 
 void LeaderApp::refreshInteractiveOledMenu(uint32_t uptimeMs) {
+  (void)uptimeMs;
   OledMenuContext context{};
   buildOledMenuContext(context);
 

@@ -8,6 +8,15 @@
 
 namespace soarm {
 
+void LeaderApp::refreshEspNowRadioTransport() {
+  auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get());
+  if (presence == nullptr) {
+    return;
+  }
+  (void)presence->ensureEspNowTransportReady(0U);
+  presence->resetTurboTeleopSession();
+}
+
 namespace {
 
 void applyEspNowRadioRefresh(LeaderPresenceService *presence) {
@@ -21,6 +30,9 @@ void applyEspNowRadioRefresh(LeaderPresenceService *presence) {
 } // namespace
 
 bool LeaderApp::shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile profile) const {
+  if (oledMenuBrowseMode_.load()) {
+    return true;
+  }
   if (profile != ControllerOperationProfile::TeleopEspNow &&
       profile != ControllerOperationProfile::TeleopEspNowTurbo) {
     return true;
@@ -54,7 +66,7 @@ void LeaderApp::updateEspNowStaPrime(uint32_t nowMs) {
     }
     espNowResyncAfterWifiDirectPending_ = false;
     syncWifiRadioPolicyForProfile(profile);
-    applyEspNowRadioRefresh(static_cast<LeaderPresenceService *>(presenceService_.get()));
+    refreshEspNowRadioTransport();
     return;
   }
 
@@ -70,7 +82,7 @@ void LeaderApp::updateEspNowStaPrime(uint32_t nowMs) {
 
   homeStaChannelLearned_ = true;
   syncWifiRadioPolicyForProfile(profile);
-  applyEspNowRadioRefresh(static_cast<LeaderPresenceService *>(presenceService_.get()));
+  refreshEspNowRadioTransport();
 }
 
 void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile) {
@@ -213,6 +225,7 @@ void LeaderApp::handleTeleopWifiButtons(bool confirmPressed, bool validatePresse
     }
     if (validatePressed) {
       applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
+      restoreOledMenuBrowseMode();
       setTransientStatus("wifi teleop skipped", config::leader::kMoveStatusHoldMs);
     }
     return;
@@ -221,6 +234,7 @@ void LeaderApp::handleTeleopWifiButtons(bool confirmPressed, bool validatePresse
   if (!wifiDirectSession_.isFollowerReady()) {
     if (validatePressed) {
       disengageWifiDirectLink();
+      restoreOledMenuBrowseMode();
       setTransientStatus("wifi direct canceled", config::leader::kMoveStatusHoldMs);
     }
     return;
@@ -235,6 +249,7 @@ void LeaderApp::handleTeleopWifiButtons(bool confirmPressed, bool validatePresse
     }
     if (validatePressed) {
       disengageWifiDirectLink();
+      restoreOledMenuBrowseMode();
       setTransientStatus("wifi direct canceled", config::leader::kMoveStatusHoldMs);
     }
     return;
@@ -245,6 +260,7 @@ void LeaderApp::handleTeleopWifiButtons(bool confirmPressed, bool validatePresse
     releaseFollowerTeleopHold();
     disengageWifiDirectLink();
     applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
+    restoreOledMenuBrowseMode();
     setTransientStatus("teleop wifi stop", config::leader::kMoveStatusHoldMs);
   }
 }

@@ -1,5 +1,6 @@
 #include <unity.h>
 
+#include "leader/oled_menu/ioled_menu_profile_actions.h"
 #include "leader/oled_menu/oled_list_scroll_model.h"
 #include "leader/oled_menu/oled_menu_context.h"
 #include "leader/oled_menu/oled_menu_input.h"
@@ -12,6 +13,76 @@ using soarm::OledMenuInputEvent;
 using soarm::OledMenuNavigator;
 using soarm::OledMenuRenderOutput;
 using soarm::OledMenuScreenId;
+using soarm::IOledMenuProfileActions;
+using soarm::OledMenuProfileSelection;
+
+namespace {
+
+class RecordingProfileActions : public IOledMenuProfileActions {
+public:
+  OledMenuProfileSelection lastSelection{OledMenuProfileSelection::TeleopEspNow};
+  uint8_t callCount{0U};
+
+  bool activateMenuProfile(OledMenuProfileSelection selection) override {
+    lastSelection = selection;
+    callCount = static_cast<uint8_t>(callCount + 1U);
+    return true;
+  }
+};
+
+} // namespace
+
+void test_navigator_teleop_submenu_activates_profile() {
+  OledMenuNavigator navigator;
+  RecordingProfileActions actions;
+  navigator.setProfileActionsSink(&actions);
+  navigator.reset();
+
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::NavigateDown));
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuScreenId::TeleopList),
+                    static_cast<int>(navigator.currentScreen()));
+
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL_UINT8(1U, actions.callCount);
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuProfileSelection::TeleopEspNow),
+                    static_cast<int>(actions.lastSelection));
+}
+
+void test_navigator_passthrough_leaf_activates_profile() {
+  OledMenuNavigator navigator;
+  RecordingProfileActions actions;
+  navigator.setProfileActionsSink(&actions);
+  navigator.reset();
+
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::NavigateDown));
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::NavigateDown));
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL_UINT8(1U, actions.callCount);
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuProfileSelection::Passthrough),
+                    static_cast<int>(actions.lastSelection));
+}
+
+void test_navigator_ik_teleop_shows_stub_screen() {
+  OledMenuNavigator navigator;
+  navigator.reset();
+
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::NavigateDown));
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+
+  for (uint8_t i = 0U; i < 3U; ++i) {
+    navigator.onInput(OledMenuInputEvent::NavigateDown);
+  }
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuScreenId::IkNotImplementedDetail),
+                    static_cast<int>(navigator.currentScreen()));
+
+  OledMenuContext context{};
+  OledMenuRenderOutput output{};
+  navigator.render(context, output);
+  TEST_ASSERT_EQUAL_STRING("IK Teleop", output.lines[0]);
+  TEST_ASSERT_EQUAL_STRING("not implemented", output.lines[1]);
+}
 
 void test_scroll_window_keeps_cursor_visible_at_bottom() {
   OledListScrollModel model;
@@ -103,6 +174,9 @@ int main(int argc, char **argv) {
   RUN_TEST(test_scroll_wraps_down_from_last_item);
   RUN_TEST(test_scroll_wraps_up_from_first_item);
   RUN_TEST(test_navigator_root_mode_down_moves_highlight);
+  RUN_TEST(test_navigator_teleop_submenu_activates_profile);
+  RUN_TEST(test_navigator_passthrough_leaf_activates_profile);
+  RUN_TEST(test_navigator_ik_teleop_shows_stub_screen);
   RUN_TEST(test_navigator_info_push_and_back);
   RUN_TEST(test_navigator_pairing_status_screen);
   return UNITY_END();

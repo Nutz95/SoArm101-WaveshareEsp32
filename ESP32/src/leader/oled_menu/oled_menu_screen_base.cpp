@@ -8,6 +8,10 @@ void OledMenuScreenBase::setNavigationSink(IOledMenuNavigationSink *sink) {
   navigationSink_ = sink;
 }
 
+void OledMenuScreenBase::setProfileActionsSink(IOledMenuProfileActions *sink) {
+  profileActionsSink_ = sink;
+}
+
 void OledMenuScreenBase::onEnter() {
 }
 
@@ -31,6 +35,13 @@ void OledMenuScreenBase::clearOutput(OledMenuRenderOutput &out) {
 }
 
 bool OledMenuScreenBase::applyNavigationResult(const OledMenuNavigationResult &result) {
+  if (result.action == OledMenuNavigationResult::Action::ActivateProfile) {
+    if (profileActionsSink_ == nullptr) {
+      return false;
+    }
+    return profileActionsSink_->activateMenuProfile(result.profileSelection);
+  }
+
   if (navigationSink_ == nullptr) {
     return false;
   }

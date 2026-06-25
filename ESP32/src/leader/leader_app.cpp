@@ -58,6 +58,7 @@ LeaderApp::LeaderApp()
       oledMenu_(oled_),
   telemetryState_(),
   telemetryStreamServer_(telemetryState_),
+      oledMenuProfileActions_(*this),
       localInputs_{true, false, false, false},
       followerState_(ArmRuntimeState::WaitingEspNow),
       mode_(OperationMode::Idle),
@@ -69,6 +70,7 @@ LeaderApp::LeaderApp()
 
   strncpy(statusLine_, "boot", sizeof(statusLine_) - 1);
   statusLine_[sizeof(statusLine_) - 1] = '\0';
+  oledMenuNavigator_.setProfileActionsSink(&oledMenuProfileActions_);
   oledMenuNavigator_.reset();
 }
 

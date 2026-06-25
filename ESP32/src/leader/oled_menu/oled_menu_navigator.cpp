@@ -86,9 +86,16 @@ bool OledMenuNavigator::isNavigatorAtRoot() const {
 
 void OledMenuNavigator::wireScreenSinks() {
   rootScreen_.setNavigationSink(this);
+  teleopScreen_.setNavigationSink(this);
+  ikNotImplementedScreen_.setNavigationSink(this);
   infoDetailScreen_.setNavigationSink(this);
   pairingListScreen_.setNavigationSink(this);
   pairingStatusDetailScreen_.setNavigationSink(this);
+}
+
+void OledMenuNavigator::setProfileActionsSink(IOledMenuProfileActions *sink) {
+  rootScreen_.setProfileActionsSink(sink);
+  teleopScreen_.setProfileActionsSink(sink);
 }
 
 IOledMenuScreen *OledMenuNavigator::screenForId(OledMenuScreenId screenId) {
@@ -97,6 +104,10 @@ IOledMenuScreen *OledMenuNavigator::screenForId(OledMenuScreenId screenId) {
     return &rootScreen_;
   case OledMenuScreenId::InfoDetail:
     return &infoDetailScreen_;
+  case OledMenuScreenId::TeleopList:
+    return &teleopScreen_;
+  case OledMenuScreenId::IkNotImplementedDetail:
+    return &ikNotImplementedScreen_;
   case OledMenuScreenId::PairingList:
     return &pairingListScreen_;
   case OledMenuScreenId::PairingStatusDetail:

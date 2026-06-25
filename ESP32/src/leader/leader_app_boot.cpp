@@ -77,9 +77,7 @@ void LeaderApp::runDeferredBootStages(uint32_t uptimeMs) {
       sinceBootMs >= (config::leader::kDeferredNetworkMs + config::leader::kDeferredEspNowRadioResyncMs)) {
     syncWifiRadioPolicyForProfile(
         sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
-    if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
-      (void)presence->ensureEspNowTransportReady(0U);
-    }
+    refreshEspNowRadioTransport();
     deferredEspNowRadioResyncDone_ = true;
   }
 

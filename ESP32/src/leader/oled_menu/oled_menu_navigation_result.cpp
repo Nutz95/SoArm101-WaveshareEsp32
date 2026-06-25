@@ -19,4 +19,11 @@ OledMenuNavigationResult OledMenuNavigationResult::pop() {
   return result;
 }
 
+OledMenuNavigationResult OledMenuNavigationResult::activateProfile(OledMenuProfileSelection selection) {
+  OledMenuNavigationResult result{};
+  result.action = Action::ActivateProfile;
+  result.profileSelection = selection;
+  return result;
+}
+
 } // namespace soarm

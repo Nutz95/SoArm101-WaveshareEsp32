@@ -8,13 +8,17 @@
 namespace soarm {
 
 void LeaderApp::prepareEspNowTeleopMirrorStart() {
-  updateEspNowStaPrime(millis());
-  syncWifiRadioPolicyForProfile(
-      sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
-  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
-    (void)presence->ensureEspNowTransportReady(0U);
-    presence->resetTurboTeleopSession();
+  const uint32_t nowMs = millis();
+  updateEspNowStaPrime(nowMs);
+
+  const ControllerOperationProfile profile =
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+  if (isEspNowTeleopProfile(profile) && !homeStaChannelLearned_) {
+    homeStaChannelLearned_ = true;
   }
+
+  syncWifiRadioPolicyForProfile(profile);
+  refreshEspNowRadioTransport();
 }
 
 void LeaderApp::releaseFollowerTeleopHold() {
@@ -31,9 +35,7 @@ void LeaderApp::releaseFollowerTeleopHold() {
   }
 
   deferHomeStaReconnect_.store(true);
-  if (auto *presence = static_cast<LeaderPresenceService *>(presenceService_.get())) {
-    (void)presence->ensureEspNowTransportReady();
-  }
+  refreshEspNowRadioTransport();
 
   const uint16_t requestId = static_cast<uint16_t>(teleopContinuousRequestCounter_ + 1U);
   teleopContinuousRequestCounter_ = requestId;

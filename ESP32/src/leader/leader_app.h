@@ -13,6 +13,8 @@
 #include "oled_presenter.h"
 #include "oled_menu_controller.h"
 #include "oled_menu/oled_menu_navigator.h"
+#include "oled_menu/oled_menu_profile_selection.h"
+#include "leader_oled_menu_profile_actions.h"
 #include "leader_calibration_oled_workflow.h"
 #include "oled_display_config.h"
 #include "leader_telemetry_state.h"
@@ -36,7 +38,6 @@ struct OledMenuContext;
 
 class LeaderApp {
 public:
-  // Construct leader runtime services and initialize default state.
   LeaderApp();
   // Initialize hardware/services and start background tasks.
   void begin();
@@ -44,6 +45,8 @@ public:
   void tick();
 
 private:
+  friend class LeaderOledMenuProfileActions;
+
   // Command handling extracted from tick()
   void handlePairingCommands();
     void handleResetPairingCommand(uint16_t requestId);
@@ -135,6 +138,7 @@ private:
   void nudgeFollowerLinkAfterCalibration();
   void releaseFollowerTeleopHold();
   void prepareEspNowTeleopMirrorStart();
+  void refreshEspNowRadioTransport();
   void clearDeferHomeStaReconnectIfDone();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
   bool shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile profile) const;
@@ -182,6 +186,10 @@ private:
   void handleInteractiveOledMenuInput();
   // Render the current navigator screen to the OLED.
   void refreshInteractiveOledMenu(uint32_t uptimeMs);
+  // Apply a teleop/passthrough leaf selected from the OLED menu.
+  bool activateProfileFromMenu(OledMenuProfileSelection selection);
+  // Return to the root menu after canceling a profile preview or teleop session.
+  void restoreOledMenuBrowseMode();
   void runDeferredBootStages(uint32_t uptimeMs);
   void tickCoreServices(uint32_t uptimeMs);
   void tickCommandHandlers(bool passthroughActive);
@@ -211,6 +219,8 @@ private:
   OledPresenter       oled_;
   OledMenuController  oledMenu_;
   OledMenuNavigator   oledMenuNavigator_;
+  LeaderOledMenuProfileActions oledMenuProfileActions_;
+  std::atomic<bool>   oledMenuBrowseMode_{true};
   LeaderCalibrationOledWorkflow calibrationOledWorkflow_;
   LeaderTelemetryState telemetryState_;
   LeaderTelemetryStreamServer telemetryStreamServer_;

@@ -141,6 +141,7 @@ void LeaderApp::handlePassthroughButtons(bool confirmPressed, bool validatePress
   }
   if (validatePressed) {
     disengagePassthroughMode(kProfileTeleopEspNow);
+    restoreOledMenuBrowseMode();
     setTransientStatus("passthrough canceled", config::leader::kMoveStatusHoldMs);
   }
 }
@@ -228,6 +229,7 @@ void LeaderApp::handleTeleopMirrorButtons(bool confirmPressed, bool validatePres
 
   if (validatePressed) {
     releaseFollowerTeleopHold();
+    restoreOledMenuBrowseMode();
     setTransientStatus("teleop mirror stop", config::leader::kMoveStatusHoldMs);
   }
 }
