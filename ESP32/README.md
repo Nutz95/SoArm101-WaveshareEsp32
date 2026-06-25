@@ -20,6 +20,7 @@ Additional guides:
 - [docs/hardware.md](docs/hardware.md) — Waveshare boards, Xbox controller, follower board options
 - [docs/networking.md](docs/networking.md) — router optional vs OTA/dashboard, `SOARM_WIFI_*` at build time
 - [docs/calibration.md](docs/calibration.md) — joint min/max in NVS per arm
+- [docs/esp_now_pairing.md](docs/esp_now_pairing.md) — automatic pairing, reset without dashboard
 
 ## PlatformIO Initialization
 
@@ -73,6 +74,18 @@ Additional runtime tunables are grouped in:
 At startup, both boards run a local servo scan. The leader also requests a follower startup scan
 once the ESP-NOW link is up. If a board count differs from expected, its status LED enters
 red blinking `ServoFault` state.
+
+---
+
+## ESP-NOW pairing (quick)
+
+**You do not need the dashboard** for the first link.
+
+1. Flash leader + follower (USB).
+2. Power both boards — follower sends `PairRequest`, leader accepts if unpaired.
+3. Pairing completes in seconds (MACs saved in NVS on both sides).
+
+Reset / re-pair options: [docs/esp_now_pairing.md](docs/esp_now_pairing.md).
 
 ---
 

@@ -8,7 +8,11 @@ Reference setup for this firmware on **SO-ARM101** arms with **Feetech STS3215**
 |------|--------|------|--------|
 | **Leader** | Waveshare **Servo Driver with ESP32** | [waveshare.com/servo-driver-with-esp32](https://www.waveshare.com/servo-driver-with-esp32.htm) | OLED, status LEDs, USB, servo bus, **Xbox BLE** target |
 | **Follower** | Waveshare **Bus Servo Driver HAT (A)** | [waveshare.com/bus-servo-driver-hat-a](https://www.waveshare.com/bus-servo-driver-hat-a.htm) | Compact ESP32 + servo bus; no OLED UI in follower firmware |
-| **Controller** | **Xbox Wireless Controller** (Bluetooth) | [Xbox Wireless Controller](https://www.xbox.com/accessories/controllers/xbox-wireless-controller) | Series X\|S / One S **Bluetooth** models; paired on **leader boot** (see [xbox_ble_controls.md](architecture/xbox_ble_controls.md)) |
+| **Controller** | **Xbox Wireless Controller** (Bluetooth) | [Xbox Wireless Controller](https://www.xbox.com/accessories/controllers/xbox-wireless-controller) | Series X\|S / One S **Bluetooth** models |
+
+![Xbox button map (diagram indices)](../tools/telemetry_dashboard/static/XBoxControler.jpg)
+
+Firmware uses **View (button 6)** as **Mode**, **A (0)**, **B (1)** only until IK teleop — see [calibration.md](calibration.md).
 | **Servos** | Feetech **STS3215** (or compatible STS bus) | — | 1 Mbaud half-duplex bus per board |
 | **Power** | Per Waveshare / arm kit | — | Separate supply for servos vs logic as per board manual |
 

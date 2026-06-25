@@ -22,11 +22,24 @@ Salon demo: power leader + follower + Xbox controller. No laptop, no router.
 A **travel router**, **phone hotspot**, or home AP is still very useful:
 
 1. **OTA** — flash `leader-ota` / `follower-ota` without USB (`soarm-leader.local`, `soarm-follower.local`).
-2. **Dashboard** — `telemetry_dashboard.py` streams telemetry and sends commands to the leader on TCP port **9090**.
+2. **HTML dashboard** — `telemetry_dashboard.py` on a laptop:
+   - **Telemetry** for both arms (via the leader snapshot).
+   - **Teleop** start/stop, profile changes, and servo commands **without an Xbox controller**.
+   - **Pairing reset**, calibration helpers, COM mirror bench tools.
 3. **Channel priming** — both boards join the **same 2.4 GHz channel** as the router so ESP-NOW stays aligned (see [teleop_radio_fluency.md](teleop_radio_fluency.md)).
 4. **OLED IP display** — leader shows assigned IP; optional `SOARM_FOLLOWER_OTA_IP` hint on OLED.
 
-The router is **not** in the teleop data path for ESP-NOW mirror batches.
+The router is **not** in the ESP-NOW mirror data path. Mirror batches go **leader → follower** directly over ESP-NOW (or over Wi-Fi Direct / UDP in Wi-Fi teleop mode).
+
+### Teleop without Xbox (dashboard)
+
+If you have no Xbox controller but both boards are on the LAN:
+
+1. Start the dashboard (`start_dashboard.ps1`).
+2. Open http://127.0.0.1:8080.
+3. Use **Modes** / **Teleop** tabs to set profile (ESP-NOW, turbo, Wi-Fi) and **Start continuous** mirror — same effect as **A** on the controller.
+
+You still need ESP-NOW **pairing** (automatic on boot) and a network path to the leader (`:9090` or USB serial). See [esp_now_pairing.md](esp_now_pairing.md).
 
 ## Wi-Fi credentials at build time
 

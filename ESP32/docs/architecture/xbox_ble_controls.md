@@ -26,7 +26,11 @@ While the leader keeps running (no reboot):
 
 ## Profile cycle (Mode button)
 
-Order when cycling with the Xbox **Mode** button (or dashboard `xbox_mode_cycle_button_set`):
+The **View** button on the Xbox controller is **button 6** in the [diagram](../tools/telemetry_dashboard/static/XBoxControler.jpg) (two small squares left of the Xbox logo). Firmware calls it **Mode**.
+
+**Only three buttons are used today:** Mode (View), **A**, **B** — sticks, triggers, bumpers, and D-pad are reserved for a future inverse-kinematics mode.
+
+Order when cycling with **Mode** (or dashboard `xbox_mode_cycle_button_set`):
 
 | Step | Profile | OLED / status hint |
 | ---- | ------- | ------------------ |
