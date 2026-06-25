@@ -91,23 +91,19 @@ Map `[min,max]` from `CalibrationProfile` to fewer than 12 bits per joint when r
 
 `int8` Δposition after keyframe (CAN-style); builds on phase B session state.
 
-## Phase E — Planned (gripper haptic / force feedback)
+## Phase E — Feedback teleop (see dedicated plan)
 
-**Goal:** when manipulating an object, read **gripper torque/load** on the follower and send it back to the leader to stiffen the leader gripper (haptic return).
+**Goal:** gripper / multi-joint **load feedback** over ESP-NOW, built on turbo downlink.
+
+Full phased spec (OLED display → leader haptic): **[teleop_espnow_feedback.md](teleop_espnow_feedback.md)**.
+
+Summary:
 
 ```text
-Leader teleop out (turbo v2) ──► Follower STS gripper
-Follower load read ◄── periodic compact uplink (new message type, turbo-only)
-Leader Xbox / leader gripper ──► stiffness or current overlay on operator hand
+Leader teleop out (turbo v2) ──► Follower STS
+Follower load read ◄── compact uplink (new message type)
+Leader OLED + (later) leader torque overlay
 ```
-
-| Step | Work |
-|------|------|
-| E1 | Follower: poll STS **present load / current** on gripper servo during turbo |
-| E2 | Compact ESP-NOW uplink (separate `TeleopGripperFeedback` packet, ~8–12 B) |
-| E3 | Leader: map feedback → gripper torque / resistance on leader arm |
-| E4 | Tunables: deadband, max stiffness, rate limit (salon-safe) |
-| E5 | Unit tests for feedback codec + clamping (no hardware in native tests) |
 
 Requires stable turbo downlink (phases 1 + B) before adding reverse traffic.
 
@@ -134,5 +130,4 @@ pio run -e leader -e follower
 
 ### Phase E (future)
 
-- [ ] Gripper load uplink without breaking teleop downlink cadence.
-- [ ] Perceptible stiffening when follower gripper loads; no oscillation on release.
+See [teleop_espnow_feedback.md](teleop_espnow_feedback.md).

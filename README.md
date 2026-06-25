@@ -57,22 +57,21 @@ Wi-Fi credentials are baked in at **build time** via `SOARM_WIFI_SSID` / `SOARM_
 
 ## Operating modes (leader)
 
-Cycle with the Xbox **View** button (**button 6** on the [controller diagram](ESP32/tools/telemetry_dashboard/static/XBoxControler.jpg)) — firmware label **Mode**. Only **Mode**, **A**, and **B** are used today; see [calibration doc](ESP32/docs/calibration.md).
+**Pick modes from the OLED menu** at boot (leader board with display). Full guide — layout, buttons, menu tree, and flows: **[ESP32/docs/oled_menu.md](ESP32/docs/oled_menu.md)**.
 
 | Mode | What it does | Best for |
 |------|----------------|----------|
-| **ESP-NOW teleop** | Default; ~83 Hz mirror, legacy batch packets | Exhibitions, lowest setup friction |
+| **ESP-NOW teleop** | ~83 Hz mirror, legacy batch packets | Exhibitions, lowest setup friction |
 | **ESP-NOW turbo** | Same rate; 9–16 B sparse frames + OLED `lat` / `dr` | Bandwidth-tight or latency debugging |
+| **ESP-NOW feedback** | *(planned)* Turbo downlink + load uplink; OLED `fb:xxHz` — [plan](ESP32/docs/teleop_espnow_feedback.md) |
 | **Wi-Fi teleop** | Wi-Fi Direct soft-AP + UDP batches | Bench, **no router** link test |
 | **Calibration** | Leader or follower min/max → NVS on each ESP | Joint range setup |
 | **Passthrough** | USB serial ↔ leader servo bus (1 Mbaud) | Wired LeRobot-style tuning on leader |
 | **OTA** | Flash firmware over Wi-Fi | Updates without USB (needs LAN) |
 
-Press **A** to arm teleop (ESP-NOW / turbo / Wi-Fi) or confirm calibration. **B** stops mirror or cancels.
+**D-pad** moves the menu cursor; **View (Mode)** moves down at the root menu only. **A** enters or confirms; **B** goes back or cancels teleop/calibration. See the [OLED menu guide](ESP32/docs/oled_menu.md) and [controller diagram](ESP32/docs/assets/XBoxControler.jpg).
 
 **Fluency across mode changes** (channel priming, post–Wi-Fi resync, peer refresh): [ESP32/docs/teleop_radio_fluency.md](ESP32/docs/teleop_radio_fluency.md).
-
-**Planned:** hierarchical OLED menu — [oled_menu_refactor_plan.md](ESP32/docs/oled_menu_refactor_plan.md).
 
 ## Compared to LeRobot on Raspberry Pi
 
@@ -135,7 +134,7 @@ To **re-pair** or **reset**: dashboard (Wi-Fi or USB serial), or `.\build_upload
 ### 4. Teleop
 
 1. Pair **Xbox** to leader (BLE scan on each leader boot ~4 s).
-2. Default profile **ESP-NOW** → **A** to start mirror → **B** to stop.
+2. On the **OLED menu**: **Teleop** → **ESP-NOW** (or Turbo) → **A** to start mirror → **B** to stop. Step-by-step: [ESP32/docs/oled_menu.md](ESP32/docs/oled_menu.md).
 
 **Without Xbox:** use the HTML dashboard on the same LAN — [networking.md](ESP32/docs/networking.md).
 
@@ -163,6 +162,7 @@ Full firmware guide: [ESP32/README.md](ESP32/README.md)
 | Performance, LeRobot bus alignment | [ESP32/docs/teleop_performance.md](ESP32/docs/teleop_performance.md) |
 | Turbo codec (v2 sparse/keyframe) | [ESP32/docs/teleop_espnow_turbo_codec.md](ESP32/docs/teleop_espnow_turbo_codec.md) |
 | System architecture | [ESP32/docs/architecture/README.md](ESP32/docs/architecture/README.md) |
+| **OLED interactive menu** | **[ESP32/docs/oled_menu.md](ESP32/docs/oled_menu.md)** |
 | Xbox profiles & buttons | [ESP32/docs/architecture/xbox_ble_controls.md](ESP32/docs/architecture/xbox_ble_controls.md) |
 | Leader flash recovery | [ESP32/docs/LEADER_FLASH_RECOVERY.md](ESP32/docs/LEADER_FLASH_RECOVERY.md) |
 | Build, OTA, config | [ESP32/README.md](ESP32/README.md) |

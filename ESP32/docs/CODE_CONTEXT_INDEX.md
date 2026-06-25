@@ -17,6 +17,19 @@ Use it when implementing changes to avoid broad code searches.
 - `src/common/link/link_constants.h` — `kHeartbeatIntervalMs`, `kFullPresenceIntervalMs`, `kPeerAliveTimeoutMs`.
 - `src/common/presence/link_heartbeat_packet.h` — compact ESP-NOW keepalive + staged ACK fields.
 
+- `18` — `xbox_mode_cycle_button_set` (legacy; no longer cycles profiles on leader)
+
+## Leader OLED menu (firmware)
+
+- `docs/oled_menu.md` — user guide (layout, controls, flows).
+- `docs/oled_menu_refactor_plan.md` — implementation phases.
+- `src/leader/oled_menu/` — `OledMenuNavigator`, list/detail screens, item action tables.
+- `src/leader/leader_app_oled_menu.cpp` — browse mode, profile/pairing actions, menu input.
+
+## ESP-NOW feedback teleop (planned)
+
+- `docs/teleop_espnow_feedback.md` — turbo + load uplink, OLED torque display, leader haptic.
+
 ## Leader Firmware
 
 - `src/leader/leader_app.cpp`
@@ -36,7 +49,7 @@ Use it when implementing changes to avoid broad code searches.
 - `src/leader/leader_app_commands_calibration.cpp`
   - Leader-side teleop calibration capture commands (center/finish/cancel/sample), local NVS persistence, and follower capture forwarding.
 - `src/leader/leader_app_controller_profile.cpp`
-  - Xbox profile cycle handling, calibration preview (`Enter?`) versus engaged state, and profile transition side effects.
+  - Xbox **A** / **B** handling for active profiles (teleop, cal, OTA); profile changes via OLED menu.
 - `src/leader/leader_calibration_workflow.cpp`
   - Pure calibration parsing helpers extracted for host-side unit tests.
 - `src/leader/leader_presence_service.cpp`

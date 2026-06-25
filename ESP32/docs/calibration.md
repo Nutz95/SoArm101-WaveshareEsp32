@@ -39,14 +39,14 @@ When you calibrate the **follower** from the leader (Xbox cal follower profile),
 
 | Diagram label | Physical button | Firmware use |
 |---------------|-----------------|--------------|
-| **Button 6** | **View** (two small squares, left of Xbox logo) | **Mode** — today: cycle profile; **planned menu:** move highlight down at root |
-| **D-pad up/down** | **7th axis** on diagram | **Planned menu:** move cursor up/down |
-| **Button 0** | **A** | Confirm — start calibration, start/stop teleop, engage OTA / Wi-Fi link |
-| **Button 1** | **B** | Cancel — abort step, stop teleop, skip profile |
+| **Button 6** | **View** (two small squares, left of Xbox logo) | **Mode** — at **root menu only:** move highlight down |
+| **D-pad up/down** | **7th axis** on diagram | Move menu cursor up / down |
+| **Button 0** | **A** | Confirm — menu enter, start teleop, calibration, OTA |
+| **Button 1** | **B** | Back / cancel — parent menu, stop teleop, skip calibration |
 
 **Not used yet (teleop / calibration):** Menu (7), bumpers, triggers, sticks — reserved for **inverse kinematics** teleop.
 
-**Planned (OLED menu):** D-pad **up / down** to move the menu cursor; **Mode** moves highlight down at root only. See [oled_menu_refactor_plan.md](oled_menu_refactor_plan.md).
+**OLED menu (implemented):** see [oled_menu.md](oled_menu.md). Implementation tracking: [oled_menu_refactor_plan.md](oled_menu_refactor_plan.md).
 
 Default mapping: View = Mode (`XboxLogicalButton::View`, HID bit 6). See [architecture/xbox_ble_controls.md](architecture/xbox_ble_controls.md).
 

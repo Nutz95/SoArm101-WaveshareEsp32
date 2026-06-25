@@ -24,31 +24,38 @@ While the leader keeps running (no reboot):
 3. With BLE active, firmware sets **`WiFi.setSleep(true)`** (ESP-IDF requirement for Wi-Fi + Bluetooth coexistence).
 4. Do **not** call `esp_bt_controller_mem_release()` outside NimBLE (NimBLE-Arduino already releases classic BT once).
 
-## Profile cycle (Mode button) — current firmware
+## OLED menu (profiles and navigation)
 
 The **View** button is **button 6** on the controller diagram (two small squares left of the Xbox logo). Firmware calls it **Mode**.
 
 ![Xbox Wireless Controller — button indices](../assets/XBoxControler.jpg)
 
-**Buttons used today:** **Mode** (View), **A**, **B**. Sticks, bumpers, triggers, and D-pad are for **future IK teleop** and the **planned OLED menu** (D-pad up/down to navigate).
+**At boot** the leader shows the **interactive OLED menu**. Pick ESP-NOW, turbo, Wi-Fi, calibration, passthrough, pairing, or OTA from the tree — **Mode no longer cycles profiles**.
 
-Order when cycling with **Mode** (or dashboard `xbox_mode_cycle_button_set`):
+| Control | Role |
+|---------|------|
+| **D-pad up/down** | Move menu cursor |
+| **Mode (View)** | At **root menu only:** move highlight down |
+| **A** | Enter submenu / confirm leaf / start teleop or calibration |
+| **B** | Back to parent menu / cancel preview or active session |
 
-| Step | Profile | OLED / status hint |
-| ---- | ------- | ------------------ |
-| 0 | CalibrationLeader | Preview only: `cal leader? press A` |
-| 1 | CalibrationFollower | Preview only: `cal follower? press A` |
-| 2 | TeleopEspNow | ESP-NOW teleop (~83 Hz, Wi-Fi `:9090` stream paused when mirror active) |
-| 3 | TeleopEspNowTurbo | ESP-NOW turbo (~83 Hz, OLED `lat` / `dr`) |
-| 4 | TeleopWifi | Wi-Fi Direct + UDP teleop — **A** = link, **A** = mirror |
-| 5 | Passthrough | USB servo bus passthrough — **A** = engage |
-| 6 | OtaReady | STA on — flash OTA from PC |
+Full user guide: [oled_menu.md](../oled_menu.md).
 
-Important distinction:
+**Sticks, bumpers, triggers** — reserved for future **IK teleop**.
 
-- Cycling selects a profile preview.
-- Calibration does **not** start on profile selection.
-- Calibration starts only when the user confirms with **A** while a calibration profile is selected.
+### Profile preview (after menu leaf)
+
+| Profile | OLED / status hint |
+| ------- | ------------------ |
+| CalibrationLeader | `cal leader? press A` |
+| CalibrationFollower | `cal follower? press A` |
+| TeleopEspNow | ESP-NOW teleop — **A** starts mirror |
+| TeleopEspNowTurbo | Turbo + `lat` / `dr` on OLED |
+| TeleopWifi | Wi-Fi Direct — **A** = link, **A** = mirror |
+| Passthrough | **A** = engage USB passthrough |
+| OtaReady | **A** = STA for OTA flash |
+
+Dashboard `xbox_mode_cycle_button_set` (command `18`) is **deprecated** for profile selection; use `teleop_transport_set` or the OLED menu flow.
 
 ## Calibration buttons (OLED, Xbox flow)
 
@@ -57,7 +64,7 @@ Important distinction:
 | **A** | Enter selected calibration mode | Apply center (leader: local offsets; follower: ESP-NOW center) | Validate & save calibration |
 | **B** | Skip calibration (return TeleopEspNow) | Cancel (exit cal profile) | Cancel |
 
-OLED flow when using Xbox profile cycle:
+OLED flow when calibration is started from the **menu** (or dashboard `teleop_transport_set`):
 
 1. **Preview** — `Not started`, `Enter? (A)`; no calibration state changes yet.
 2. **On A** — calibration engages and starts a 3.5 s safety re-arm (`Wait 3s ... Wait 1s`).

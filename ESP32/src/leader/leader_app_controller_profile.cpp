@@ -89,9 +89,8 @@ void LeaderApp::disengageCalibrationMode(bool restoreCapturedRange) {
 }
 
 void LeaderApp::handleControllerModeCycleEvents() {
-  if (xboxControllerService_.consumeModeCycleRequest()) {
-    handleModeCycleProfileStep();
-  }
+  // Mode (View) no longer cycles profiles — pick modes from the OLED menu instead.
+  (void)xboxControllerService_.consumeModeCycleRequest();
 
   const bool confirmPressed = xboxControllerService_.consumeButtonPress(XboxLogicalButton::A);
   const bool validatePressed = xboxControllerService_.consumeButtonPress(XboxLogicalButton::B);
@@ -121,18 +120,6 @@ void LeaderApp::handleControllerModeCycleEvents() {
   if (profile == kProfileOtaReady) {
     handleOtaButtons(confirmPressed, validatePressed);
   }
-}
-
-void LeaderApp::handleModeCycleProfileStep() {
-  const Profile current = sanitizeControllerOperationProfile(controllerOperationProfile_.load());
-  if (current == kProfilePassthrough) {
-    disengagePassthroughMode(kProfileTeleopEspNow);
-  }
-
-  const uint8_t nextRaw =
-      static_cast<uint8_t>((toProfileRaw(current) + 1U) % kControllerOperationProfileCount);
-  applyControllerOperationProfile(nextRaw);
-  updateProfileSwitchStatus(sanitizeControllerOperationProfile(nextRaw));
 }
 
 void LeaderApp::handlePassthroughButtons(bool confirmPressed, bool validatePressed) {

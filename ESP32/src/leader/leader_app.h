@@ -98,7 +98,6 @@ private:
   void cancelCalibrationRangeCapture();
   void releaseCalibrationTorqueForActiveRole();
   void handleControllerModeCycleEvents();
-  void handleModeCycleProfileStep();
   void handlePassthroughButtons(bool confirmPressed, bool validatePressed);
   void handleCalibrationButtons(
       ControllerOperationProfile profile,
