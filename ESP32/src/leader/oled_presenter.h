@@ -50,6 +50,7 @@ public:
     void showOtaAwaitEnter(const char *routerIp);
     void showOtaActive(const char *routerIp);
     void showNavigationMenu(const char lines[4][22]);
+    void showFeedbackTeleop(const int8_t loads[6], uint8_t feedbackHz, uint8_t mirrorLoopMs);
 
 private:
     OledDisplayConfig config_;

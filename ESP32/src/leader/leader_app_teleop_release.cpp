@@ -3,7 +3,6 @@
 #include "../Config/leader_runtime_config.h"
 #include "../common/controller/controller_operation_profile.h"
 #include "../common/servo/servo_control_opcode.h"
-#include "leader_presence_service.h"
 
 namespace soarm {
 
@@ -22,12 +21,20 @@ void LeaderApp::prepareEspNowTeleopMirrorStart() {
 }
 
 void LeaderApp::releaseFollowerTeleopHold() {
+  const ControllerOperationProfile profile =
+      sanitizeControllerOperationProfile(controllerOperationProfile_.load());
+
   teleopContinuousEnabled_.store(false);
   teleopContinuousServoIdFilter_.store(0U);
   lastTurboOledStatusMs_ = 0U;
+  lastFeedbackOledRefreshMs_ = 0U;
   servoDebugManual_ = false;
   servoBusService_.setDebugManual(false);
   servoBusService_.setTorqueEnabledForDetectedServos(false);
+
+  if (presenceService_->isFollowerLinked() && isEspNowTeleopFeedbackProfile(profile)) {
+    notifyFollowerLoadFeedbackUplink(false);
+  }
 
   if (!presenceService_->isFollowerLinked()) {
     deferHomeStaReconnect_.store(false);

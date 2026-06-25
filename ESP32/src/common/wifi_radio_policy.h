@@ -9,6 +9,7 @@ inline bool controllerProfileNeedsWifiSta(ControllerOperationProfile profile) {
   switch (profile) {
   case ControllerOperationProfile::TeleopEspNow:
   case ControllerOperationProfile::TeleopEspNowTurbo:
+  case ControllerOperationProfile::TeleopEspNowFeedback:
     return false;
   default:
     return true;

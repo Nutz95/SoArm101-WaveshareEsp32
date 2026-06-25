@@ -51,6 +51,30 @@ void flushSerialRx(HardwareSerial *serial) {
   }
 }
 
+uint8_t readLoadsSync(SMS_STS &driver, const uint8_t *ids, uint8_t knownCount, int16_t *loadsOut, uint8_t maxSlots) {
+  uint8_t availableCount = 0U;
+  for (uint8_t i = 0U; i < knownCount; ++i) {
+    const uint8_t id = ids[i];
+    if (id == 0U || id > maxSlots) {
+      continue;
+    }
+
+    uint8_t rxBuffer[4]{};
+    if (driver.syncReadPacketRx(id, rxBuffer) != 2) {
+      continue;
+    }
+
+    const int load = driver.syncReadRxPacketToWrod(15);
+    if (load < 0) {
+      continue;
+    }
+
+    loadsOut[id - 1U] = static_cast<int16_t>(load);
+    ++availableCount;
+  }
+  return availableCount;
+}
+
 uint8_t readPositionsSync(
     SMS_STS &driver,
     const uint8_t *ids,
@@ -141,6 +165,54 @@ uint8_t ServoBusService::refreshKnownTelemetrySync() {
   }
   setSummary("sync read ok");
   return lastScanCount_;
+}
+
+uint8_t ServoBusService::syncReadPresentLoad(int16_t *loadsOut, uint8_t maxSlots) {
+  if (!started_ || serial_ == nullptr || loadsOut == nullptr || maxSlots == 0U) {
+    setSummary("load read not ready");
+    return 0U;
+  }
+
+  for (uint8_t slot = 0U; slot < maxSlots; ++slot) {
+    loadsOut[slot] = 0;
+  }
+
+  uint8_t ids[16]{};
+  const uint8_t knownCount = parseKnownIds(lastIdsText_, ids, static_cast<uint8_t>(sizeof(ids) / sizeof(ids[0])));
+  if (knownCount == 0U) {
+    setSummary("load read no ids");
+    return 0U;
+  }
+
+  ScopedBusLock guard(lockManager_, config::common::kServoBusLockTimeoutMs);
+  if (!guard.locked()) {
+    setSummary("bus busy");
+    return 0U;
+  }
+
+  SMS_STS driver;
+  driver.End = 0;
+  driver.pSerial = serial_;
+  driver.IOTimeOut = config::common::kServoBusIoTimeoutMs;
+  driver.Level = 0;
+
+  flushSerialRx(serial_);
+
+  if (driver.syncReadPacketTx(ids, knownCount, SMS_STS_PRESENT_LOAD_L, 2) != 2) {
+    setSummary("load read tx fail");
+    return 0U;
+  }
+
+  serial_->flush();
+
+  const uint8_t availableCount = readLoadsSync(driver, ids, knownCount, loadsOut, maxSlots);
+  if (availableCount == 0U) {
+    setSummary("load read empty");
+    return 0U;
+  }
+
+  setSummary("load read ok");
+  return availableCount;
 }
 
 } // namespace soarm

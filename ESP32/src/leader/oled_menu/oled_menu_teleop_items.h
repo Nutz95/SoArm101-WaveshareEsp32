@@ -11,6 +11,7 @@ namespace soarm {
 enum class OledMenuTeleopItem : uint8_t {
   EspNow = 0,
   EspNowTurbo,
+  EspNowFeedback,
   Wifi,
   IkTeleop,
   Back,
@@ -22,6 +23,7 @@ constexpr uint8_t kOledMenuTeleopItemCount = static_cast<uint8_t>(OledMenuTeleop
 constexpr const char *kOledMenuTeleopLabels[kOledMenuTeleopItemCount] = {
     [static_cast<uint8_t>(OledMenuTeleopItem::EspNow)] = "ESP-NOW",
     [static_cast<uint8_t>(OledMenuTeleopItem::EspNowTurbo)] = "ESP-NOW Turbo",
+    [static_cast<uint8_t>(OledMenuTeleopItem::EspNowFeedback)] = "ESP-NOW Feedback",
     [static_cast<uint8_t>(OledMenuTeleopItem::Wifi)] = "Wi-Fi",
     [static_cast<uint8_t>(OledMenuTeleopItem::IkTeleop)] = "IK Teleop",
     [static_cast<uint8_t>(OledMenuTeleopItem::Back)] = "Back",
@@ -34,6 +36,9 @@ constexpr OledMenuNavigationResult kOledMenuTeleopItemActions[kOledMenuTeleopIte
     [static_cast<uint8_t>(OledMenuTeleopItem::EspNowTurbo)] = OledMenuNavigationResult(
         OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
         OledMenuProfileSelection::TeleopEspNowTurbo),
+    [static_cast<uint8_t>(OledMenuTeleopItem::EspNowFeedback)] = OledMenuNavigationResult(
+        OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+        OledMenuProfileSelection::TeleopEspNowFeedback),
     [static_cast<uint8_t>(OledMenuTeleopItem::Wifi)] = OledMenuNavigationResult(
         OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
         OledMenuProfileSelection::TeleopWifi),

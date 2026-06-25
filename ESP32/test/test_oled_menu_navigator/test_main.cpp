@@ -7,6 +7,7 @@
 #include "leader/oled_menu/oled_menu_input.h"
 #include "leader/oled_menu/oled_menu_navigator.h"
 #include "leader/oled_menu/oled_menu_root_items.h"
+#include "oled_menu_teleop_items.h"
 #include "leader/oled_menu/oled_menu_screen_id.h"
 
 using soarm::OledListScrollModel;
@@ -81,7 +82,7 @@ void test_navigator_ik_teleop_shows_stub_screen() {
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::NavigateDown));
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
 
-  for (uint8_t i = 0U; i < 3U; ++i) {
+  for (uint8_t i = 0U; i < static_cast<uint8_t>(OledMenuTeleopItem::IkTeleop); ++i) {
     navigator.onInput(OledMenuInputEvent::NavigateDown);
   }
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));

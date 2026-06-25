@@ -287,6 +287,19 @@ void FollowerPresenceService::resetTeleopTransportState() {
   lastTeleopBatchRxMs_ = 0U;
   lastWifiTeleopRxMs_ = 0U;
   turboDecodeSession_.reset();
+  teleopLoadFeedbackUplinkEnabled_ = false;
+  teleopLoadFeedbackSeq_ = 0U;
+}
+
+bool FollowerPresenceService::isTeleopLoadFeedbackUplinkEnabled() const {
+  return teleopLoadFeedbackUplinkEnabled_;
+}
+
+void FollowerPresenceService::setTeleopLoadFeedbackUplinkEnabled(bool enabled) {
+  teleopLoadFeedbackUplinkEnabled_ = enabled;
+  if (!enabled) {
+    teleopLoadFeedbackSeq_ = 0U;
+  }
 }
 
 void FollowerPresenceService::updateLastCommandAck(uint16_t requestId, uint8_t op, uint8_t status) {

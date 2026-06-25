@@ -139,6 +139,7 @@ private:
   void nudgeFollowerLinkAfterCalibration();
   void releaseFollowerTeleopHold();
   void prepareEspNowTeleopMirrorStart();
+  void notifyFollowerLoadFeedbackUplink(bool enable);
   void refreshEspNowRadioTransport();
   void clearDeferHomeStaReconnectIfDone();
   void syncWifiRadioPolicyForProfile(ControllerOperationProfile profile);
@@ -174,6 +175,7 @@ private:
   void updateFollowerState();
   void renderStatusLeds();
   void updateTurboOledStatus(uint32_t nowMs);
+  void pollTeleopLoadFeedback(uint32_t nowMs);
 
   // Telemetry / display extracted from tick()
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
@@ -280,6 +282,11 @@ private:
   LeaderTeleopWifiBridge teleopWifiBridge_{};
   LeaderServoPassthrough servoPassthrough_{};
   LeaderXboxControllerService xboxControllerService_{};
+  uint32_t            lastFeedbackOledRefreshMs_{0U};
+  int8_t              teleopFeedbackLoads_[6]{};
+  std::atomic<uint8_t> teleopFeedbackHzEwma_{0U};
+  std::atomic<uint16_t> teleopFeedbackHzWindowCount_{0U};
+  std::atomic<uint32_t> teleopFeedbackHzWindowStartMs_{0U};
   uint16_t            teleopContinuousRequestCounter_{40000U};
   void               *telemetryPollTaskHandle_{nullptr};
   void               *teleopMirrorTaskHandle_{nullptr};

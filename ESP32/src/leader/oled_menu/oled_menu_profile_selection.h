@@ -8,6 +8,7 @@ namespace soarm {
 enum class OledMenuProfileSelection : uint8_t {
   TeleopEspNow = 0,
   TeleopEspNowTurbo,
+  TeleopEspNowFeedback,
   TeleopWifi,
   Passthrough,
   OtaReady,

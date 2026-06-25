@@ -4,6 +4,7 @@
 #include "../Config/follower_runtime_config.h"
 #include "../common/command/command_ack_status.h"
 #include "../common/teleop/teleop_packet_flags.h"
+#include "follower_presence_service.h"
 
 #include <Arduino.h>
 
@@ -143,11 +144,25 @@ bool FollowerApp::applyTeleopBatch(
     presenceService_->stageTeleopBatchAck(
         requestId,
         static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
+    if (ok) {
+      sendTeleopLoadFeedbackAfterApply(requestId);
+    }
     return ok;
   }
 
   return applyOneTeleopWifiBatch(
       mutableIds, mutablePositions, count, speedPercent, requestId, flags);
+}
+
+void FollowerApp::sendTeleopLoadFeedbackAfterApply(uint16_t requestId) {
+  auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get());
+  if (presence == nullptr || !presence->isTeleopLoadFeedbackUplinkEnabled()) {
+    return;
+  }
+
+  int8_t loads[config::common::kTeleopBatchMaxServos]{};
+  teleopLoadSnapshot_.copyLoads(loads);
+  presence->sendTeleopLoadFeedback(requestId, loads);
 }
 
 } // namespace soarm

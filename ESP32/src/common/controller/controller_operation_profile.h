@@ -13,17 +13,28 @@ enum class ControllerOperationProfile : uint8_t {
   TeleopWifi = 4,
   Passthrough = 5,
   OtaReady = 6,
+  TeleopEspNowFeedback = 7,
 };
 
-constexpr uint8_t kControllerOperationProfileCount = 7U;
+constexpr uint8_t kControllerOperationProfileCount = 8U;
 
 inline bool isEspNowTeleopProfile(ControllerOperationProfile profile) {
   return profile == ControllerOperationProfile::TeleopEspNow ||
-         profile == ControllerOperationProfile::TeleopEspNowTurbo;
+         profile == ControllerOperationProfile::TeleopEspNowTurbo ||
+         profile == ControllerOperationProfile::TeleopEspNowFeedback;
 }
 
 inline bool isEspNowTeleopTurboProfile(ControllerOperationProfile profile) {
   return profile == ControllerOperationProfile::TeleopEspNowTurbo;
+}
+
+inline bool isEspNowTeleopFeedbackProfile(ControllerOperationProfile profile) {
+  return profile == ControllerOperationProfile::TeleopEspNowFeedback;
+}
+
+inline bool usesEspNowTurboDownlinkProfile(ControllerOperationProfile profile) {
+  return profile == ControllerOperationProfile::TeleopEspNowTurbo ||
+         profile == ControllerOperationProfile::TeleopEspNowFeedback;
 }
 
 inline ControllerOperationProfile migrateLegacyControllerProfile(uint8_t raw) {

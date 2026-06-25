@@ -16,7 +16,8 @@ enum class ServoControlOpcode : uint8_t {
   TeleopMirrorBatch = 8,
   CalibrationCapture = 9,
   CenterAll = 10,
-  CalibrationCenter = 11
+  CalibrationCenter = 11,
+  TeleopLoadFeedbackUplink = 12,
 };
 
 } // namespace soarm

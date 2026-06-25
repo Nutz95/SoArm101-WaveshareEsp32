@@ -142,4 +142,8 @@ void OledMenuController::showNavigationMenu(const OledMenuRenderOutput &output) 
   presenter_.showNavigationMenu(output.lines);
 }
 
+void OledMenuController::showFeedbackTeleop(const int8_t loads[6], uint8_t feedbackHz, uint8_t mirrorLoopMs) {
+  presenter_.showFeedbackTeleop(loads, feedbackHz, mirrorLoopMs);
+}
+
 } // namespace soarm

@@ -92,6 +92,14 @@ void LeaderApp::refreshOled(uint32_t uptimeMs) {
     return;
   }
 
+  if (profile == ControllerOperationProfile::TeleopEspNowFeedback &&
+      teleopContinuousEnabled_.load() && mode_ == OperationMode::Teleoperation) {
+    const uint8_t loopMs = teleopMirrorLatencyMetrics_.loopEwmaMs.load();
+    const uint8_t fbHz = teleopFeedbackHzEwma_.load();
+    oledMenu_.showFeedbackTeleop(teleopFeedbackLoads_, fbHz, loopMs);
+    return;
+  }
+
   oledMenu_.showDashboard(
       leaderIp,
       followerIp,

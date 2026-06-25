@@ -5,6 +5,7 @@
 #include "../common/presence/presence_message_type.h"
 #include "../common/presence/presence_packet.h"
 #include "../Config/follower_runtime_config.h"
+#include "../common/teleop/teleop_load_feedback_codec.h"
 
 #include <esp_now.h>
 #include <cstring>
@@ -146,6 +147,25 @@ void FollowerPresenceService::sendLinkHeartbeat(const char *localIp) {
   }
 
   esp_now_send(pairedLeaderMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
+}
+
+void FollowerPresenceService::sendTeleopLoadFeedback(uint16_t requestId, const int8_t loads[6]) {
+  if (!teleopLoadFeedbackUplinkEnabled_ || !hasPairedLeaderMac_ || loads == nullptr) {
+    return;
+  }
+  if (!ensureEspNowTransportReady()) {
+    return;
+  }
+
+  uint8_t buffer[teleop_load_feedback::kLoadFeedbackWireSize]{};
+  size_t outLen = 0U;
+  const uint8_t seq = teleopLoadFeedbackSeq_;
+  teleopLoadFeedbackSeq_ = static_cast<uint8_t>(teleopLoadFeedbackSeq_ + 1U);
+  if (!teleop_load_feedback::encodePacket(requestId, seq, loads, buffer, sizeof(buffer), outLen)) {
+    return;
+  }
+
+  esp_now_send(pairedLeaderMac_, buffer, outLen);
 }
 
 } // namespace soarm

@@ -309,6 +309,12 @@ void LeaderPresenceService::onPresenceFrame(const uint8_t *mac, const uint8_t *d
     return;
   }
 
+  if (teleop_load_feedback::isTeleopLoadFeedbackPacket(data, static_cast<size_t>(len))) {
+    linkHeartbeat_.notifyPeerActivity(nowMs);
+    handleTeleopLoadFeedbackFrame(mac, data, static_cast<size_t>(len));
+    return;
+  }
+
   if (len != static_cast<int>(sizeof(PresencePacket))) {
     return;
   }

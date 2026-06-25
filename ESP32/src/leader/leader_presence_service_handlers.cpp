@@ -7,6 +7,7 @@
 
 #include <Arduino.h>
 #include <cstring>
+#include <cstring>
 
 namespace soarm {
 
@@ -129,6 +130,40 @@ void LeaderPresenceService::clearFollowerWifiDirectState() {
 
 void LeaderPresenceService::resetTurboTeleopSession() {
   turboEncodeSession_.reset();
+}
+
+bool LeaderPresenceService::takeTeleopLoadFeedbackRx(int8_t loads[6], uint16_t &requestId, uint8_t &seq) {
+  if (!pendingLoadFeedbackReady_ || loads == nullptr) {
+    return false;
+  }
+  memcpy(loads, pendingLoadFeedbackLoads_, sizeof(pendingLoadFeedbackLoads_));
+  requestId = pendingLoadFeedbackRequestId_;
+  seq = pendingLoadFeedbackSeq_;
+  pendingLoadFeedbackReady_ = false;
+  return true;
+}
+
+uint32_t LeaderPresenceService::teleopLoadFeedbackTimeoutCount() const {
+  return teleopLoadFeedbackTimeoutCount_;
+}
+
+void LeaderPresenceService::handleTeleopLoadFeedbackFrame(
+    const uint8_t *mac,
+    const uint8_t *data,
+    size_t len) {
+  if (!hasPairedMac_ || !isPairedMac(mac) || data == nullptr) {
+    return;
+  }
+
+  uint16_t requestId = 0U;
+  uint8_t seq = 0U;
+  if (!teleop_load_feedback::decodePacket(data, len, requestId, seq, pendingLoadFeedbackLoads_)) {
+    return;
+  }
+
+  pendingLoadFeedbackRequestId_ = requestId;
+  pendingLoadFeedbackSeq_ = seq;
+  pendingLoadFeedbackReady_ = true;
 }
 
 void LeaderPresenceService::handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet) {

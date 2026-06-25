@@ -52,8 +52,8 @@ void LeaderServoTelemetryTask::runLoop(
 
     uint32_t delayMs = config::leader::kServoTelemetryTaskIdleDelayMs;
     if (active) {
-      delayMs = isEspNowTeleopTurboProfile(profile) ? config::leader::kServoTelemetryTaskTurboActiveDelayMs
-                                                    : config::leader::kServoTelemetryTaskActiveDelayMs;
+      delayMs = usesEspNowTurboDownlinkProfile(profile) ? config::leader::kServoTelemetryTaskTurboActiveDelayMs
+                                                        : config::leader::kServoTelemetryTaskActiveDelayMs;
     }
     vTaskDelay(pdMS_TO_TICKS(delayMs));
   }

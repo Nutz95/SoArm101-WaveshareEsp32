@@ -33,8 +33,7 @@ bool LeaderApp::shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile 
   if (oledMenuBrowseMode_.load()) {
     return true;
   }
-  if (profile != ControllerOperationProfile::TeleopEspNow &&
-      profile != ControllerOperationProfile::TeleopEspNowTurbo) {
+  if (!isEspNowTeleopProfile(profile)) {
     return true;
   }
   if (espNowResyncAfterWifiDirectPending_) {
@@ -52,9 +51,7 @@ bool LeaderApp::shouldKeepHomeStaConnectedForProfile(ControllerOperationProfile 
 void LeaderApp::updateEspNowStaPrime(uint32_t nowMs) {
   const ControllerOperationProfile profile =
       sanitizeControllerOperationProfile(controllerOperationProfile_.load());
-  const bool onEspNowProfile =
-      profile == ControllerOperationProfile::TeleopEspNow ||
-      profile == ControllerOperationProfile::TeleopEspNowTurbo;
+  const bool onEspNowProfile = isEspNowTeleopProfile(profile);
 
   if (espNowResyncAfterWifiDirectPending_) {
     const bool connected = WiFi.status() == WL_CONNECTED;
@@ -98,9 +95,7 @@ void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile
     if (otaEngaged_.load()) {
       wifiOta_.restoreHomeStation();
     }
-    const bool pauseDashboardTcp =
-        profile == ControllerOperationProfile::TeleopEspNow ||
-        profile == ControllerOperationProfile::TeleopEspNowTurbo;
+    const bool pauseDashboardTcp = isEspNowTeleopProfile(profile);
     telemetryStreamServer_.setListeningEnabled(!pauseDashboardTcp);
     return;
   }
@@ -122,9 +117,7 @@ void LeaderApp::syncWifiRadioPolicyForProfile(ControllerOperationProfile profile
     }
   }
 
-  const bool pauseDashboardTcp =
-      profile == ControllerOperationProfile::TeleopEspNow ||
-      profile == ControllerOperationProfile::TeleopEspNowTurbo;
+  const bool pauseDashboardTcp = isEspNowTeleopProfile(profile);
   telemetryStreamServer_.setListeningEnabled(!pauseDashboardTcp);
 }
 

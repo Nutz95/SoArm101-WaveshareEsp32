@@ -30,6 +30,7 @@ public:
   void showOtaAwaitEnter(const char *routerIp);
   void showOtaActive(const char *routerIp);
   void showNavigationMenu(const OledMenuRenderOutput &output);
+  void showFeedbackTeleop(const int8_t loads[6], uint8_t feedbackHz, uint8_t mirrorLoopMs);
 
 private:
   OledPresenter &presenter_;

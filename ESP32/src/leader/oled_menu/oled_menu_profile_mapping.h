@@ -12,6 +12,8 @@ constexpr ControllerOperationProfile kControllerProfileByMenuSelection[kOledMenu
         ControllerOperationProfile::TeleopEspNow,
     [static_cast<uint8_t>(OledMenuProfileSelection::TeleopEspNowTurbo)] =
         ControllerOperationProfile::TeleopEspNowTurbo,
+    [static_cast<uint8_t>(OledMenuProfileSelection::TeleopEspNowFeedback)] =
+        ControllerOperationProfile::TeleopEspNowFeedback,
     [static_cast<uint8_t>(OledMenuProfileSelection::TeleopWifi)] =
         ControllerOperationProfile::TeleopWifi,
     [static_cast<uint8_t>(OledMenuProfileSelection::Passthrough)] =

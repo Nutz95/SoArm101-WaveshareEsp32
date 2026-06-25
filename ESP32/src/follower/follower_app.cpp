@@ -224,6 +224,8 @@ CommandAckStatus FollowerApp::executeServoControl(uint8_t op, uint32_t value) {
       {static_cast<uint8_t>(ServoControlOpcode::CalibrationCapture), &FollowerApp::handleCalibrationCapture},
       {static_cast<uint8_t>(ServoControlOpcode::CenterAll), &FollowerApp::handleCenterAll},
       {static_cast<uint8_t>(ServoControlOpcode::CalibrationCenter), &FollowerApp::handleCalibrationCenter},
+      {static_cast<uint8_t>(ServoControlOpcode::TeleopLoadFeedbackUplink),
+       &FollowerApp::handleTeleopLoadFeedbackUplink},
   };
 
   for (size_t i = 0; i < (sizeof(kServoDispatchTable) / sizeof(kServoDispatchTable[0])); ++i) {
@@ -252,6 +254,21 @@ CommandAckStatus FollowerApp::handleDebugDisable(uint32_t value) {
   servoBusService_.setDebugManual(false);
   servoBusService_.setTorqueEnabledForDetectedServos(false);
   Serial.println("[SERVO] teleop released (torque off)");
+  return CommandAckStatus::Applied;
+}
+
+CommandAckStatus FollowerApp::handleTeleopLoadFeedbackUplink(uint32_t value) {
+  auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get());
+  if (presence == nullptr) {
+    return CommandAckStatus::Failed;
+  }
+
+  const bool enable = value != 0U;
+  presence->setTeleopLoadFeedbackUplinkEnabled(enable);
+  if (!enable) {
+    teleopLoadSnapshot_.invalidate();
+  }
+  Serial.printf("[TELEOP] load feedback uplink %s\n", enable ? "on" : "off");
   return CommandAckStatus::Applied;
 }
 

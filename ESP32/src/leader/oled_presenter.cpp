@@ -2,6 +2,7 @@
 
 #include <Adafruit_SSD1306.h>
 #include <Fonts/FreeSans9pt7b.h>
+#include <cstdio>
 #include <cstring>
 
 namespace soarm {
@@ -22,6 +23,9 @@ const char *modeLabel(OperationMode mode, TeleopTransportMode transportMode) {
             }
             if (transportMode == TeleopTransportMode::EspNowTurbo) {
                 return "TELEOP TURBO";
+            }
+            if (transportMode == TeleopTransportMode::EspNowFeedback) {
+                return "TELEOP FB";
             }
             return "TELEOP ESPNOW";
         case OperationMode::Passthrough:

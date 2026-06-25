@@ -192,6 +192,7 @@ void LeaderApp::tickControlState(uint32_t uptimeMs, bool passthroughActive) {
     updateServoHealthFlags();
   }
   computeModeAndStatus();
+  pollTeleopLoadFeedback(uptimeMs);
   updateTurboOledStatus(uptimeMs);
   runtimeModeForTasks_.store(static_cast<uint8_t>(mode_));
   updateFollowerState();

@@ -17,6 +17,7 @@ enum class PresenceMessageType : uint8_t {
   WifiDirectOffer = 10,
   WifiDirectAck = 11,
   TeleopMirrorCompact = 12,
+  TeleopLoadFeedback = 13,
 };
 
 } // namespace soarm

@@ -1,6 +1,5 @@
 #include "leader_app.h"
 
-#include "../Config/common_runtime_config.h"
 #include "../Config/leader_runtime_config.h"
 #include "../common/controller/controller_operation_profile.h"
 
@@ -23,6 +22,9 @@ bool shouldHoldTeleopRuntime(
     return true;
   }
   if (profile == ControllerOperationProfile::TeleopEspNowTurbo) {
+    return true;
+  }
+  if (profile == ControllerOperationProfile::TeleopEspNowFeedback) {
     return true;
   }
   return profile == ControllerOperationProfile::TeleopWifi && wifiDirectTeleopActive;
@@ -210,10 +212,9 @@ void LeaderApp::applyRuntimeModeAndStatus(
     }
   } else {
     mode_ = OperationMode::Teleoperation;
-    const bool turboMirrorActive =
-        profile == ControllerOperationProfile::TeleopEspNowTurbo &&
-        teleopContinuousEnabled_.load();
-    if (!turboMirrorActive) {
+    const bool espNowTurboStyleMirror =
+        usesEspNowTurboDownlinkProfile(profile) && teleopContinuousEnabled_.load();
+    if (!espNowTurboStyleMirror) {
       strncpy(statusLine_, "teleop ready", sizeof(statusLine_) - 1);
     }
   }

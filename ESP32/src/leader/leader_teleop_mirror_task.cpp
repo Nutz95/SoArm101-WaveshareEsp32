@@ -231,7 +231,8 @@ void LeaderTeleopMirrorTask::runLoop(ServoBusService &servoBusService,
     const uint32_t nowMs = loopStartMs;
     const TeleopTransportMode selectedMode = static_cast<TeleopTransportMode>(transportMode.load());
     const bool wifiRequireAck = config::leader::kTeleopWifiRequireAck;
-    const bool turboEspNow = selectedMode == TeleopTransportMode::EspNowTurbo;
+    const bool turboEspNow = selectedMode == TeleopTransportMode::EspNowTurbo ||
+                             selectedMode == TeleopTransportMode::EspNowFeedback;
 
     if (selectedMode == TeleopTransportMode::WifiUdp && wifiRequireAck) {
       processWifiBatchAck(state, teleopWifiBridge, latencyMetrics, nowMs);

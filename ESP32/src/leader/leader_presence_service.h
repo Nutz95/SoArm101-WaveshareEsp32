@@ -8,6 +8,7 @@
 #include "../common/wifi/wifi_direct_offer_packet.h"
 #include "../common/presence/presence_packet.h"
 #include "../common/teleop/teleop_espnow_turbo_session.h"
+#include "../common/teleop/teleop_load_feedback_codec.h"
 #include "../common/peer_pairing_store.h"
 #include "../common/servo/servo_control_opcode.h"
 
@@ -59,6 +60,8 @@ public:
   void clearFollowerWifiDirectState();
   /// Clears turbo sparse session state; call when mirror teleop starts (Xbox A).
   void resetTurboTeleopSession();
+  bool takeTeleopLoadFeedbackRx(int8_t loads[6], uint16_t &requestId, uint8_t &seq);
+  uint32_t teleopLoadFeedbackTimeoutCount() const;
 
 private:
   void onPresenceFrame(const uint8_t *mac, const uint8_t *data, int len) override;
@@ -69,6 +72,7 @@ private:
   void handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet);
   void handleLinkHeartbeat(const uint8_t *mac, const LinkHeartbeatPacket &packet);
   void handleWifiDirectAck(const uint8_t *mac, const WifiDirectAckPacket &packet);
+  void handleTeleopLoadFeedbackFrame(const uint8_t *mac, const uint8_t *data, size_t len);
 
   void sendPairAck(const uint8_t mac[6]);
   void sendPairResetTo(const uint8_t mac[6]);
@@ -111,6 +115,11 @@ private:
   char pairedFollowerMacText_[18]{};
   char localMacText_[18]{};
   TeleopEspNowTurboSession turboEncodeSession_{};
+  int8_t pendingLoadFeedbackLoads_[6]{};
+  uint16_t pendingLoadFeedbackRequestId_{0U};
+  uint8_t pendingLoadFeedbackSeq_{0U};
+  bool pendingLoadFeedbackReady_{false};
+  uint32_t teleopLoadFeedbackTimeoutCount_{0U};
 };
 
 } // namespace soarm

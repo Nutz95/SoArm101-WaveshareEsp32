@@ -10,15 +10,18 @@
 #include "../common/servo/servo_bus_service.h"
 #include "follower_teleop_wifi_bridge.h"
 #include "follower_wifi_direct_link.h"
+#include "follower_teleop_load_snapshot.h"
 
 #include <memory>
 
 namespace soarm {
 
 class FollowerTeleopApplyTask;
+class FollowerTeleopLoadSamplerTask;
 
 class FollowerApp {
   friend class FollowerTeleopApplyTask;
+  friend class FollowerTeleopLoadSamplerTask;
 
 public:
   FollowerApp();
@@ -39,6 +42,8 @@ public:
 private:
   void startBackgroundTasks();
   static void teleopApplyTaskEntry(void *context);
+  static void teleopLoadSamplerTaskEntry(void *context);
+  void sendTeleopLoadFeedbackAfterApply(uint16_t requestId);
 
   bool ensureTeleopServosReady(const uint8_t *ids, uint8_t count);
   bool applyOneTeleopWifiBatch(
@@ -65,6 +70,7 @@ private:
   CommandAckStatus handleCalibrationCapture(uint32_t value);
   CommandAckStatus handleCenterAll(uint32_t value);
   CommandAckStatus handleCalibrationCenter(uint32_t value);
+  CommandAckStatus handleTeleopLoadFeedbackUplink(uint32_t value);
 
   ArmStateMachine     stateMachine_;
   NvsCalibrationStore calibrationStore_;
@@ -85,6 +91,8 @@ private:
   bool                espNowResyncAfterWifiDirectPending_{false};
   uint32_t            espNowResyncAfterWifiDirectStartedMs_{0U};
   TaskHandle_t        teleopApplyTaskHandle_{nullptr};
+  TaskHandle_t        teleopLoadSamplerTaskHandle_{nullptr};
+  FollowerTeleopLoadSnapshot teleopLoadSnapshot_{};
 };
 
 } // namespace soarm
