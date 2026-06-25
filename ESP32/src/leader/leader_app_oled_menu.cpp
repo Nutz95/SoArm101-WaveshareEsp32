@@ -1,5 +1,6 @@
 #include "leader_app.h"
 
+#include "../Config/leader_runtime_config.h"
 #include "../common/controller/controller_operation_profile.h"
 #include "leader_presence_service.h"
 #include "oled_menu/oled_menu_context.h"
@@ -75,12 +76,25 @@ bool LeaderApp::activateProfileFromMenu(OledMenuProfileSelection selection) {
   return true;
 }
 
+bool LeaderApp::resetPairingFromMenu() {
+  const bool resetOk = presenceService_->resetPairing();
+  setTransientStatus(resetOk ? "pairing reset" : "pair reset failed", config::leader::kResetPairingStatusHoldMs);
+  lastOledRefreshMs_ = 0U;
+  return resetOk;
+}
+
 void LeaderApp::restoreOledMenuBrowseMode() {
   oledMenuBrowseMode_.store(true);
   oledMenuNavigator_.resumeAt(oledMenuResumeScreen_);
   syncWifiRadioPolicyForProfile(
       sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
   lastOledRefreshMs_ = 0U;
+}
+
+void LeaderApp::finishCalibrationMenuFlow(const char *status) {
+  applyControllerOperationProfile(toProfileRaw(Profile::TeleopEspNow));
+  restoreOledMenuBrowseMode();
+  setTransientStatus(status, config::leader::kMoveStatusHoldMs);
 }
 
 void LeaderApp::handleInteractiveOledMenuInput() {

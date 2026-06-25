@@ -8,9 +8,11 @@ enum class OledMenuScreenId : uint8_t {
   Root = 0,
   InfoDetail,
   TeleopList,
+  CalibrationList,
   IkNotImplementedDetail,
   PairingList,
   PairingStatusDetail,
+  PairingResetConfirm,
   Count,
 };
 

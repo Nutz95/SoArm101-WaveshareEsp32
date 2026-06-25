@@ -165,8 +165,7 @@ void LeaderApp::handleCalibrationPreviewButtons(bool confirmPressed, bool valida
     setTransientStatus("calibration started", config::leader::kMoveStatusHoldMs);
   }
   if (validatePressed) {
-    applyControllerOperationProfile(toProfileRaw(kProfileTeleopEspNow));
-    setTransientStatus("calibration skipped", config::leader::kMoveStatusHoldMs);
+    finishCalibrationMenuFlow("calibration skipped");
   }
 }
 
@@ -200,8 +199,7 @@ void LeaderApp::handleCalibrationActiveButtons(
     const bool committed = commitCalibrationRangeCapture();
     if (committed) {
       calibrationEngaged_.store(false);
-      applyControllerOperationProfile(toProfileRaw(kProfileTeleopEspNow));
-      setTransientStatus("calibration validated", config::leader::kMoveStatusHoldMs);
+      finishCalibrationMenuFlow("calibration validated");
     } else {
       setTransientStatus("cal telemetry missing", config::leader::kMoveStatusHoldMs);
     }
@@ -210,8 +208,7 @@ void LeaderApp::handleCalibrationActiveButtons(
   if (validatePressed) {
     const ArmRole role = activeCalibrationRole();
     calibrationOledWorkflow_.showCanceledResult(role, millis());
-    applyControllerOperationProfile(toProfileRaw(kProfileTeleopEspNow));
-    setTransientStatus("calibration canceled", config::leader::kMoveStatusHoldMs);
+    finishCalibrationMenuFlow("calibration canceled");
   }
 }
 

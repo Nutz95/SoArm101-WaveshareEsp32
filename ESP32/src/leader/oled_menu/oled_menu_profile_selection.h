@@ -11,6 +11,8 @@ enum class OledMenuProfileSelection : uint8_t {
   TeleopWifi,
   Passthrough,
   OtaReady,
+  CalibrationLeader,
+  CalibrationFollower,
   Count,
 };
 

@@ -1,6 +1,7 @@
 #include <unity.h>
 
 #include "leader/oled_menu/ioled_menu_profile_actions.h"
+#include "leader/oled_menu/ioled_menu_pairing_actions.h"
 #include "leader/oled_menu/oled_list_scroll_model.h"
 #include "leader/oled_menu/oled_menu_context.h"
 #include "leader/oled_menu/oled_menu_input.h"
@@ -16,18 +17,26 @@ using soarm::OledMenuRenderOutput;
 using soarm::OledMenuScreenId;
 using soarm::IOledMenuProfileActions;
 using soarm::OledMenuProfileSelection;
+using soarm::IOledMenuPairingActions;
 using soarm::OledMenuRootItem;
+using soarm::OledMenuPairingItem;
 
 namespace {
 
-class RecordingProfileActions : public IOledMenuProfileActions {
+class RecordingMenuActions : public IOledMenuProfileActions, public IOledMenuPairingActions {
 public:
   OledMenuProfileSelection lastSelection{OledMenuProfileSelection::TeleopEspNow};
-  uint8_t callCount{0U};
+  uint8_t profileCallCount{0U};
+  uint8_t pairingCallCount{0U};
 
   bool activateMenuProfile(OledMenuProfileSelection selection) override {
     lastSelection = selection;
-    callCount = static_cast<uint8_t>(callCount + 1U);
+    profileCallCount = static_cast<uint8_t>(profileCallCount + 1U);
+    return true;
+  }
+
+  bool resetPairingFromMenu() override {
+    pairingCallCount = static_cast<uint8_t>(pairingCallCount + 1U);
     return true;
   }
 };
@@ -36,7 +45,7 @@ public:
 
 void test_navigator_teleop_submenu_activates_profile() {
   OledMenuNavigator navigator;
-  RecordingProfileActions actions;
+  RecordingMenuActions actions;
   navigator.setProfileActionsSink(&actions);
   navigator.reset();
 
@@ -46,21 +55,21 @@ void test_navigator_teleop_submenu_activates_profile() {
                     static_cast<int>(navigator.currentScreen()));
 
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
-  TEST_ASSERT_EQUAL_UINT8(1U, actions.callCount);
+  TEST_ASSERT_EQUAL_UINT8(1U, actions.profileCallCount);
   TEST_ASSERT_EQUAL(static_cast<int>(OledMenuProfileSelection::TeleopEspNow),
                     static_cast<int>(actions.lastSelection));
 }
 
 void test_navigator_passthrough_leaf_activates_profile() {
   OledMenuNavigator navigator;
-  RecordingProfileActions actions;
+  RecordingMenuActions actions;
   navigator.setProfileActionsSink(&actions);
   navigator.reset();
 
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::NavigateDown));
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::NavigateDown));
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
-  TEST_ASSERT_EQUAL_UINT8(1U, actions.callCount);
+  TEST_ASSERT_EQUAL_UINT8(1U, actions.profileCallCount);
   TEST_ASSERT_EQUAL(static_cast<int>(OledMenuProfileSelection::Passthrough),
                     static_cast<int>(actions.lastSelection));
 }
@@ -144,7 +153,7 @@ void test_navigator_info_push_and_back() {
 
 void test_navigator_ota_leaf_activates_profile() {
   OledMenuNavigator navigator;
-  RecordingProfileActions actions;
+  RecordingMenuActions actions;
   navigator.setProfileActionsSink(&actions);
   navigator.reset();
 
@@ -152,7 +161,7 @@ void test_navigator_ota_leaf_activates_profile() {
     navigator.onInput(OledMenuInputEvent::NavigateDown);
   }
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
-  TEST_ASSERT_EQUAL_UINT8(1U, actions.callCount);
+  TEST_ASSERT_EQUAL_UINT8(1U, actions.profileCallCount);
   TEST_ASSERT_EQUAL(static_cast<int>(OledMenuProfileSelection::OtaReady),
                     static_cast<int>(actions.lastSelection));
 }
@@ -164,6 +173,56 @@ void test_navigator_resume_at_teleop_list() {
   TEST_ASSERT_EQUAL(static_cast<int>(OledMenuScreenId::TeleopList),
                     static_cast<int>(navigator.currentScreen()));
   TEST_ASSERT_FALSE(navigator.isAtRoot());
+}
+
+void test_navigator_calibration_submenu_activates_profile() {
+  OledMenuNavigator navigator;
+  RecordingMenuActions actions;
+  navigator.setProfileActionsSink(&actions);
+  navigator.reset();
+
+  for (uint8_t i = 0U; i < static_cast<uint8_t>(OledMenuRootItem::Calibration); ++i) {
+    navigator.onInput(OledMenuInputEvent::NavigateDown);
+  }
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuScreenId::CalibrationList),
+                    static_cast<int>(navigator.currentScreen()));
+
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL_UINT8(1U, actions.profileCallCount);
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuProfileSelection::CalibrationLeader),
+                    static_cast<int>(actions.lastSelection));
+}
+
+void test_navigator_pairing_reset_confirm() {
+  OledMenuNavigator navigator;
+  RecordingMenuActions actions;
+  navigator.setPairingActionsSink(&actions);
+  navigator.reset();
+
+  for (uint8_t i = 0U; i < static_cast<uint8_t>(OledMenuRootItem::Pairing); ++i) {
+    navigator.onInput(OledMenuInputEvent::NavigateDown);
+  }
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuScreenId::PairingList),
+                    static_cast<int>(navigator.currentScreen()));
+
+  for (uint8_t i = 0U; i < static_cast<uint8_t>(OledMenuPairingItem::Reset); ++i) {
+    navigator.onInput(OledMenuInputEvent::NavigateDown);
+  }
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuScreenId::PairingResetConfirm),
+                    static_cast<int>(navigator.currentScreen()));
+
+  OledMenuContext context{};
+  OledMenuRenderOutput output{};
+  navigator.render(context, output);
+  TEST_ASSERT_EQUAL_STRING("Reset pairing?", output.lines[0]);
+
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL_UINT8(1U, actions.pairingCallCount);
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuScreenId::PairingList),
+                    static_cast<int>(navigator.currentScreen()));
 }
 
 void test_navigator_pairing_status_screen() {
@@ -205,6 +264,8 @@ int main(int argc, char **argv) {
   RUN_TEST(test_navigator_ik_teleop_shows_stub_screen);
   RUN_TEST(test_navigator_ota_leaf_activates_profile);
   RUN_TEST(test_navigator_resume_at_teleop_list);
+  RUN_TEST(test_navigator_calibration_submenu_activates_profile);
+  RUN_TEST(test_navigator_pairing_reset_confirm);
   RUN_TEST(test_navigator_info_push_and_back);
   RUN_TEST(test_navigator_pairing_status_screen);
   return UNITY_END();

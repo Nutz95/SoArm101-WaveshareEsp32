@@ -15,6 +15,7 @@
 #include "oled_menu/oled_menu_navigator.h"
 #include "oled_menu/oled_menu_profile_selection.h"
 #include "leader_oled_menu_profile_actions.h"
+#include "leader_oled_menu_pairing_actions.h"
 #include "leader_calibration_oled_workflow.h"
 #include "oled_display_config.h"
 #include "leader_telemetry_state.h"
@@ -46,6 +47,7 @@ public:
 
 private:
   friend class LeaderOledMenuProfileActions;
+  friend class LeaderOledMenuPairingActions;
 
   // Command handling extracted from tick()
   void handlePairingCommands();
@@ -188,8 +190,12 @@ private:
   void refreshInteractiveOledMenu(uint32_t uptimeMs);
   // Apply a teleop/passthrough leaf selected from the OLED menu.
   bool activateProfileFromMenu(OledMenuProfileSelection selection);
+  // Clear ESP-NOW pairing from the OLED Pairing → Reset confirm screen.
+  bool resetPairingFromMenu();
   // Return to the menu screen active before profile activation (parent submenu or root).
   void restoreOledMenuBrowseMode();
+  // Leave calibration profile preview/active and return to the saved OLED menu screen.
+  void finishCalibrationMenuFlow(const char *status);
   void runDeferredBootStages(uint32_t uptimeMs);
   void tickCoreServices(uint32_t uptimeMs);
   void tickCommandHandlers(bool passthroughActive);
@@ -220,6 +226,7 @@ private:
   OledMenuController  oledMenu_;
   OledMenuNavigator   oledMenuNavigator_;
   LeaderOledMenuProfileActions oledMenuProfileActions_;
+  LeaderOledMenuPairingActions oledMenuPairingActions_;
   std::atomic<bool>   oledMenuBrowseMode_{true};
   OledMenuScreenId    oledMenuResumeScreen_{OledMenuScreenId::Root};
   LeaderCalibrationOledWorkflow calibrationOledWorkflow_;

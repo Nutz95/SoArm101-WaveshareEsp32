@@ -2,10 +2,14 @@
 
 #include "ioled_menu_screen.h"
 #include "ioled_menu_navigation_sink.h"
+#include "ioled_menu_pairing_actions.h"
+#include "ioled_menu_profile_actions.h"
+#include "oled_menu_calibration_screen.h"
 #include "oled_menu_context.h"
 #include "oled_menu_info_detail_screen.h"
 #include "oled_menu_input.h"
 #include "oled_menu_pairing_list_screen.h"
+#include "oled_menu_pairing_reset_confirm_screen.h"
 #include "oled_menu_pairing_status_detail_screen.h"
 #include "oled_menu_render_output.h"
 #include "oled_menu_ik_not_implemented_screen.h"
@@ -35,8 +39,10 @@ public:
   // Identity of the screen currently on top of the stack.
   OledMenuScreenId currentScreen() const;
 
-  // Wire profile activation (teleop/passthrough leaves) to LeaderApp.
+  // Wire profile activation (teleop/passthrough/cal leaves) to LeaderApp.
   void setProfileActionsSink(IOledMenuProfileActions *sink);
+  // Wire pairing reset confirm to LeaderApp.
+  void setPairingActionsSink(IOledMenuPairingActions *sink);
 
   bool pushScreen(OledMenuScreenId screen) override;
   bool popScreen() override;
@@ -53,10 +59,12 @@ private:
 
   OledMenuRootScreen rootScreen_;
   OledMenuTeleopScreen teleopScreen_;
+  OledMenuCalibrationScreen calibrationScreen_;
   OledMenuIkNotImplementedScreen ikNotImplementedScreen_;
   OledMenuInfoDetailScreen infoDetailScreen_;
   OledMenuPairingListScreen pairingListScreen_;
   OledMenuPairingStatusDetailScreen pairingStatusDetailScreen_;
+  OledMenuPairingResetConfirmScreen pairingResetConfirmScreen_;
 
   uint8_t stackDepth_{0U};
   OledMenuScreenId stack_[kMaxStackDepth]{OledMenuScreenId::Root};

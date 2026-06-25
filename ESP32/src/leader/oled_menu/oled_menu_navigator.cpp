@@ -108,15 +108,22 @@ bool OledMenuNavigator::isNavigatorAtRoot() const {
 void OledMenuNavigator::wireScreenSinks() {
   rootScreen_.setNavigationSink(this);
   teleopScreen_.setNavigationSink(this);
+  calibrationScreen_.setNavigationSink(this);
   ikNotImplementedScreen_.setNavigationSink(this);
   infoDetailScreen_.setNavigationSink(this);
   pairingListScreen_.setNavigationSink(this);
   pairingStatusDetailScreen_.setNavigationSink(this);
+  pairingResetConfirmScreen_.setNavigationSink(this);
 }
 
 void OledMenuNavigator::setProfileActionsSink(IOledMenuProfileActions *sink) {
   rootScreen_.setProfileActionsSink(sink);
   teleopScreen_.setProfileActionsSink(sink);
+  calibrationScreen_.setProfileActionsSink(sink);
+}
+
+void OledMenuNavigator::setPairingActionsSink(IOledMenuPairingActions *sink) {
+  pairingResetConfirmScreen_.setPairingActionsSink(sink);
 }
 
 IOledMenuScreen *OledMenuNavigator::screenForId(OledMenuScreenId screenId) {
@@ -124,9 +131,11 @@ IOledMenuScreen *OledMenuNavigator::screenForId(OledMenuScreenId screenId) {
   screens[static_cast<uint8_t>(OledMenuScreenId::Root)] = &rootScreen_;
   screens[static_cast<uint8_t>(OledMenuScreenId::InfoDetail)] = &infoDetailScreen_;
   screens[static_cast<uint8_t>(OledMenuScreenId::TeleopList)] = &teleopScreen_;
+  screens[static_cast<uint8_t>(OledMenuScreenId::CalibrationList)] = &calibrationScreen_;
   screens[static_cast<uint8_t>(OledMenuScreenId::IkNotImplementedDetail)] = &ikNotImplementedScreen_;
   screens[static_cast<uint8_t>(OledMenuScreenId::PairingList)] = &pairingListScreen_;
   screens[static_cast<uint8_t>(OledMenuScreenId::PairingStatusDetail)] = &pairingStatusDetailScreen_;
+  screens[static_cast<uint8_t>(OledMenuScreenId::PairingResetConfirm)] = &pairingResetConfirmScreen_;
 
   const uint8_t index = static_cast<uint8_t>(screenId);
   if (index >= kOledMenuScreenCount) {

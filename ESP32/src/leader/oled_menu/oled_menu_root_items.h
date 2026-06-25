@@ -38,7 +38,7 @@ constexpr OledMenuNavigationResult kOledMenuRootItemActions[kOledMenuRootItemCou
         OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
         OledMenuProfileSelection::Passthrough),
     [static_cast<uint8_t>(OledMenuRootItem::Calibration)] =
-        OledMenuNavigationResult(OledMenuNavigationResult::Action::None, OledMenuScreenId::Root),
+        OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::CalibrationList),
     [static_cast<uint8_t>(OledMenuRootItem::Pairing)] =
         OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::PairingList),
     [static_cast<uint8_t>(OledMenuRootItem::Ota)] = OledMenuNavigationResult(

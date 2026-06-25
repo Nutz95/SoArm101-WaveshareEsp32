@@ -9,6 +9,7 @@ namespace soarm {
 
 enum class OledMenuPairingItem : uint8_t {
   Status = 0,
+  Reset,
   Back,
   Count,
 };
@@ -17,6 +18,7 @@ constexpr uint8_t kOledMenuPairingItemCount = static_cast<uint8_t>(OledMenuPairi
 
 constexpr const char *kOledMenuPairingLabels[kOledMenuPairingItemCount] = {
     [static_cast<uint8_t>(OledMenuPairingItem::Status)] = "Status",
+    [static_cast<uint8_t>(OledMenuPairingItem::Reset)] = "Reset",
     [static_cast<uint8_t>(OledMenuPairingItem::Back)] = "Back",
 };
 
@@ -24,6 +26,9 @@ constexpr OledMenuNavigationResult kOledMenuPairingItemActions[kOledMenuPairingI
     [static_cast<uint8_t>(OledMenuPairingItem::Status)] =
         OledMenuNavigationResult(OledMenuNavigationResult::Action::Push,
                                  OledMenuScreenId::PairingStatusDetail),
+    [static_cast<uint8_t>(OledMenuPairingItem::Reset)] =
+        OledMenuNavigationResult(OledMenuNavigationResult::Action::Push,
+                                 OledMenuScreenId::PairingResetConfirm),
     [static_cast<uint8_t>(OledMenuPairingItem::Back)] =
         OledMenuNavigationResult(OledMenuNavigationResult::Action::Pop, OledMenuScreenId::Root),
 };

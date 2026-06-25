@@ -17,6 +17,10 @@ constexpr ControllerOperationProfile kControllerProfileByMenuSelection[kOledMenu
     [static_cast<uint8_t>(OledMenuProfileSelection::Passthrough)] =
         ControllerOperationProfile::Passthrough,
     [static_cast<uint8_t>(OledMenuProfileSelection::OtaReady)] = ControllerOperationProfile::OtaReady,
+    [static_cast<uint8_t>(OledMenuProfileSelection::CalibrationLeader)] =
+        ControllerOperationProfile::CalibrationLeader,
+    [static_cast<uint8_t>(OledMenuProfileSelection::CalibrationFollower)] =
+        ControllerOperationProfile::CalibrationFollower,
 };
 
 inline ControllerOperationProfile controllerProfileForMenuSelection(OledMenuProfileSelection selection) {
