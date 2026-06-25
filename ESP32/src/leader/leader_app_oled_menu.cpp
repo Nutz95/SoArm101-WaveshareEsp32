@@ -4,29 +4,12 @@
 #include "leader_presence_service.h"
 #include "oled_menu/oled_menu_context.h"
 #include "oled_menu/oled_menu_input.h"
+#include "oled_menu/oled_menu_profile_mapping.h"
 #include "oled_menu/oled_menu_render_output.h"
 
 namespace soarm {
 
-namespace {
-
 using Profile = ControllerOperationProfile;
-
-Profile profileForMenuSelection(OledMenuProfileSelection selection) {
-  switch (selection) {
-  case OledMenuProfileSelection::TeleopEspNowTurbo:
-    return Profile::TeleopEspNowTurbo;
-  case OledMenuProfileSelection::TeleopWifi:
-    return Profile::TeleopWifi;
-  case OledMenuProfileSelection::Passthrough:
-    return Profile::Passthrough;
-  case OledMenuProfileSelection::TeleopEspNow:
-  default:
-    return Profile::TeleopEspNow;
-  }
-}
-
-} // namespace
 
 bool LeaderApp::shouldShowInteractiveOledMenu() const {
   if (!oledMenuBrowseMode_.load()) {
@@ -81,9 +64,9 @@ void LeaderApp::buildOledMenuContext(OledMenuContext &context) const {
 }
 
 bool LeaderApp::activateProfileFromMenu(OledMenuProfileSelection selection) {
+  oledMenuResumeScreen_ = oledMenuNavigator_.currentScreen();
   oledMenuBrowseMode_.store(false);
-  oledMenuNavigator_.reset();
-  const Profile profile = profileForMenuSelection(selection);
+  const Profile profile = controllerProfileForMenuSelection(selection);
   applyControllerOperationProfile(toProfileRaw(profile));
   if (isEspNowTeleopProfile(profile)) {
     prepareEspNowTeleopMirrorStart();
@@ -94,7 +77,7 @@ bool LeaderApp::activateProfileFromMenu(OledMenuProfileSelection selection) {
 
 void LeaderApp::restoreOledMenuBrowseMode() {
   oledMenuBrowseMode_.store(true);
-  oledMenuNavigator_.reset();
+  oledMenuNavigator_.resumeAt(oledMenuResumeScreen_);
   syncWifiRadioPolicyForProfile(
       sanitizeControllerOperationProfile(controllerOperationProfile_.load()));
   lastOledRefreshMs_ = 0U;

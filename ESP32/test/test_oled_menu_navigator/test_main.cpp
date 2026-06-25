@@ -5,6 +5,7 @@
 #include "leader/oled_menu/oled_menu_context.h"
 #include "leader/oled_menu/oled_menu_input.h"
 #include "leader/oled_menu/oled_menu_navigator.h"
+#include "leader/oled_menu/oled_menu_root_items.h"
 #include "leader/oled_menu/oled_menu_screen_id.h"
 
 using soarm::OledListScrollModel;
@@ -15,6 +16,7 @@ using soarm::OledMenuRenderOutput;
 using soarm::OledMenuScreenId;
 using soarm::IOledMenuProfileActions;
 using soarm::OledMenuProfileSelection;
+using soarm::kOledMenuRootOtaIndex;
 
 namespace {
 
@@ -140,6 +142,30 @@ void test_navigator_info_push_and_back() {
   TEST_ASSERT_TRUE(navigator.isAtRoot());
 }
 
+void test_navigator_ota_leaf_activates_profile() {
+  OledMenuNavigator navigator;
+  RecordingProfileActions actions;
+  navigator.setProfileActionsSink(&actions);
+  navigator.reset();
+
+  for (uint8_t i = 0U; i < kOledMenuRootOtaIndex; ++i) {
+    navigator.onInput(OledMenuInputEvent::NavigateDown);
+  }
+  TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));
+  TEST_ASSERT_EQUAL_UINT8(1U, actions.callCount);
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuProfileSelection::OtaReady),
+                    static_cast<int>(actions.lastSelection));
+}
+
+void test_navigator_resume_at_teleop_list() {
+  OledMenuNavigator navigator;
+  navigator.reset();
+  navigator.resumeAt(OledMenuScreenId::TeleopList);
+  TEST_ASSERT_EQUAL(static_cast<int>(OledMenuScreenId::TeleopList),
+                    static_cast<int>(navigator.currentScreen()));
+  TEST_ASSERT_FALSE(navigator.isAtRoot());
+}
+
 void test_navigator_pairing_status_screen() {
   OledMenuNavigator navigator;
   navigator.reset();
@@ -177,6 +203,8 @@ int main(int argc, char **argv) {
   RUN_TEST(test_navigator_teleop_submenu_activates_profile);
   RUN_TEST(test_navigator_passthrough_leaf_activates_profile);
   RUN_TEST(test_navigator_ik_teleop_shows_stub_screen);
+  RUN_TEST(test_navigator_ota_leaf_activates_profile);
+  RUN_TEST(test_navigator_resume_at_teleop_list);
   RUN_TEST(test_navigator_info_push_and_back);
   RUN_TEST(test_navigator_pairing_status_screen);
   return UNITY_END();

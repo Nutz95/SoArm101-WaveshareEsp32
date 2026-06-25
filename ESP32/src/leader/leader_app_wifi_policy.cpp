@@ -206,6 +206,7 @@ void LeaderApp::handleOtaButtons(bool confirmPressed, bool validatePressed) {
     }
     if (validatePressed) {
       applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
+      restoreOledMenuBrowseMode();
       setTransientStatus("OTA skipped", config::leader::kMoveStatusHoldMs);
     }
     return;
@@ -214,6 +215,7 @@ void LeaderApp::handleOtaButtons(bool confirmPressed, bool validatePressed) {
   if (validatePressed) {
     otaEngaged_.store(false);
     applyControllerOperationProfile(toProfileRaw(ControllerOperationProfile::TeleopEspNow));
+    restoreOledMenuBrowseMode();
     setTransientStatus("OTA done", config::leader::kMoveStatusHoldMs);
   }
 }

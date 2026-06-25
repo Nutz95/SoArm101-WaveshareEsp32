@@ -1,5 +1,9 @@
 #pragma once
 
+#include "oled_menu_navigation_result.h"
+#include "oled_menu_profile_selection.h"
+#include "oled_menu_screen_id.h"
+
 #include <cstdint>
 
 namespace soarm {
@@ -28,6 +32,17 @@ constexpr const char *kOledMenuRootLabels[kOledMenuRootItemCount] = {
 constexpr const char *kOledMenuPairingLabels[kOledMenuPairingItemCount] = {
     "Status",
     "Back",
+};
+
+constexpr OledMenuNavigationResult kOledMenuRootItemActions[kOledMenuRootItemCount] = {
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::InfoDetail),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::TeleopList),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+                             OledMenuProfileSelection::Passthrough),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::None, OledMenuScreenId::Root),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::PairingList),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+                             OledMenuProfileSelection::OtaReady),
 };
 
 } // namespace soarm

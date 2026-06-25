@@ -1,5 +1,9 @@
 #pragma once
 
+#include "oled_menu_navigation_result.h"
+#include "oled_menu_profile_selection.h"
+#include "oled_menu_screen_id.h"
+
 #include <cstdint>
 
 namespace soarm {
@@ -17,6 +21,18 @@ constexpr const char *kOledMenuTeleopLabels[kOledMenuTeleopItemCount] = {
     "Wi-Fi",
     "IK Teleop",
     "Back",
+};
+
+constexpr OledMenuNavigationResult kOledMenuTeleopItemActions[kOledMenuTeleopItemCount] = {
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+                             OledMenuProfileSelection::TeleopEspNow),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+                             OledMenuProfileSelection::TeleopEspNowTurbo),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+                             OledMenuProfileSelection::TeleopWifi),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::Push,
+                             OledMenuScreenId::IkNotImplementedDetail),
+    OledMenuNavigationResult(OledMenuNavigationResult::Action::Pop, OledMenuScreenId::Root),
 };
 
 } // namespace soarm

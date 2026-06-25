@@ -11,6 +11,9 @@ enum class OledMenuScreenId : uint8_t {
   IkNotImplementedDetail,
   PairingList,
   PairingStatusDetail,
+  Count,
 };
+
+constexpr uint8_t kOledMenuScreenCount = static_cast<uint8_t>(OledMenuScreenId::Count);
 
 } // namespace soarm

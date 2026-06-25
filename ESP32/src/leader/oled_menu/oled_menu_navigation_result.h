@@ -18,6 +18,13 @@ struct OledMenuNavigationResult {
   OledMenuScreenId screen{OledMenuScreenId::Root};
   OledMenuProfileSelection profileSelection{OledMenuProfileSelection::TeleopEspNow};
 
+  constexpr OledMenuNavigationResult() = default;
+  constexpr OledMenuNavigationResult(
+      Action actionIn,
+      OledMenuScreenId screenIn,
+      OledMenuProfileSelection profileIn = OledMenuProfileSelection::TeleopEspNow)
+      : action(actionIn), screen(screenIn), profileSelection(profileIn) {}
+
   static OledMenuNavigationResult none();
   static OledMenuNavigationResult push(OledMenuScreenId screen);
   static OledMenuNavigationResult pop();

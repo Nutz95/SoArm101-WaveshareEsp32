@@ -1,8 +1,7 @@
 #include "oled_menu_root_screen.h"
 
-#include "oled_menu_navigation_result.h"
-#include "oled_menu_profile_selection.h"
-#include "oled_menu_screen_id.h"
+#include "oled_menu_item_activation.h"
+#include "oled_menu_root_items.h"
 
 namespace soarm {
 
@@ -19,18 +18,7 @@ bool OledMenuRootScreen::acceptsModeDown() const {
 }
 
 OledMenuNavigationResult OledMenuRootScreen::onItemActivated(uint8_t itemIndex) const {
-  switch (itemIndex) {
-  case kOledMenuRootInfoIndex:
-    return OledMenuNavigationResult::push(OledMenuScreenId::InfoDetail);
-  case kOledMenuRootTeleopIndex:
-    return OledMenuNavigationResult::push(OledMenuScreenId::TeleopList);
-  case kOledMenuRootPassthroughIndex:
-    return OledMenuNavigationResult::activateProfile(OledMenuProfileSelection::Passthrough);
-  case kOledMenuRootPairingIndex:
-    return OledMenuNavigationResult::push(OledMenuScreenId::PairingList);
-  default:
-    return OledMenuNavigationResult::none();
-  }
+  return lookupMenuItemAction(kOledMenuRootItemActions, kOledMenuRootItemCount, itemIndex);
 }
 
 } // namespace soarm

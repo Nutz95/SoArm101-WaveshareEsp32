@@ -188,7 +188,7 @@ private:
   void refreshInteractiveOledMenu(uint32_t uptimeMs);
   // Apply a teleop/passthrough leaf selected from the OLED menu.
   bool activateProfileFromMenu(OledMenuProfileSelection selection);
-  // Return to the root menu after canceling a profile preview or teleop session.
+  // Return to the menu screen active before profile activation (parent submenu or root).
   void restoreOledMenuBrowseMode();
   void runDeferredBootStages(uint32_t uptimeMs);
   void tickCoreServices(uint32_t uptimeMs);
@@ -221,6 +221,7 @@ private:
   OledMenuNavigator   oledMenuNavigator_;
   LeaderOledMenuProfileActions oledMenuProfileActions_;
   std::atomic<bool>   oledMenuBrowseMode_{true};
+  OledMenuScreenId    oledMenuResumeScreen_{OledMenuScreenId::Root};
   LeaderCalibrationOledWorkflow calibrationOledWorkflow_;
   LeaderTelemetryState telemetryState_;
   LeaderTelemetryStreamServer telemetryStreamServer_;

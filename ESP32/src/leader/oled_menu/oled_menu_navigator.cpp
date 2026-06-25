@@ -14,6 +14,27 @@ void OledMenuNavigator::reset() {
   rootScreen_.onEnter();
 }
 
+void OledMenuNavigator::resumeAt(OledMenuScreenId screen) {
+  if (screen == OledMenuScreenId::Root) {
+    reset();
+    return;
+  }
+
+  IOledMenuScreen *leaving = activeScreen();
+  if (leaving != nullptr && stackDepth_ > 0U) {
+    leaving->onExit();
+  }
+
+  stackDepth_ = 2U;
+  stack_[0] = OledMenuScreenId::Root;
+  stack_[1] = screen;
+
+  IOledMenuScreen *entering = screenForId(screen);
+  if (entering != nullptr) {
+    entering->onEnter();
+  }
+}
+
 bool OledMenuNavigator::onInput(OledMenuInputEvent event) {
   if (event == OledMenuInputEvent::Back) {
     return popScreen();
@@ -99,22 +120,20 @@ void OledMenuNavigator::setProfileActionsSink(IOledMenuProfileActions *sink) {
 }
 
 IOledMenuScreen *OledMenuNavigator::screenForId(OledMenuScreenId screenId) {
-  switch (screenId) {
-  case OledMenuScreenId::Root:
-    return &rootScreen_;
-  case OledMenuScreenId::InfoDetail:
-    return &infoDetailScreen_;
-  case OledMenuScreenId::TeleopList:
-    return &teleopScreen_;
-  case OledMenuScreenId::IkNotImplementedDetail:
-    return &ikNotImplementedScreen_;
-  case OledMenuScreenId::PairingList:
-    return &pairingListScreen_;
-  case OledMenuScreenId::PairingStatusDetail:
-    return &pairingStatusDetailScreen_;
-  default:
+  IOledMenuScreen *const kScreens[] = {
+      &rootScreen_,
+      &infoDetailScreen_,
+      &teleopScreen_,
+      &ikNotImplementedScreen_,
+      &pairingListScreen_,
+      &pairingStatusDetailScreen_,
+  };
+
+  const uint8_t index = static_cast<uint8_t>(screenId);
+  if (index >= kOledMenuScreenCount) {
     return nullptr;
   }
+  return kScreens[index];
 }
 
 const IOledMenuScreen *OledMenuNavigator::screenForId(OledMenuScreenId screenId) const {

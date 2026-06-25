@@ -10,6 +10,7 @@ enum class OledMenuProfileSelection : uint8_t {
   TeleopEspNowTurbo,
   TeleopWifi,
   Passthrough,
+  OtaReady,
 };
 
 } // namespace soarm

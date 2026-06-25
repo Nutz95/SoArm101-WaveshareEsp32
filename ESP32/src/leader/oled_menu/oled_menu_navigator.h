@@ -24,6 +24,8 @@ public:
 
   // Clear the stack and show the root menu.
   void reset();
+  // Re-open browse mode at a submenu (Root + screen) without losing the parent context.
+  void resumeAt(OledMenuScreenId screen);
   // Forward one Xbox menu event to the active screen; Back pops when depth > 1.
   bool onInput(OledMenuInputEvent event);
   // Draw the active screen into four 22-character lines.
