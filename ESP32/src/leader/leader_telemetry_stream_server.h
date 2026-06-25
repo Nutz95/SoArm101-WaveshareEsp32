@@ -14,6 +14,7 @@ public:
 
   bool begin(uint16_t port);
   void setListeningEnabled(bool enabled);
+  bool isDashboardListening() const { return started_ && listeningEnabled_; }
   void tick();
   bool consumeResetPairingRequested(uint16_t &requestId);
   bool consumeServoScanRequested(uint32_t &value, uint16_t &requestId);

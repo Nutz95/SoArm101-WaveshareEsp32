@@ -12,6 +12,7 @@
 #include "../common/servo/servo_bus_service.h"
 #include "oled_presenter.h"
 #include "oled_menu_controller.h"
+#include "oled_menu/oled_menu_navigator.h"
 #include "leader_calibration_oled_workflow.h"
 #include "oled_display_config.h"
 #include "leader_telemetry_state.h"
@@ -30,6 +31,8 @@
 #include <memory>
 
 namespace soarm {
+
+struct OledMenuContext;
 
 class LeaderApp {
 public:
@@ -171,6 +174,14 @@ private:
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
   void fillLeaderMirrorPositions(LeaderTelemetrySnapshot &snapshot);
   void refreshOled(uint32_t uptimeMs);
+  // True when the interactive OLED menu replaces the legacy dashboard.
+  bool shouldShowInteractiveOledMenu() const;
+  // Fill a read-only snapshot for menu screen rendering.
+  void buildOledMenuContext(OledMenuContext &context) const;
+  // Route Xbox menu inputs to OledMenuNavigator.
+  void handleInteractiveOledMenuInput();
+  // Render the current navigator screen to the OLED.
+  void refreshInteractiveOledMenu(uint32_t uptimeMs);
   void runDeferredBootStages(uint32_t uptimeMs);
   void tickCoreServices(uint32_t uptimeMs);
   void tickCommandHandlers(bool passthroughActive);
@@ -199,6 +210,7 @@ private:
   OledDisplayConfig   oledConfig_;
   OledPresenter       oled_;
   OledMenuController  oledMenu_;
+  OledMenuNavigator   oledMenuNavigator_;
   LeaderCalibrationOledWorkflow calibrationOledWorkflow_;
   LeaderTelemetryState telemetryState_;
   LeaderTelemetryStreamServer telemetryStreamServer_;

@@ -86,6 +86,8 @@ public:
   // Consume one pending edge event for a logical button (currently A/B).
   bool consumeButtonPress(XboxLogicalButton button);
   void discardPendingButtonPress(XboxLogicalButton button);
+  // Consume one D-pad vertical edge (+1 up, -1 down). Used by OLED menu navigation.
+  bool consumeDpadVerticalStep(int8_t &directionOut);
 
 private:
   void runLoop();
@@ -125,6 +127,8 @@ private:
   std::atomic<uint8_t> buttonBPendingCount_{0U};
   std::atomic<bool> buttonAPressedLast_{false};
   std::atomic<bool> buttonBPressedLast_{false};
+  std::atomic<int8_t> dpadVerticalEdge_{0};
+  std::atomic<int16_t> dpadYLast_{0};
   std::atomic<bool> backgroundReconnectDeferred_{false};
   char controllerName_[32]{0};
   char lastPeerAddress_[18]{0};

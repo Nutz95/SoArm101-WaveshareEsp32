@@ -69,6 +69,7 @@ LeaderApp::LeaderApp()
 
   strncpy(statusLine_, "boot", sizeof(statusLine_) - 1);
   statusLine_[sizeof(statusLine_) - 1] = '\0';
+  oledMenuNavigator_.reset();
 }
 
 void LeaderApp::begin() {
@@ -175,7 +176,11 @@ void LeaderApp::tickControlState(uint32_t uptimeMs, bool passthroughActive) {
     pollFollowerCalibrationCenterAck(uptimeMs);
   }
   updateLocalInputs(uptimeMs);
-  handleControllerModeCycleEvents();
+  if (shouldShowInteractiveOledMenu()) {
+    handleInteractiveOledMenuInput();
+  } else {
+    handleControllerModeCycleEvents();
+  }
   if (!passthroughActive && calibrationEngaged_.load() && calibrationPhase_.load() == 1U) {
     (void)sampleCalibrationRangeCapture();
   }

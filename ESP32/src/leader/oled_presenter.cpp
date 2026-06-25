@@ -170,6 +170,14 @@ void OledPresenter::showOtaAwaitEnter(const char *routerIp) {
     printLines("OTA UPDATE", l2, "router WiFi", "Enter? (A)");
 }
 
+void OledPresenter::showNavigationMenu(const char lines[4][22]) {
+    if (display_ == nullptr || lines == nullptr) {
+        return;
+    }
+
+    printLines(lines[0], lines[1], lines[2], lines[3]);
+}
+
 void OledPresenter::showOtaActive(const char *routerIp) {
     char l2[24] = "L:?";
     if (routerIp != nullptr && routerIp[0] != '\0') {

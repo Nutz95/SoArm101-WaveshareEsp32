@@ -182,6 +182,14 @@ void LeaderXboxControllerService::updateInputState(const uint8_t *data, size_t l
   dpadX_.store(dpadX);
   dpadY_.store(dpadY);
 
+  const int16_t previousDpadY = dpadYLast_.load();
+  if (dpadY < 0 && previousDpadY >= 0) {
+    dpadVerticalEdge_.store(1);
+  } else if (dpadY > 0 && previousDpadY <= 0) {
+    dpadVerticalEdge_.store(-1);
+  }
+  dpadYLast_.store(dpadY);
+
   triggerLeft_.store(data[8]);
   triggerRight_.store(data[10]);
 

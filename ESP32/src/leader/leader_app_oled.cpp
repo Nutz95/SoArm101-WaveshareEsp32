@@ -87,6 +87,11 @@ void LeaderApp::refreshOled(uint32_t uptimeMs) {
     followerIp = wifiDirectSession_.followerTeleopIp();
   }
 
+  if (shouldShowInteractiveOledMenu()) {
+    refreshInteractiveOledMenu(uptimeMs);
+    return;
+  }
+
   oledMenu_.showDashboard(
       leaderIp,
       followerIp,

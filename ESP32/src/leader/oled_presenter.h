@@ -49,6 +49,7 @@ public:
     void showWifiDirectAwaitStart(const char *leaderApIp, const char *followerApIp);
     void showOtaAwaitEnter(const char *routerIp);
     void showOtaActive(const char *routerIp);
+    void showNavigationMenu(const char lines[4][22]);
 
 private:
     OledDisplayConfig config_;

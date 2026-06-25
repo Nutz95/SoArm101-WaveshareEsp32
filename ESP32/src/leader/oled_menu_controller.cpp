@@ -138,4 +138,8 @@ void OledMenuController::showWifiDirectAwaitStart(const char *leaderApIp, const 
   presenter_.showWifiDirectAwaitStart(leaderApIp, followerApIp);
 }
 
+void OledMenuController::showNavigationMenu(const OledMenuRenderOutput &output) {
+  presenter_.showNavigationMenu(output.lines);
+}
+
 } // namespace soarm

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "leader_calibration_oled_workflow.h"
+#include "oled_menu/oled_menu_render_output.h"
 #include "oled_presenter.h"
 
 #include <cstdint>
@@ -28,6 +29,7 @@ public:
   void showWifiDirectAwaitStart(const char *leaderApIp, const char *followerApIp);
   void showOtaAwaitEnter(const char *routerIp);
   void showOtaActive(const char *routerIp);
+  void showNavigationMenu(const OledMenuRenderOutput &output);
 
 private:
   OledPresenter &presenter_;

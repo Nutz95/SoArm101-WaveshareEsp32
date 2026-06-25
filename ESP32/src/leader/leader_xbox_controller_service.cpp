@@ -302,6 +302,15 @@ void LeaderXboxControllerService::discardPendingButtonPress(XboxLogicalButton bu
   }
 }
 
+bool LeaderXboxControllerService::consumeDpadVerticalStep(int8_t &directionOut) {
+  const int8_t edge = dpadVerticalEdge_.exchange(0);
+  if (edge == 0) {
+    return false;
+  }
+  directionOut = edge;
+  return true;
+}
+
 void LeaderXboxControllerService::taskEntry(void *context) {
   if (context != nullptr) {
     LeaderXboxControllerService *service = static_cast<LeaderXboxControllerService *>(context);
