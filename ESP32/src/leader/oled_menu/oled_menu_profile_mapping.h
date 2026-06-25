@@ -7,14 +7,16 @@
 
 namespace soarm {
 
-constexpr uint8_t kOledMenuProfileSelectionCount = 5U;
-
-constexpr ControllerOperationProfile kControllerProfileByMenuSelection[] = {
-    ControllerOperationProfile::TeleopEspNow,
-    ControllerOperationProfile::TeleopEspNowTurbo,
-    ControllerOperationProfile::TeleopWifi,
-    ControllerOperationProfile::Passthrough,
-    ControllerOperationProfile::OtaReady,
+constexpr ControllerOperationProfile kControllerProfileByMenuSelection[kOledMenuProfileSelectionCount] = {
+    [static_cast<uint8_t>(OledMenuProfileSelection::TeleopEspNow)] =
+        ControllerOperationProfile::TeleopEspNow,
+    [static_cast<uint8_t>(OledMenuProfileSelection::TeleopEspNowTurbo)] =
+        ControllerOperationProfile::TeleopEspNowTurbo,
+    [static_cast<uint8_t>(OledMenuProfileSelection::TeleopWifi)] =
+        ControllerOperationProfile::TeleopWifi,
+    [static_cast<uint8_t>(OledMenuProfileSelection::Passthrough)] =
+        ControllerOperationProfile::Passthrough,
+    [static_cast<uint8_t>(OledMenuProfileSelection::OtaReady)] = ControllerOperationProfile::OtaReady,
 };
 
 inline ControllerOperationProfile controllerProfileForMenuSelection(OledMenuProfileSelection selection) {

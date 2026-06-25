@@ -16,7 +16,7 @@ using soarm::OledMenuRenderOutput;
 using soarm::OledMenuScreenId;
 using soarm::IOledMenuProfileActions;
 using soarm::OledMenuProfileSelection;
-using soarm::kOledMenuRootOtaIndex;
+using soarm::OledMenuRootItem;
 
 namespace {
 
@@ -148,7 +148,7 @@ void test_navigator_ota_leaf_activates_profile() {
   navigator.setProfileActionsSink(&actions);
   navigator.reset();
 
-  for (uint8_t i = 0U; i < kOledMenuRootOtaIndex; ++i) {
+  for (uint8_t i = 0U; i < static_cast<uint8_t>(OledMenuRootItem::Ota); ++i) {
     navigator.onInput(OledMenuInputEvent::NavigateDown);
   }
   TEST_ASSERT_TRUE(navigator.onInput(OledMenuInputEvent::Select));

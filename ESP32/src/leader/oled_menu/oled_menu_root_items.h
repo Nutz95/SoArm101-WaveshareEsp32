@@ -8,41 +8,42 @@
 
 namespace soarm {
 
-constexpr uint8_t kOledMenuRootItemCount = 6U;
-constexpr uint8_t kOledMenuRootInfoIndex = 0U;
-constexpr uint8_t kOledMenuRootTeleopIndex = 1U;
-constexpr uint8_t kOledMenuRootPassthroughIndex = 2U;
-constexpr uint8_t kOledMenuRootCalibrationIndex = 3U;
-constexpr uint8_t kOledMenuRootPairingIndex = 4U;
-constexpr uint8_t kOledMenuRootOtaIndex = 5U;
-
-constexpr uint8_t kOledMenuPairingItemCount = 2U;
-constexpr uint8_t kOledMenuPairingStatusIndex = 0U;
-constexpr uint8_t kOledMenuPairingBackIndex = 1U;
-
-constexpr const char *kOledMenuRootLabels[kOledMenuRootItemCount] = {
-    "Info",
-    "Teleop",
-    "Passthrough",
-    "Calibration",
-    "Pairing",
-    "OTA",
+enum class OledMenuRootItem : uint8_t {
+  Info = 0,
+  Teleop,
+  Passthrough,
+  Calibration,
+  Pairing,
+  Ota,
+  Count,
 };
 
-constexpr const char *kOledMenuPairingLabels[kOledMenuPairingItemCount] = {
-    "Status",
-    "Back",
+constexpr uint8_t kOledMenuRootItemCount = static_cast<uint8_t>(OledMenuRootItem::Count);
+
+constexpr const char *kOledMenuRootLabels[kOledMenuRootItemCount] = {
+    [static_cast<uint8_t>(OledMenuRootItem::Info)] = "Info",
+    [static_cast<uint8_t>(OledMenuRootItem::Teleop)] = "Teleop",
+    [static_cast<uint8_t>(OledMenuRootItem::Passthrough)] = "Passthrough",
+    [static_cast<uint8_t>(OledMenuRootItem::Calibration)] = "Calibration",
+    [static_cast<uint8_t>(OledMenuRootItem::Pairing)] = "Pairing",
+    [static_cast<uint8_t>(OledMenuRootItem::Ota)] = "OTA",
 };
 
 constexpr OledMenuNavigationResult kOledMenuRootItemActions[kOledMenuRootItemCount] = {
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::InfoDetail),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::TeleopList),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
-                             OledMenuProfileSelection::Passthrough),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::None, OledMenuScreenId::Root),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::PairingList),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
-                             OledMenuProfileSelection::OtaReady),
+    [static_cast<uint8_t>(OledMenuRootItem::Info)] =
+        OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::InfoDetail),
+    [static_cast<uint8_t>(OledMenuRootItem::Teleop)] =
+        OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::TeleopList),
+    [static_cast<uint8_t>(OledMenuRootItem::Passthrough)] = OledMenuNavigationResult(
+        OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+        OledMenuProfileSelection::Passthrough),
+    [static_cast<uint8_t>(OledMenuRootItem::Calibration)] =
+        OledMenuNavigationResult(OledMenuNavigationResult::Action::None, OledMenuScreenId::Root),
+    [static_cast<uint8_t>(OledMenuRootItem::Pairing)] =
+        OledMenuNavigationResult(OledMenuNavigationResult::Action::Push, OledMenuScreenId::PairingList),
+    [static_cast<uint8_t>(OledMenuRootItem::Ota)] = OledMenuNavigationResult(
+        OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+        OledMenuProfileSelection::OtaReady),
 };
 
 } // namespace soarm

@@ -1,7 +1,7 @@
 #include "oled_menu_pairing_list_screen.h"
 
-#include "oled_menu_navigation_result.h"
-#include "oled_menu_screen_id.h"
+#include "oled_menu_item_activation.h"
+#include "oled_menu_pairing_items.h"
 
 namespace soarm {
 
@@ -14,13 +14,7 @@ uint8_t OledMenuPairingListScreen::labelCount() const {
 }
 
 OledMenuNavigationResult OledMenuPairingListScreen::onItemActivated(uint8_t itemIndex) const {
-  if (itemIndex == kOledMenuPairingStatusIndex) {
-    return OledMenuNavigationResult::push(OledMenuScreenId::PairingStatusDetail);
-  }
-  if (itemIndex == kOledMenuPairingBackIndex) {
-    return OledMenuNavigationResult::pop();
-  }
-  return OledMenuNavigationResult::none();
+  return lookupMenuItemAction(kOledMenuPairingItemActions, kOledMenuPairingItemCount, itemIndex);
 }
 
 } // namespace soarm

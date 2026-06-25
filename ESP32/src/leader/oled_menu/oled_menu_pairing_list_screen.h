@@ -1,7 +1,7 @@
 #pragma once
 
 #include "oled_menu_list_screen_base.h"
-#include "oled_menu_root_items.h"
+#include "oled_menu_pairing_items.h"
 
 namespace soarm {
 

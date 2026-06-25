@@ -11,6 +11,9 @@ enum class OledMenuProfileSelection : uint8_t {
   TeleopWifi,
   Passthrough,
   OtaReady,
+  Count,
 };
+
+constexpr uint8_t kOledMenuProfileSelectionCount = static_cast<uint8_t>(OledMenuProfileSelection::Count);
 
 } // namespace soarm

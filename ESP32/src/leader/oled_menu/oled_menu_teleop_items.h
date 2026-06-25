@@ -8,31 +8,39 @@
 
 namespace soarm {
 
-constexpr uint8_t kOledMenuTeleopItemCount = 5U;
-constexpr uint8_t kOledMenuTeleopEspNowIndex = 0U;
-constexpr uint8_t kOledMenuTeleopEspNowTurboIndex = 1U;
-constexpr uint8_t kOledMenuTeleopWifiIndex = 2U;
-constexpr uint8_t kOledMenuTeleopIkIndex = 3U;
-constexpr uint8_t kOledMenuTeleopBackIndex = 4U;
+enum class OledMenuTeleopItem : uint8_t {
+  EspNow = 0,
+  EspNowTurbo,
+  Wifi,
+  IkTeleop,
+  Back,
+  Count,
+};
+
+constexpr uint8_t kOledMenuTeleopItemCount = static_cast<uint8_t>(OledMenuTeleopItem::Count);
 
 constexpr const char *kOledMenuTeleopLabels[kOledMenuTeleopItemCount] = {
-    "ESP-NOW",
-    "ESP-NOW Turbo",
-    "Wi-Fi",
-    "IK Teleop",
-    "Back",
+    [static_cast<uint8_t>(OledMenuTeleopItem::EspNow)] = "ESP-NOW",
+    [static_cast<uint8_t>(OledMenuTeleopItem::EspNowTurbo)] = "ESP-NOW Turbo",
+    [static_cast<uint8_t>(OledMenuTeleopItem::Wifi)] = "Wi-Fi",
+    [static_cast<uint8_t>(OledMenuTeleopItem::IkTeleop)] = "IK Teleop",
+    [static_cast<uint8_t>(OledMenuTeleopItem::Back)] = "Back",
 };
 
 constexpr OledMenuNavigationResult kOledMenuTeleopItemActions[kOledMenuTeleopItemCount] = {
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
-                             OledMenuProfileSelection::TeleopEspNow),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
-                             OledMenuProfileSelection::TeleopEspNowTurbo),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
-                             OledMenuProfileSelection::TeleopWifi),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::Push,
-                             OledMenuScreenId::IkNotImplementedDetail),
-    OledMenuNavigationResult(OledMenuNavigationResult::Action::Pop, OledMenuScreenId::Root),
+    [static_cast<uint8_t>(OledMenuTeleopItem::EspNow)] = OledMenuNavigationResult(
+        OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+        OledMenuProfileSelection::TeleopEspNow),
+    [static_cast<uint8_t>(OledMenuTeleopItem::EspNowTurbo)] = OledMenuNavigationResult(
+        OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+        OledMenuProfileSelection::TeleopEspNowTurbo),
+    [static_cast<uint8_t>(OledMenuTeleopItem::Wifi)] = OledMenuNavigationResult(
+        OledMenuNavigationResult::Action::ActivateProfile, OledMenuScreenId::Root,
+        OledMenuProfileSelection::TeleopWifi),
+    [static_cast<uint8_t>(OledMenuTeleopItem::IkTeleop)] = OledMenuNavigationResult(
+        OledMenuNavigationResult::Action::Push, OledMenuScreenId::IkNotImplementedDetail),
+    [static_cast<uint8_t>(OledMenuTeleopItem::Back)] =
+        OledMenuNavigationResult(OledMenuNavigationResult::Action::Pop, OledMenuScreenId::Root),
 };
 
 } // namespace soarm

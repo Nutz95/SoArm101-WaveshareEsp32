@@ -120,20 +120,19 @@ void OledMenuNavigator::setProfileActionsSink(IOledMenuProfileActions *sink) {
 }
 
 IOledMenuScreen *OledMenuNavigator::screenForId(OledMenuScreenId screenId) {
-  IOledMenuScreen *const kScreens[] = {
-      &rootScreen_,
-      &infoDetailScreen_,
-      &teleopScreen_,
-      &ikNotImplementedScreen_,
-      &pairingListScreen_,
-      &pairingStatusDetailScreen_,
-  };
+  IOledMenuScreen *screens[kOledMenuScreenCount] = {};
+  screens[static_cast<uint8_t>(OledMenuScreenId::Root)] = &rootScreen_;
+  screens[static_cast<uint8_t>(OledMenuScreenId::InfoDetail)] = &infoDetailScreen_;
+  screens[static_cast<uint8_t>(OledMenuScreenId::TeleopList)] = &teleopScreen_;
+  screens[static_cast<uint8_t>(OledMenuScreenId::IkNotImplementedDetail)] = &ikNotImplementedScreen_;
+  screens[static_cast<uint8_t>(OledMenuScreenId::PairingList)] = &pairingListScreen_;
+  screens[static_cast<uint8_t>(OledMenuScreenId::PairingStatusDetail)] = &pairingStatusDetailScreen_;
 
   const uint8_t index = static_cast<uint8_t>(screenId);
   if (index >= kOledMenuScreenCount) {
     return nullptr;
   }
-  return kScreens[index];
+  return screens[index];
 }
 
 const IOledMenuScreen *OledMenuNavigator::screenForId(OledMenuScreenId screenId) const {
