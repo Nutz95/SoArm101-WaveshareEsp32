@@ -24,11 +24,13 @@ While the leader keeps running (no reboot):
 3. With BLE active, firmware sets **`WiFi.setSleep(true)`** (ESP-IDF requirement for Wi-Fi + Bluetooth coexistence).
 4. Do **not** call `esp_bt_controller_mem_release()` outside NimBLE (NimBLE-Arduino already releases classic BT once).
 
-## Profile cycle (Mode button)
+## Profile cycle (Mode button) — current firmware
 
-The **View** button on the Xbox controller is **button 6** in the [diagram](../tools/telemetry_dashboard/static/XBoxControler.jpg) (two small squares left of the Xbox logo). Firmware calls it **Mode**.
+The **View** button is **button 6** on the controller diagram (two small squares left of the Xbox logo). Firmware calls it **Mode**.
 
-**Only three buttons are used today:** Mode (View), **A**, **B** — sticks, triggers, bumpers, and D-pad are reserved for a future inverse-kinematics mode.
+![Xbox Wireless Controller — button indices](../assets/XBoxControler.jpg)
+
+**Buttons used today:** **Mode** (View), **A**, **B**. Sticks, bumpers, triggers, and D-pad are for **future IK teleop** and the **planned OLED menu** (D-pad up/down to navigate).
 
 Order when cycling with **Mode** (or dashboard `xbox_mode_cycle_button_set`):
 

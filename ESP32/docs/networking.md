@@ -33,13 +33,21 @@ The router is **not** in the ESP-NOW mirror data path. Mirror batches go **leade
 
 ### Teleop without Xbox (dashboard)
 
-If you have no Xbox controller but both boards are on the LAN:
+The arms do **not** run a web server themselves. The **PC** runs the HTML dashboard; it talks **only to the leader** over one of:
 
-1. Start the dashboard (`start_dashboard.ps1`).
-2. Open http://127.0.0.1:8080.
-3. Use **Modes** / **Teleop** tabs to set profile (ESP-NOW, turbo, Wi-Fi) and **Start continuous** mirror — same effect as **A** on the controller.
+| Path to leader | When |
+|----------------|------|
+| **USB serial** | Leader plugged into the PC (`--leader-serial COM7`) — works **without** a router |
+| **Wi-Fi** | Leader (and usually follower) joined the **same router** as the PC; dashboard uses leader IP or `soarm-leader.local` on TCP **:9090** |
 
-You still need ESP-NOW **pairing** (automatic on boot) and a network path to the leader (`:9090` or USB serial). See [esp_now_pairing.md](esp_now_pairing.md).
+Steps:
+
+1. Ensure ESP-NOW **pairing** between the two arms (automatic on boot).
+2. Connect the PC to the leader (USB **or** Wi-Fi as above).
+3. Start the dashboard (`start_dashboard.ps1` or `telemetry_dashboard.py --leader-serial COM7`).
+4. Open http://127.0.0.1:8080 → **Modes** / **Teleop** → set profile and **Start continuous** mirror (same as **A** on the Xbox).
+
+See [esp_now_pairing.md](esp_now_pairing.md).
 
 ## Wi-Fi credentials at build time
 

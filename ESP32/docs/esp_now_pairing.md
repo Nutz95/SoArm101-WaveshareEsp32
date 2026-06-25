@@ -13,13 +13,19 @@ Pairing binds one **follower MAC** to the **leader** so teleop batches and comma
 
 Typical time: **a few seconds** after both boards boot. No button press required.
 
-```text
-Follower                         Leader
-   |  PairRequest (broadcast)  -->  |  accept (not paired yet)
-   |  <--  PairAck                |
-   |  save leader MAC             |  save follower MAC
-   |  linked                      |  linked
+```mermaid
+sequenceDiagram
+  participant F as Follower
+  participant L as Leader
+
+  F->>L: PairRequest
+  L->>F: PairAck
+  Note over F: save leader MAC
+  Note over L: save follower MAC
+  Note over F,L: ESP-NOW linked
 ```
+
+**Reset pairing (today):** dashboard (USB serial or Wi-Fi) or follower factory flash — see below. **Planned:** leader OLED menu **Pairing → Reset** ([oled_menu_refactor_plan.md](oled_menu_refactor_plan.md)).
 
 ## Without the HTML dashboard
 
@@ -60,6 +66,10 @@ Erases follower flash including pairing. Leader may still remember the old follo
 **Option D — Pairing timeout**
 
 If the leader loses contact with the paired follower for **45 s** (`kPairingTimeoutMs`), it **expires** pairing automatically and accepts a new `PairRequest`.
+
+**Option E — OLED menu (planned)**
+
+Leader menu **Pairing → Reset pairing** — confirm with **A**. Same as dashboard reset. See [oled_menu_refactor_plan.md](oled_menu_refactor_plan.md).
 
 ## Pairing a different follower
 
