@@ -7,14 +7,14 @@
 #include "leader/oled_menu/oled_menu_input.h"
 #include "leader/oled_menu/oled_menu_navigator.h"
 #include "leader/oled_menu/oled_menu_root_items.h"
-#include "oled_menu_teleop_items.h"
-#include "leader/oled_menu/oled_menu_screen_id.h"
+#include "leader/oled_menu/oled_menu_teleop_items.h"
 
 using soarm::OledListScrollModel;
 using soarm::OledMenuContext;
 using soarm::OledMenuInputEvent;
 using soarm::OledMenuNavigator;
 using soarm::OledMenuRenderOutput;
+using soarm::OledMenuTeleopItem;
 using soarm::OledMenuScreenId;
 using soarm::IOledMenuProfileActions;
 using soarm::OledMenuProfileSelection;

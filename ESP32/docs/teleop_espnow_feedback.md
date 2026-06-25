@@ -119,21 +119,20 @@ Reuse turbo; add **one new vertical slice**, no change to v2 position codec.
 
 ---
 
-## Wire format (draft v1)
+## Wire format (11 bytes)
 
-New `PresenceMessageType::TeleopLoadFeedback = 13` (name TBD).
+`PresenceMessageType::TeleopLoadFeedback = 13`
 
 ```text
 Offset  Field
-0       magic
-1       version = 1
+0       magic (0xA5)
+1       wireVersion = 1   — layout revision; bump only if this table changes
 2       messageType = 13
 3..4    requestId (uint16 LE) — matches applied mirror batch
-5       seq (uint8) — debug / loss detect
-6..11   load[6] (int8 or scaled uint8; bench STS Present Load range first)
+5..10   load[6] (uint8, 0..127 — STS raw / 8)
 ```
 
-Target **≤ 12 B** payload. Native tests: pack/unpack, clamp, seq gap detection.
+No `seq` field: loss detection uses `requestId` gaps and the OLED `fb` Hz metric. Native tests: pack/unpack, clamp.
 
 ---
 
@@ -312,11 +311,11 @@ If no `TeleopLoadFeedback` for `requestId` within e.g. **40 ms**, increment `fee
 
 ### 5.1
 
-- [ ] Menu activates feedback teleop; turbo downlink codec unchanged.
-- [ ] **Pipelined** `TeleopLoadSamplerTask` + apply sends `TeleopLoadFeedback` with cached loads (n−1 semantics).
-- [ ] OLED: 6 loads + **`fb:xxHz`** + emphasized gripper line.
-- [ ] Leader mirror loop **still** uses period delay, not blocking wait.
-- [ ] Native codec tests pass.
+- [x] Menu activates feedback teleop; turbo downlink codec unchanged.
+- [x] **Pipelined** `TeleopLoadSamplerTask` + apply sends `TeleopLoadFeedback` with cached loads (n−1 semantics).
+- [x] OLED: 6 loads + **`fb:xxHz`** + emphasized gripper line.
+- [x] Leader mirror loop **still** uses period delay, not blocking wait.
+- [x] Native codec tests pass.
 
 ### 5.2
 

@@ -283,7 +283,7 @@ private:
   LeaderServoPassthrough servoPassthrough_{};
   LeaderXboxControllerService xboxControllerService_{};
   uint32_t            lastFeedbackOledRefreshMs_{0U};
-  int8_t              teleopFeedbackLoads_[6]{};
+  uint8_t             teleopFeedbackLoads_[6]{};
   std::atomic<uint8_t> teleopFeedbackHzEwma_{0U};
   std::atomic<uint16_t> teleopFeedbackHzWindowCount_{0U};
   std::atomic<uint32_t> teleopFeedbackHzWindowStartMs_{0U};

@@ -33,15 +33,13 @@ void LeaderApp::pollTeleopLoadFeedback(uint32_t nowMs) {
     return;
   }
 
-  int8_t loads[6]{};
+  uint8_t loads[6]{};
   uint16_t requestId = 0U;
-  uint8_t seq = 0U;
   bool received = false;
-  while (presence->takeTeleopLoadFeedbackRx(loads, requestId, seq)) {
+  while (presence->takeTeleopLoadFeedbackRx(loads, requestId)) {
     memcpy(teleopFeedbackLoads_, loads, sizeof(teleopFeedbackLoads_));
     received = true;
     (void)requestId;
-    (void)seq;
   }
   if (!received) {
     return;

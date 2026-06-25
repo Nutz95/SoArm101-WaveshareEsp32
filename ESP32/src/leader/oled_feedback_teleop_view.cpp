@@ -4,7 +4,7 @@
 
 namespace soarm {
 
-void OledPresenter::showFeedbackTeleop(const int8_t loads[6], uint8_t feedbackHz, uint8_t mirrorLoopMs) {
+void OledPresenter::showFeedbackTeleop(const uint8_t loads[6], uint8_t feedbackHz, uint8_t mirrorLoopMs) {
   if (display_ == nullptr || loads == nullptr) {
     return;
   }

@@ -47,6 +47,7 @@ Root
 ├── Teleop
 │   ├── ESP-NOW       → mirror profile (legacy batch)
 │   ├── ESP-NOW Turbo → compact sparse frames + latency OLED
+│   ├── ESP-NOW Feedback → turbo downlink + load uplink OLED (fb Hz)
 │   ├── Wi-Fi         → soft-AP direct teleop
 │   ├── IK Teleop     → stub (“not implemented”)
 │   └── Back

@@ -17,7 +17,7 @@ void FollowerTeleopLoadSamplerTask::runLoop(FollowerApp &app) {
   vTaskDelay(pdMS_TO_TICKS(config::follower::kTeleopLoadSamplerPhaseOffsetMs));
 
   int16_t rawLoads[config::common::kTeleopBatchMaxServos]{};
-  int8_t wireLoads[config::common::kTeleopBatchMaxServos]{};
+  uint8_t wireLoads[config::common::kTeleopBatchMaxServos]{};
 
   while (true) {
     const uint32_t loopStartMs = millis();

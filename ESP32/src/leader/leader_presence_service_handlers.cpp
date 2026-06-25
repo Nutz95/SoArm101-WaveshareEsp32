@@ -132,14 +132,21 @@ void LeaderPresenceService::resetTurboTeleopSession() {
   turboEncodeSession_.reset();
 }
 
-bool LeaderPresenceService::takeTeleopLoadFeedbackRx(int8_t loads[6], uint16_t &requestId, uint8_t &seq) {
-  if (!pendingLoadFeedbackReady_ || loads == nullptr) {
+bool LeaderPresenceService::takeTeleopLoadFeedbackRx(uint8_t loads[6], uint16_t &requestId) {
+  if (loads == nullptr) {
     return false;
   }
+
+  portENTER_CRITICAL(&loadFeedbackMux_);
+  if (!pendingLoadFeedbackReady_) {
+    portEXIT_CRITICAL(&loadFeedbackMux_);
+    return false;
+  }
+
   memcpy(loads, pendingLoadFeedbackLoads_, sizeof(pendingLoadFeedbackLoads_));
   requestId = pendingLoadFeedbackRequestId_;
-  seq = pendingLoadFeedbackSeq_;
   pendingLoadFeedbackReady_ = false;
+  portEXIT_CRITICAL(&loadFeedbackMux_);
   return true;
 }
 
@@ -156,14 +163,16 @@ void LeaderPresenceService::handleTeleopLoadFeedbackFrame(
   }
 
   uint16_t requestId = 0U;
-  uint8_t seq = 0U;
-  if (!teleop_load_feedback::decodePacket(data, len, requestId, seq, pendingLoadFeedbackLoads_)) {
+  uint8_t decodedLoads[6]{};
+  if (!teleop_load_feedback::decodePacket(data, len, requestId, decodedLoads)) {
     return;
   }
 
+  portENTER_CRITICAL(&loadFeedbackMux_);
+  memcpy(pendingLoadFeedbackLoads_, decodedLoads, sizeof(pendingLoadFeedbackLoads_));
   pendingLoadFeedbackRequestId_ = requestId;
-  pendingLoadFeedbackSeq_ = seq;
   pendingLoadFeedbackReady_ = true;
+  portEXIT_CRITICAL(&loadFeedbackMux_);
 }
 
 void LeaderPresenceService::handleServoCommandAck(const uint8_t *mac, const PresencePacket &packet) {

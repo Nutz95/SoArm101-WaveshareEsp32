@@ -63,7 +63,7 @@ public:
   void resetTeleopTransportState();
   bool isTeleopLoadFeedbackUplinkEnabled() const;
   void setTeleopLoadFeedbackUplinkEnabled(bool enabled);
-  void sendTeleopLoadFeedback(uint16_t requestId, const int8_t loads[6]);
+  void sendTeleopLoadFeedback(uint16_t requestId, const uint8_t loads[6]);
 
 private:
   struct PendingServoControl {
@@ -161,7 +161,6 @@ private:
   uint32_t wifiDirectJoinSessionId_{0U};
   TeleopEspNowTurboSession turboDecodeSession_{};
   bool teleopLoadFeedbackUplinkEnabled_{false};
-  uint8_t teleopLoadFeedbackSeq_{0U};
 };
 
 } // namespace soarm

@@ -30,7 +30,7 @@ void FollowerApp::startBackgroundTasks() {
     const BaseType_t created = xTaskCreatePinnedToCore(
         &FollowerApp::teleopLoadSamplerTaskEntry,
         "teleop_load",
-        4096,
+        6144,
         this,
         1,
         &samplerHandle,

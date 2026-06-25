@@ -160,7 +160,7 @@ void FollowerApp::sendTeleopLoadFeedbackAfterApply(uint16_t requestId) {
     return;
   }
 
-  int8_t loads[config::common::kTeleopBatchMaxServos]{};
+  uint8_t loads[config::common::kTeleopBatchMaxServos]{};
   teleopLoadSnapshot_.copyLoads(loads);
   presence->sendTeleopLoadFeedback(requestId, loads);
 }
