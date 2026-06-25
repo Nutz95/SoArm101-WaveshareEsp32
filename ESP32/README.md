@@ -11,8 +11,15 @@ The current message flow, board responsibilities, and telemetry path are documen
 - [docs/architecture/README.md](docs/architecture/README.md)
 - [docs/architecture/message-flow.svg](docs/architecture/message-flow.svg)
 - [docs/teleop_performance.md](docs/teleop_performance.md) — teleop cadence, ESP-NOW vs Wi-Fi, LeRobot alignment
+- [docs/teleop_radio_fluency.md](docs/teleop_radio_fluency.md) — smooth motion across modes, radio state, transitions
 
 If you are changing command routing, pairing, or dashboard integration, read that architecture note first.
+
+Additional guides:
+
+- [docs/hardware.md](docs/hardware.md) — Waveshare boards, Xbox controller, follower board options
+- [docs/networking.md](docs/networking.md) — router optional vs OTA/dashboard, `SOARM_WIFI_*` at build time
+- [docs/calibration.md](docs/calibration.md) — joint min/max in NVS per arm
 
 ## PlatformIO Initialization
 

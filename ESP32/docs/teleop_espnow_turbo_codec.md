@@ -22,7 +22,7 @@ After reboot, teleop could stutter until cycling Xbox profiles once. Root causes
 2. Leader **servo discovery scan** blocking the bus while mirror starts.
 3. Classic ESP-NOW mirror reading a **stale telemetry snapshot** (turbo already used fast bus read).
 
-Fixes: **channel priming** at boot (STA up until router channel learned); **post–Wi-Fi Direct resync** (tear down soft-AP, reconnect home STA, refresh ESP-NOW peers before suspending STA again); fast bus read for all ESP-NOW mirror modes; no discovery scan while teleop armed.
+Fixes: **channel priming** at boot; **post–Wi-Fi Direct resync**; fast bus read; no discovery scan while teleop armed. Full radio/state narrative: [teleop_radio_fluency.md](teleop_radio_fluency.md).
 
 ## Architecture (SOLID)
 

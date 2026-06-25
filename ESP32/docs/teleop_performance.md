@@ -72,8 +72,7 @@ Both use the same 2.4 GHz radio. Mitigations in firmware:
 - Salon: teleop on ESP-NOW only; reduce unnecessary UDP teleop spam.
 - Wi-Fi teleop bench: fire-and-forget UDP, larger lwIP pbuf pools (`sdkconfig.defaults`).
 - Presence frames stay lower rate than teleop batches.
-
-Future work (not all implemented yet): explicit **medium arbiter** task, presence throttling during Wi-Fi teleop, optional “turbo” profile above 60 Hz.
+- **Channel priming** at boot and **post–Wi-Fi Direct resync** keep ESP-NOW on the router channel — see [teleop_radio_fluency.md](teleop_radio_fluency.md).
 
 ## Telemetry counters (dashboard)
 

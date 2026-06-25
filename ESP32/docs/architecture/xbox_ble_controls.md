@@ -32,12 +32,11 @@ Order when cycling with the Xbox **Mode** button (or dashboard `xbox_mode_cycle_
 | ---- | ------- | ------------------ |
 | 0 | CalibrationLeader | Preview only: `cal leader? press A` |
 | 1 | CalibrationFollower | Preview only: `cal follower? press A` |
-| 2 | TeleopEspNow | ESP-NOW teleop (~83 Hz, Wi-Fi `:9090` stream paused) |
-| 3 | TeleopEspNowTurbo | ESP-NOW turbo (~83 Hz, delta≥2, OLED `lat` line, dashboard telemetry 80 ms) |
-| 4 | TeleopWifi | UDP teleop via Wi-Fi direct |
-| 4 | Passthrough | USB servo bus passthrough — **A** = engage |
-| 5 | TeleopPcSerial | PC COM mirror (legacy) |
-| 6 | **OtaReady** | STA forced on — flash OTA from PC |
+| 2 | TeleopEspNow | ESP-NOW teleop (~83 Hz, Wi-Fi `:9090` stream paused when mirror active) |
+| 3 | TeleopEspNowTurbo | ESP-NOW turbo (~83 Hz, OLED `lat` / `dr`) |
+| 4 | TeleopWifi | Wi-Fi Direct + UDP teleop — **A** = link, **A** = mirror |
+| 5 | Passthrough | USB servo bus passthrough — **A** = engage |
+| 6 | OtaReady | STA on — flash OTA from PC |
 
 Important distinction:
 

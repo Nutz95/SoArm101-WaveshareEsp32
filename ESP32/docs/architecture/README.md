@@ -4,7 +4,7 @@ This document describes the current runtime architecture of the SoArm ESP32 firm
 
 ## Teleoperation performance
 
-For mirroring cadence, transport choice (ESP-NOW vs Wi-Fi UDP), LeRobot alignment, and salon checklist, see [teleop_performance.md](../teleop_performance.md).
+For mirroring cadence, transport choice (ESP-NOW vs Wi-Fi UDP), LeRobot alignment, salon checklist, radio fluency, and **router-less operation**, see [teleop_performance.md](../teleop_performance.md), [teleop_radio_fluency.md](../teleop_radio_fluency.md), and [networking.md](../networking.md).
 
 ## Communication links (diagrams)
 
