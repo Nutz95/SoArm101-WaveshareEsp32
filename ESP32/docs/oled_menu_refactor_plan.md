@@ -72,7 +72,7 @@ Extends **turbo** downlink with compact **load uplink** (6 servos; gripper ID 6 
 | Sub-phase | Deliverable |
 |-----------|-------------|
 | **5.1** | Menu leaf, codec, follower load `SyncRead`, piggyback UL, OLED + **fb Hz** |
-| **5.2** | Leader torque overlay, optional soft-wait, quasi–zero-G (bench) |
+| **5.2** | Leader gripper haptic overlay (bench tuning) — see [teleop_haptic_handoff.md](teleop_haptic_handoff.md) |
 
 Full spec + mermaid bus timelines: **[teleop_espnow_feedback.md](teleop_espnow_feedback.md)**
 

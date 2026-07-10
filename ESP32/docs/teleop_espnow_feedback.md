@@ -282,7 +282,7 @@ If no `TeleopLoadFeedback` for `requestId` within e.g. **40 ms**, increment `fee
 | 12 | Tunables in `leader_runtime_config.h` (`kTeleopHapticPeriodMs`, …) | done |
 | 13 | Salon fluency + no oscillation on release | bench on hardware |
 
-**Behaviour (MVP):** gripper-only haptic on the leader. Joints 1–5 stay torque-off (mirror-friendly). Leader gripper torque engages **only** when follower `GRIP` wire load ≥ `kTeleopHapticGripperEngageMinWireLoad` and the operator is not moving the gripper. Otherwise torque stays off — no ghost hold / progressive open. Tune limits in `teleop_haptic_mapper.h`.
+**Behaviour (current bench — see [teleop_haptic_handoff.md](teleop_haptic_handoff.md)):** gripper-only haptic on the leader. Contact detection uses **firm follower load + leader/follower position gap + engage streak**; position sync only when load ≥ `kTeleopHapticPositionSyncMinWireLoad`. Joints 1–5 stay torque-off. Tune limits in `leader_runtime_config.h`, `teleop_haptic_mapper.h`, and `teleop_haptic_contact.*`.
 
 ---
 
@@ -334,4 +334,4 @@ If no `TeleopLoadFeedback` for `requestId` within e.g. **40 ms**, increment `fee
 
 - [teleop_espnow_turbo_codec.md](teleop_espnow_turbo_codec.md) — turbo v2 downlink
 - [teleop_radio_fluency.md](teleop_radio_fluency.md) — radio checklist
-- [oled_menu.md](oled_menu.md) — menu entry for feedback mode
+- [teleop_haptic_handoff.md](teleop_haptic_handoff.md) — **resume guide** for Phase 5.2 haptic bench (status, tunables, open issues)

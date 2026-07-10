@@ -29,6 +29,7 @@ Use it when implementing changes to avoid broad code searches.
 ## ESP-NOW feedback teleop (planned)
 
 - `docs/teleop_espnow_feedback.md` — turbo + load uplink, OLED torque display, leader haptic.
+- `docs/teleop_haptic_handoff.md` — Phase 5.2 haptic resume guide (bench status, tunables, open issues).
 
 ## Leader Firmware
 
