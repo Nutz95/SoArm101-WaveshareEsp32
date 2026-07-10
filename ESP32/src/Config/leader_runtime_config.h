@@ -52,9 +52,13 @@ constexpr uint8_t kTeleopHapticGripperSlotIndex = 5U;
 constexpr uint32_t kTeleopHapticPeriodMs = 32U;
 constexpr int16_t kTeleopHapticGripperMoveDelta = 6;
 /// Follower grip wire load must exceed this before leader gripper torque engages.
-constexpr uint8_t kTeleopHapticGripperEngageMinWireLoad = 10U;
+constexpr uint8_t kTeleopHapticGripperEngageMinWireLoad = 12U;
+/// Release haptic when smoothed grip load falls below this (hysteresis).
+constexpr uint8_t kTeleopHapticGripperDisengageMaxWireLoad = 4U;
 /// Saturated wire values (127) are usually motion spikes — do not engage haptic on them.
 constexpr uint8_t kTeleopHapticGripperEngageMaxWireLoad = 110U;
+constexpr uint32_t kTeleopHapticEngageHoldMs = 64U;
+constexpr uint32_t kTeleopHapticDisengageHoldMs = 400U;
 
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
 constexpr uint8_t kFollowerCommandMaxRetries = 6U;

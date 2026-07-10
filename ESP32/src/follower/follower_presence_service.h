@@ -63,7 +63,7 @@ public:
   void resetTeleopTransportState();
   bool isTeleopLoadFeedbackUplinkEnabled() const;
   void setTeleopLoadFeedbackUplinkEnabled(bool enabled);
-  void sendTeleopLoadFeedback(uint16_t requestId, const uint8_t loads[6]);
+  void sendTeleopLoadFeedback(uint16_t requestId, const uint8_t loads[6], uint16_t gripperPresentPos);
 
 private:
   struct PendingServoControl {

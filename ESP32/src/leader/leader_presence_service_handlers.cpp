@@ -132,7 +132,10 @@ void LeaderPresenceService::resetTurboTeleopSession() {
   turboEncodeSession_.reset();
 }
 
-bool LeaderPresenceService::takeTeleopLoadFeedbackRx(uint8_t loads[6], uint16_t &requestId) {
+bool LeaderPresenceService::takeTeleopLoadFeedbackRx(
+    uint8_t loads[6],
+    uint16_t &requestId,
+    uint16_t &gripperPresentPos) {
   if (loads == nullptr) {
     return false;
   }
@@ -145,6 +148,7 @@ bool LeaderPresenceService::takeTeleopLoadFeedbackRx(uint8_t loads[6], uint16_t 
 
   memcpy(loads, pendingLoadFeedbackLoads_, sizeof(pendingLoadFeedbackLoads_));
   requestId = pendingLoadFeedbackRequestId_;
+  gripperPresentPos = pendingLoadFeedbackGripperPos_;
   pendingLoadFeedbackReady_ = false;
   portEXIT_CRITICAL(&loadFeedbackMux_);
   return true;
@@ -164,13 +168,15 @@ void LeaderPresenceService::handleTeleopLoadFeedbackFrame(
 
   uint16_t requestId = 0U;
   uint8_t decodedLoads[6]{};
-  if (!teleop_load_feedback::decodePacket(data, len, requestId, decodedLoads)) {
+  uint16_t gripperPresentPos = 0U;
+  if (!teleop_load_feedback::decodePacket(data, len, requestId, decodedLoads, gripperPresentPos)) {
     return;
   }
 
   portENTER_CRITICAL(&loadFeedbackMux_);
   memcpy(pendingLoadFeedbackLoads_, decodedLoads, sizeof(pendingLoadFeedbackLoads_));
   pendingLoadFeedbackRequestId_ = requestId;
+  pendingLoadFeedbackGripperPos_ = gripperPresentPos;
   pendingLoadFeedbackReady_ = true;
   portEXIT_CRITICAL(&loadFeedbackMux_);
 }

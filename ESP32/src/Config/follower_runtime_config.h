@@ -17,8 +17,12 @@ constexpr uint32_t kPairRequestIntervalTeleopMs = 30000U;
 constexpr uint32_t kTeleopWifiDrainMaxBatchesPerTick = 16U;
 constexpr uint32_t kTeleopLoadSamplerPeriodMs = config::common::kTeleopTurboControlPeriodMs;
 constexpr uint32_t kTeleopLoadSamplerPhaseOffsetMs = 5U;
-/// Present load is only trusted when |present speed| is below this (STS units).
+/// Autonomous load-feedback UL requestId sequence (decoupled from mirror batch ids).
+constexpr uint16_t kTeleopLoadFeedbackSeqBase = 50000U;
+/// Present load is only trusted when |present speed| is below this (STS units, arm joints).
 constexpr int16_t kTeleopLoadSampleMaxAbsSpeed = 80;
+/// Gripper: ignore MOVING bit; only discard load during fast chase (higher threshold).
+constexpr int16_t kTeleopLoadGripperMaxAbsSpeed = 220;
 constexpr uint32_t kTeleopApplyTaskPeriodMs = config::common::kTeleopControlPeriodMs;
 constexpr uint32_t kTeleopTurboApplyTaskPeriodMs = config::common::kTeleopTurboControlPeriodMs;
 constexpr uint32_t kTeleopApplyTaskIdleDelayMs = 1U;

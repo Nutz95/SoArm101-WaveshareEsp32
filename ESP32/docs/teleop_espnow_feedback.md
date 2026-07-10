@@ -39,15 +39,16 @@ The earlier **25–50 Hz** band was a **pessimistic** worst-case for “leader w
 | **A. Strict ping-pong** (leader blocks on UL) | RTT-bound (~50–80 Hz typical, worse with coexistence) | = mirror | ~1 RTT (~12–24 ms) | Medium | 5.2 haptic experiments |
 | **B. Async mirror + sporadic UL** | **~83 Hz** | variable | stale | Low | not recommended |
 | **C. Serial piggyback** (write → read → UL in apply task) | **~83 Hz** | **≤ ~50–70 Hz** if B+C+UL > 12 ms | ~1 apply after write | Low | simple fallback |
-| **D. Pipelined sampler (n−1)** | **~83 Hz** | **~83 Hz** target | **~1–2 cycles (~12–24 ms)** — acceptable | Medium | **Recommended 5.1** |
+| **D. Pipelined sampler + autonomous UL** | **~83 Hz** | **~80 Hz** (DL idle OK) | **~12 ms** | Medium | **Recommended 5.1+** |
 
 ### Recommendation (KISS / YAGNI) — pattern **D**
 
-1. **Phase 5.1 — pipelined load sampler + piggyback UL (pattern D), not strict ping-pong.**  
-   - Leader mirror task stays **periodic** (`kTeleopTurboControlPeriodMs`, 12 ms) — **never** block the loop on UL.  
-   - Follower **apply task**: on mirror RX → `SyncWrite` only → immediately TX **`TeleopLoadFeedback`** carrying **`loads` from the previous sampler snapshot** (semantic **n−1** relative to the applied position **n**).  
-   - Follower **`TeleopLoadSamplerTask`** (background): every ~12 ms, **phase-offset** (~4–6 ms after apply window), acquire bus lock → **`syncRead` Present Load ×6** → publish atomic `FollowerLoadSnapshot`.  
-   - Correlation: UL `requestId` = applied mirror **n**; payload loads ≈ state after apply **n−1** (+ sampler offset). One cycle of force lag is **imperceptible** for display/haptic preview; it **decouples** UL latency from post-write load read.
+1. **Phase 5.1 — pipelined load sampler + autonomous UL (pattern D).**  
+   - Leader mirror task stays **periodic** (`kTeleopTurboControlPeriodMs`, 12 ms) — **never** block the loop on UL. Turbo downlink stays **sparse/adaptive** when the leader moves.  
+   - Follower **apply task**: on mirror RX → `SyncWrite` only (no load UL piggyback).  
+   - Follower **`TeleopLoadSamplerTask`** (~12 ms, phase-offset): `syncRead` present load (motion-filtered) → **ESP-NOW TX `TeleopLoadFeedback` directly** (~80 Hz), decoupled from mirror DL.  
+   - `requestId` on load UL uses a follower-local sequence (`≥ 50000`), not the mirror batch id.  
+   - Snapshot cache remains for diagnostics; haptic/OLED consume the autonomous UL stream.
 
 2. **Phase 5.2 — optional soft sync for haptic.**  
    Short non-blocking wait (2–3 ms) for UL matching last `requestId`; on timeout, reuse EMA loads. Full strict ping-pong (A) remains opt-in for gripper-only tuning.
@@ -119,17 +120,18 @@ Reuse turbo; add **one new vertical slice**, no change to v2 position codec.
 
 ---
 
-## Wire format (11 bytes)
+## Wire format (13 bytes)
 
 `PresenceMessageType::TeleopLoadFeedback = 13`
 
 ```text
 Offset  Field
 0       magic (0xA5)
-1       wireVersion = 1   — layout revision; bump only if this table changes
+1       wireVersion = 1
 2       messageType = 13
-3..4    requestId (uint16 LE) — matches applied mirror batch
+3..4    requestId (uint16 LE) — autonomous UL sequence (≥50000)
 5..10   load[6] (uint8, 0..127 — STS |Present Load| / 8, motion-filtered on follower)
+11..12  gripperPresentPos (uint16 LE) — follower J6 STS present position for haptic sync
 ```
 
 Follower load sampler reads speed + load + moving in one sync block. Load is **zeroed** when `MOVING≠0` or `|speed|>80` so mirror chase spikes are not uplinked. STS load sign uses **bit 10** (per SCServo `ReadLoad`), not bit 15.
@@ -314,7 +316,7 @@ If no `TeleopLoadFeedback` for `requestId` within e.g. **40 ms**, increment `fee
 ### 5.1
 
 - [x] Menu activates feedback teleop; turbo downlink codec unchanged.
-- [x] **Pipelined** `TeleopLoadSamplerTask` + apply sends `TeleopLoadFeedback` with cached loads (n−1 semantics).
+- [x] **Pipelined** `TeleopLoadSamplerTask` + **autonomous** `TeleopLoadFeedback` UL (~80 Hz, decoupled from turbo DL).
 - [x] OLED: 6 loads + **`fb:xxHz`** + emphasized gripper line.
 - [x] Leader mirror loop **still** uses period delay, not blocking wait.
 - [x] Native codec tests pass.

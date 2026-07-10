@@ -149,7 +149,10 @@ void FollowerPresenceService::sendLinkHeartbeat(const char *localIp) {
   esp_now_send(pairedLeaderMac_, reinterpret_cast<const uint8_t *>(&packet), sizeof(packet));
 }
 
-void FollowerPresenceService::sendTeleopLoadFeedback(uint16_t requestId, const uint8_t loads[6]) {
+void FollowerPresenceService::sendTeleopLoadFeedback(
+    uint16_t requestId,
+    const uint8_t loads[6],
+    uint16_t gripperPresentPos) {
   if (!teleopLoadFeedbackUplinkEnabled_ || !hasPairedLeaderMac_ || loads == nullptr) {
     return;
   }
@@ -159,7 +162,8 @@ void FollowerPresenceService::sendTeleopLoadFeedback(uint16_t requestId, const u
 
   uint8_t buffer[teleop_load_feedback::kLoadFeedbackWireSize]{};
   size_t outLen = 0U;
-  if (!teleop_load_feedback::encodePacket(requestId, loads, buffer, sizeof(buffer), outLen)) {
+  if (!teleop_load_feedback::encodePacket(
+          requestId, loads, gripperPresentPos, buffer, sizeof(buffer), outLen)) {
     return;
   }
 

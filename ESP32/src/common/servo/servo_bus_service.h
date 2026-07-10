@@ -27,7 +27,8 @@ public:
   uint8_t refreshKnownTelemetryFast();
   uint8_t refreshKnownTelemetrySync();
   /// Batched sync read of STS present load for known servo IDs (slots 1..maxSlots by ID).
-  uint8_t syncReadPresentLoad(int16_t *loadsOut, uint8_t maxSlots);
+  /// When non-null, gripperPresentPosOut receives J6 present position from the same block.
+  uint8_t syncReadPresentLoad(int16_t *loadsOut, uint8_t maxSlots, int16_t *gripperPresentPosOut);
   bool copyPositionSnapshot(ServoPositionSnapshot &out) const;
   bool moveBatch(const uint8_t *ids, const int16_t *positions, uint8_t count, uint16_t speed);
   bool moveBatch(

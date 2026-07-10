@@ -265,8 +265,12 @@ CommandAckStatus FollowerApp::handleTeleopLoadFeedbackUplink(uint32_t value) {
 
   const bool enable = value != 0U;
   presence->setTeleopLoadFeedbackUplinkEnabled(enable);
-  if (!enable) {
+  if (enable) {
+    teleopLoadFeedbackSeq_ = config::follower::kTeleopLoadFeedbackSeqBase;
+    gripperLoadBaselineWire_ = 0U;
+  } else {
     teleopLoadSnapshot_.invalidate();
+    gripperLoadBaselineWire_ = 0U;
   }
   Serial.printf("[TELEOP] load feedback uplink %s\n", enable ? "on" : "off");
   return CommandAckStatus::Applied;

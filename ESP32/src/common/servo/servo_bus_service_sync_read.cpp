@@ -53,9 +53,15 @@ void flushSerialRx(HardwareSerial *serial) {
   }
 }
 
-uint8_t readLoadsSync(SMS_STS &driver, const uint8_t *ids, uint8_t knownCount, int16_t *loadsOut, uint8_t maxSlots) {
-  constexpr uint8_t kLoadBlockStart = SMS_STS_PRESENT_SPEED_L;
-  constexpr uint8_t kLoadBlockLen = static_cast<uint8_t>(SMS_STS_MOVING - SMS_STS_PRESENT_SPEED_L + 1U);
+uint8_t readLoadsSync(
+    SMS_STS &driver,
+    const uint8_t *ids,
+    uint8_t knownCount,
+    int16_t *loadsOut,
+    uint8_t maxSlots,
+    int16_t *gripperPresentPosOut) {
+  constexpr uint8_t kLoadBlockLen =
+      static_cast<uint8_t>(SMS_STS_MOVING - SMS_STS_PRESENT_POSITION_L + 1U);
 
   uint8_t availableCount = 0U;
   for (uint8_t i = 0U; i < knownCount; ++i) {
@@ -69,6 +75,7 @@ uint8_t readLoadsSync(SMS_STS &driver, const uint8_t *ids, uint8_t knownCount, i
       continue;
     }
 
+    const int position = driver.syncReadRxPacketToWrod(15);
     const int speed = driver.syncReadRxPacketToWrod(15);
     const int loadSigned = driver.syncReadRxPacketToWrod(10);
     (void)driver.syncReadRxPacketToByte();
@@ -76,7 +83,7 @@ uint8_t readLoadsSync(SMS_STS &driver, const uint8_t *ids, uint8_t knownCount, i
     (void)driver.syncReadRxPacketToByte();
     (void)driver.syncReadRxPacketToByte();
     const int moving = driver.syncReadRxPacketToByte();
-    if (speed < 0 || loadSigned < 0 || moving < 0) {
+    if (position < 0 || speed < 0 || loadSigned < 0 || moving < 0) {
       continue;
     }
 
@@ -90,11 +97,20 @@ uint8_t readLoadsSync(SMS_STS &driver, const uint8_t *ids, uint8_t knownCount, i
       absSpeed = -absSpeed;
     }
 
-    if (moving != 0 || absSpeed > config::follower::kTeleopLoadSampleMaxAbsSpeed) {
+    const bool isGripper = id == config::common::kTeleopGripperServoId;
+    const int16_t maxAbsSpeed =
+        isGripper ? config::follower::kTeleopLoadGripperMaxAbsSpeed
+                  : config::follower::kTeleopLoadSampleMaxAbsSpeed;
+    const bool motionSpike =
+        isGripper ? (absSpeed > maxAbsSpeed) : (moving != 0 || absSpeed > maxAbsSpeed);
+    if (motionSpike) {
       loadMag = 0;
     }
 
     loadsOut[id - 1U] = static_cast<int16_t>(loadMag > 32767 ? 32767 : loadMag);
+    if (isGripper && gripperPresentPosOut != nullptr) {
+      *gripperPresentPosOut = static_cast<int16_t>(position);
+    }
     ++availableCount;
   }
   return availableCount;
@@ -192,7 +208,10 @@ uint8_t ServoBusService::refreshKnownTelemetrySync() {
   return lastScanCount_;
 }
 
-uint8_t ServoBusService::syncReadPresentLoad(int16_t *loadsOut, uint8_t maxSlots) {
+uint8_t ServoBusService::syncReadPresentLoad(
+    int16_t *loadsOut,
+    uint8_t maxSlots,
+    int16_t *gripperPresentPosOut) {
   if (!started_ || serial_ == nullptr || loadsOut == nullptr || maxSlots == 0U) {
     setSummary("load read not ready");
     return 0U;
@@ -223,10 +242,11 @@ uint8_t ServoBusService::syncReadPresentLoad(int16_t *loadsOut, uint8_t maxSlots
 
   flushSerialRx(serial_);
 
+  constexpr uint8_t kLoadBlockStart = SMS_STS_PRESENT_POSITION_L;
   constexpr uint8_t kLoadBlockLen =
-      static_cast<uint8_t>(SMS_STS_MOVING - SMS_STS_PRESENT_SPEED_L + 1U);
+      static_cast<uint8_t>(SMS_STS_MOVING - SMS_STS_PRESENT_POSITION_L + 1U);
 
-  if (driver.syncReadPacketTx(ids, knownCount, SMS_STS_PRESENT_SPEED_L, kLoadBlockLen) !=
+  if (driver.syncReadPacketTx(ids, knownCount, kLoadBlockStart, kLoadBlockLen) !=
       static_cast<int>(kLoadBlockLen)) {
     setSummary("load read tx fail");
     return 0U;
@@ -234,7 +254,8 @@ uint8_t ServoBusService::syncReadPresentLoad(int16_t *loadsOut, uint8_t maxSlots
 
   serial_->flush();
 
-  const uint8_t availableCount = readLoadsSync(driver, ids, knownCount, loadsOut, maxSlots);
+  const uint8_t availableCount =
+      readLoadsSync(driver, ids, knownCount, loadsOut, maxSlots, gripperPresentPosOut);
   if (availableCount == 0U) {
     setSummary("load read empty");
     return 0U;

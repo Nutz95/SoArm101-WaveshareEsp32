@@ -287,10 +287,15 @@ private:
   uint32_t            lastFeedbackOledRefreshMs_{0U};
   uint8_t             teleopFeedbackLoads_[6]{};
   uint8_t             teleopFeedbackLoadsEwma_[6]{};
+  int16_t             teleopFeedbackGripperPresentPos_{0};
+  bool                teleopFeedbackGripperPresentPosValid_{false};
   int16_t             teleopHapticLastPosition_[6]{};
   bool                teleopHapticHasLastPosition_[6]{};
   bool                teleopHapticGripperEngaged_{false};
   bool                teleopHapticBusPrimed_{false};
+  uint8_t             teleopHapticGripperLoadEwma_{0U};
+  uint32_t            teleopHapticEngageCandidateMs_{0U};
+  uint32_t            teleopHapticDisengageCandidateMs_{0U};
   uint32_t            lastTeleopHapticMs_{0U};
   std::atomic<uint8_t> teleopFeedbackHzEwma_{0U};
   std::atomic<uint16_t> teleopFeedbackHzWindowCount_{0U};

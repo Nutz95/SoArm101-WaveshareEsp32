@@ -144,9 +144,6 @@ bool FollowerApp::applyTeleopBatch(
     presenceService_->stageTeleopBatchAck(
         requestId,
         static_cast<uint8_t>(ok ? CommandAckStatus::Applied : CommandAckStatus::Failed));
-    if (ok) {
-      sendTeleopLoadFeedbackAfterApply(requestId);
-    }
     return ok;
   }
 
@@ -154,15 +151,20 @@ bool FollowerApp::applyTeleopBatch(
       mutableIds, mutablePositions, count, speedPercent, requestId, flags);
 }
 
-void FollowerApp::sendTeleopLoadFeedbackAfterApply(uint16_t requestId) {
+void FollowerApp::sendTeleopLoadFeedbackFromSampler(
+    const uint8_t wireLoads[6],
+    uint16_t gripperPresentPos) {
   auto *presence = static_cast<FollowerPresenceService *>(presenceService_.get());
-  if (presence == nullptr || !presence->isTeleopLoadFeedbackUplinkEnabled()) {
+  if (presence == nullptr || !presence->isTeleopLoadFeedbackUplinkEnabled() || wireLoads == nullptr) {
     return;
   }
 
-  uint8_t loads[config::common::kTeleopBatchMaxServos]{};
-  teleopLoadSnapshot_.copyLoads(loads);
-  presence->sendTeleopLoadFeedback(requestId, loads);
+  teleopLoadFeedbackSeq_ = static_cast<uint16_t>(teleopLoadFeedbackSeq_ + 1U);
+  if (teleopLoadFeedbackSeq_ < config::follower::kTeleopLoadFeedbackSeqBase) {
+    teleopLoadFeedbackSeq_ = config::follower::kTeleopLoadFeedbackSeqBase;
+  }
+
+  presence->sendTeleopLoadFeedback(teleopLoadFeedbackSeq_, wireLoads, gripperPresentPos);
 }
 
 } // namespace soarm

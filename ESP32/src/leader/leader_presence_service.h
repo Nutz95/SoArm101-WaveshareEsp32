@@ -63,7 +63,7 @@ public:
   void clearFollowerWifiDirectState();
   /// Clears turbo sparse session state; call when mirror teleop starts (Xbox A).
   void resetTurboTeleopSession();
-  bool takeTeleopLoadFeedbackRx(uint8_t loads[6], uint16_t &requestId);
+  bool takeTeleopLoadFeedbackRx(uint8_t loads[6], uint16_t &requestId, uint16_t &gripperPresentPos);
   uint32_t teleopLoadFeedbackTimeoutCount() const;
 
 private:
@@ -121,6 +121,7 @@ private:
   mutable portMUX_TYPE loadFeedbackMux_ = portMUX_INITIALIZER_UNLOCKED;
   uint8_t pendingLoadFeedbackLoads_[6]{};
   uint16_t pendingLoadFeedbackRequestId_{0U};
+  uint16_t pendingLoadFeedbackGripperPos_{0U};
   bool pendingLoadFeedbackReady_{false};
   uint32_t teleopLoadFeedbackTimeoutCount_{0U};
 };

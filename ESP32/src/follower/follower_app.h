@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Config/follower_runtime_config.h"
 #include "../common/app_state_machine.h"
 #include "../common/command/command_ack_status.h"
 #include "../common/interfaces/i_follower_presence_service.h"
@@ -43,7 +44,7 @@ private:
   void startBackgroundTasks();
   static void teleopApplyTaskEntry(void *context);
   static void teleopLoadSamplerTaskEntry(void *context);
-  void sendTeleopLoadFeedbackAfterApply(uint16_t requestId);
+  void sendTeleopLoadFeedbackFromSampler(const uint8_t wireLoads[6], uint16_t gripperPresentPos);
 
   bool ensureTeleopServosReady(const uint8_t *ids, uint8_t count);
   bool applyOneTeleopWifiBatch(
@@ -93,6 +94,8 @@ private:
   TaskHandle_t        teleopApplyTaskHandle_{nullptr};
   TaskHandle_t        teleopLoadSamplerTaskHandle_{nullptr};
   FollowerTeleopLoadSnapshot teleopLoadSnapshot_{};
+  uint16_t teleopLoadFeedbackSeq_{config::follower::kTeleopLoadFeedbackSeqBase};
+  uint8_t gripperLoadBaselineWire_{0U};
 };
 
 } // namespace soarm

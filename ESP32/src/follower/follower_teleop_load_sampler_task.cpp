@@ -23,13 +23,20 @@ void FollowerTeleopLoadSamplerTask::runLoop(FollowerApp &app) {
     const uint32_t loopStartMs = millis();
     auto *presence = static_cast<FollowerPresenceService *>(app.presenceService_.get());
     if (presence != nullptr && presence->isTeleopLoadFeedbackUplinkEnabled()) {
-      const uint8_t readCount =
-          app.servoBusService_.syncReadPresentLoad(rawLoads, config::common::kTeleopBatchMaxServos);
+      int16_t gripperPresentPos = 0;
+      const uint8_t readCount = app.servoBusService_.syncReadPresentLoad(
+          rawLoads,
+          config::common::kTeleopBatchMaxServos,
+          &gripperPresentPos);
       if (readCount > 0U) {
         for (uint8_t i = 0U; i < config::common::kTeleopBatchMaxServos; ++i) {
           wireLoads[i] = teleop_load_feedback::encodeLoadWire(rawLoads[i]);
         }
+        wireLoads[config::common::kTeleopGripperSlotIndex] = teleop_load_feedback::netGripperLoadWire(
+            wireLoads[config::common::kTeleopGripperSlotIndex],
+            app.gripperLoadBaselineWire_);
         app.teleopLoadSnapshot_.publish(wireLoads, loopStartMs);
+        app.sendTeleopLoadFeedbackFromSampler(wireLoads, static_cast<uint16_t>(gripperPresentPos));
       } else {
         app.teleopLoadSnapshot_.noteSamplerSkip();
       }
