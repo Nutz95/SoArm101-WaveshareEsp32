@@ -129,10 +129,10 @@ Offset  Field
 1       wireVersion = 1   — layout revision; bump only if this table changes
 2       messageType = 13
 3..4    requestId (uint16 LE) — matches applied mirror batch
-5..10   load[6] (uint8, 0..127 — STS raw / 8)
+5..10   load[6] (uint8, 0..127 — STS |Present Load| / 8, motion-filtered on follower)
 ```
 
-No `seq` field: loss detection uses `requestId` gaps and the OLED `fb` Hz metric. Native tests: pack/unpack, clamp.
+Follower load sampler reads speed + load + moving in one sync block. Load is **zeroed** when `MOVING≠0` or `|speed|>80` so mirror chase spikes are not uplinked. STS load sign uses **bit 10** (per SCServo `ReadLoad`), not bit 15.
 
 ---
 
@@ -272,13 +272,15 @@ If no `TeleopLoadFeedback` for `requestId` within e.g. **40 ms**, increment `fee
 
 ### 5.2 — Leader haptic / quasi–zero-G
 
-| Step | Task |
-|------|------|
-| 9 | Map `loads[6]` → leader torque/current targets (gripper first) |
-| 10 | `IFeedbackCadencePolicy`: optional 2–3 ms soft wait for matching `requestId` |
-| 11 | Release-detection: hold pose when leader velocity below threshold |
-| 12 | Tunables in `leader_runtime_config.h` / NVS later if needed |
-| 13 | Salon fluency + no oscillation on release |
+| Step | Task | Status |
+|------|------|--------|
+| 9 | Map `loads[6]` → leader `TORQUE_LIMIT` (gripper gain 3/2) | done |
+| 10 | Optional soft-wait for matching `requestId` | deferred |
+| 11 | Release-detection: torque off when leader joint moves (`delta ≥ 3`) | done |
+| 12 | Tunables in `leader_runtime_config.h` (`kTeleopHapticPeriodMs`, …) | done |
+| 13 | Salon fluency + no oscillation on release | bench on hardware |
+
+**Behaviour (MVP):** gripper-only haptic on the leader. Joints 1–5 stay torque-off (mirror-friendly). Leader gripper torque engages **only** when follower `GRIP` wire load ≥ `kTeleopHapticGripperEngageMinWireLoad` and the operator is not moving the gripper. Otherwise torque stays off — no ghost hold / progressive open. Tune limits in `teleop_haptic_mapper.h`.
 
 ---
 
@@ -319,8 +321,10 @@ If no `TeleopLoadFeedback` for `requestId` within e.g. **40 ms**, increment `fee
 
 ### 5.2
 
-- [ ] Gripper haptic perceptible; quasi–zero-G best-effort documented.
+- [x] Gripper-weighted torque overlay on leader (`teleop_haptic_mapper`, `applyTeleopHapticOverlay`).
+- [x] Leader motion releases torque per joint (mirror-friendly).
 - [ ] Optional soft-wait policy behind config flag.
+- [ ] Quasi–zero-G feel validated on hardware (tune limits).
 
 ---
 
