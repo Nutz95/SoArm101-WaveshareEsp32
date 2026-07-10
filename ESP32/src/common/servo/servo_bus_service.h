@@ -42,6 +42,13 @@ public:
   bool setServoMode(uint8_t id, uint8_t mode);
   bool setTorqueEnabled(uint8_t id, bool enabled);
   bool setTorqueEnabledForDetectedServos(bool enabled);
+  /// Per-joint compliance hold for teleop haptic overlay (torque limit + goal = present).
+  bool applyTeleopHapticFrame(
+      const uint8_t *ids,
+      const int16_t *positions,
+      const uint16_t *torqueLimits,
+      const bool *releaseTorque,
+      uint8_t count);
   bool calibrateOffsetsForDetectedServos();
   void setDebugManual(bool enabled);
   bool isDebugManual() const;

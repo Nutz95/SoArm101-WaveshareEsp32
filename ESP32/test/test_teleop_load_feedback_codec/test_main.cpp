@@ -7,9 +7,11 @@ using namespace soarm;
 using namespace soarm::teleop_load_feedback;
 
 void test_encode_load_wire_clamps() {
-  TEST_ASSERT_EQUAL_UINT8(0U, encodeLoadWire(-10));
+  TEST_ASSERT_EQUAL_UINT8(0U, encodeLoadWire(-4));
+  TEST_ASSERT_EQUAL_UINT8(0U, encodeLoadWire(4));
   TEST_ASSERT_EQUAL_UINT8(127U, encodeLoadWire(2000));
   TEST_ASSERT_EQUAL_UINT8(62U, encodeLoadWire(500));
+  TEST_ASSERT_EQUAL_UINT8(62U, encodeLoadWire(-500));
 }
 
 void test_load_feedback_round_trip() {

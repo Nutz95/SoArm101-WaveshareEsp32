@@ -46,6 +46,16 @@ constexpr uint32_t kTelemetrySnapshotTeleopPeriodMs = 10U;
 constexpr uint32_t kTelemetrySnapshotIdlePeriodMs = 100U;
 constexpr uint32_t kTurboOledStatusPeriodMs = 1000U;
 
+// Leader haptic overlay — gripper only (phase 5.2 bench).
+constexpr uint8_t kTeleopHapticGripperServoId = 6U;
+constexpr uint8_t kTeleopHapticGripperSlotIndex = 5U;
+constexpr uint32_t kTeleopHapticPeriodMs = 32U;
+constexpr int16_t kTeleopHapticGripperMoveDelta = 6;
+/// Follower grip wire load must exceed this before leader gripper torque engages.
+constexpr uint8_t kTeleopHapticGripperEngageMinWireLoad = 10U;
+/// Saturated wire values (127) are usually motion spikes — do not engage haptic on them.
+constexpr uint8_t kTeleopHapticGripperEngageMaxWireLoad = 110U;
+
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
 constexpr uint8_t kFollowerCommandMaxRetries = 6U;
 constexpr uint32_t kFollowerRetryIntervalMs = 200U;

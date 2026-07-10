@@ -17,6 +17,8 @@ constexpr uint32_t kPairRequestIntervalTeleopMs = 30000U;
 constexpr uint32_t kTeleopWifiDrainMaxBatchesPerTick = 16U;
 constexpr uint32_t kTeleopLoadSamplerPeriodMs = config::common::kTeleopTurboControlPeriodMs;
 constexpr uint32_t kTeleopLoadSamplerPhaseOffsetMs = 5U;
+/// Present load is only trusted when |present speed| is below this (STS units).
+constexpr int16_t kTeleopLoadSampleMaxAbsSpeed = 80;
 constexpr uint32_t kTeleopApplyTaskPeriodMs = config::common::kTeleopControlPeriodMs;
 constexpr uint32_t kTeleopTurboApplyTaskPeriodMs = config::common::kTeleopTurboControlPeriodMs;
 constexpr uint32_t kTeleopApplyTaskIdleDelayMs = 1U;

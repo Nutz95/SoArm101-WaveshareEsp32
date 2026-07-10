@@ -176,6 +176,8 @@ private:
   void renderStatusLeds();
   void updateTurboOledStatus(uint32_t nowMs);
   void pollTeleopLoadFeedback(uint32_t nowMs);
+  void applyTeleopHapticOverlay(uint32_t nowMs);
+  void resetTeleopHapticOverlay();
 
   // Telemetry / display extracted from tick()
   void buildTelemetrySnapshot(LeaderTelemetrySnapshot &snapshot, uint32_t uptimeMs);
@@ -284,6 +286,12 @@ private:
   LeaderXboxControllerService xboxControllerService_{};
   uint32_t            lastFeedbackOledRefreshMs_{0U};
   uint8_t             teleopFeedbackLoads_[6]{};
+  uint8_t             teleopFeedbackLoadsEwma_[6]{};
+  int16_t             teleopHapticLastPosition_[6]{};
+  bool                teleopHapticHasLastPosition_[6]{};
+  bool                teleopHapticGripperEngaged_{false};
+  bool                teleopHapticBusPrimed_{false};
+  uint32_t            lastTeleopHapticMs_{0U};
   std::atomic<uint8_t> teleopFeedbackHzEwma_{0U};
   std::atomic<uint16_t> teleopFeedbackHzWindowCount_{0U};
   std::atomic<uint32_t> teleopFeedbackHzWindowStartMs_{0U};

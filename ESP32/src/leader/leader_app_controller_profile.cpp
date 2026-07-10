@@ -215,6 +215,7 @@ void LeaderApp::handleTeleopMirrorButtons(bool confirmPressed, bool validatePres
     teleopFeedbackHzWindowStartMs_.store(0U);
     lastTurboOledStatusMs_ = 0U;
     lastFeedbackOledRefreshMs_ = 0U;
+    resetTeleopHapticOverlay();
     prepareEspNowTeleopMirrorStart();
     if (isEspNowTeleopFeedbackProfile(profile)) {
       notifyFollowerLoadFeedbackUplink(true);

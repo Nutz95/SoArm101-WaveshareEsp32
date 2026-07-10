@@ -3,6 +3,8 @@
 
 #include "../../Config/common_runtime_config.h"
 
+#include "../../Config/follower_runtime_config.h"
+
 #include <SCServo.h>
 #include <cstdio>
 #include <cstring>
@@ -52,6 +54,9 @@ void flushSerialRx(HardwareSerial *serial) {
 }
 
 uint8_t readLoadsSync(SMS_STS &driver, const uint8_t *ids, uint8_t knownCount, int16_t *loadsOut, uint8_t maxSlots) {
+  constexpr uint8_t kLoadBlockStart = SMS_STS_PRESENT_SPEED_L;
+  constexpr uint8_t kLoadBlockLen = static_cast<uint8_t>(SMS_STS_MOVING - SMS_STS_PRESENT_SPEED_L + 1U);
+
   uint8_t availableCount = 0U;
   for (uint8_t i = 0U; i < knownCount; ++i) {
     const uint8_t id = ids[i];
@@ -59,17 +64,37 @@ uint8_t readLoadsSync(SMS_STS &driver, const uint8_t *ids, uint8_t knownCount, i
       continue;
     }
 
-    uint8_t rxBuffer[4]{};
-    if (driver.syncReadPacketRx(id, rxBuffer) != 2) {
+    uint8_t rxBuffer[kLoadBlockLen]{};
+    if (driver.syncReadPacketRx(id, rxBuffer) != static_cast<int>(kLoadBlockLen)) {
       continue;
     }
 
-    const int load = driver.syncReadRxPacketToWrod(15);
-    if (load < 0) {
+    const int speed = driver.syncReadRxPacketToWrod(15);
+    const int loadSigned = driver.syncReadRxPacketToWrod(10);
+    (void)driver.syncReadRxPacketToByte();
+    (void)driver.syncReadRxPacketToByte();
+    (void)driver.syncReadRxPacketToByte();
+    (void)driver.syncReadRxPacketToByte();
+    const int moving = driver.syncReadRxPacketToByte();
+    if (speed < 0 || loadSigned < 0 || moving < 0) {
       continue;
     }
 
-    loadsOut[id - 1U] = static_cast<int16_t>(load);
+    int32_t loadMag = loadSigned;
+    if (loadMag < 0) {
+      loadMag = -loadMag;
+    }
+
+    int32_t absSpeed = speed;
+    if (absSpeed < 0) {
+      absSpeed = -absSpeed;
+    }
+
+    if (moving != 0 || absSpeed > config::follower::kTeleopLoadSampleMaxAbsSpeed) {
+      loadMag = 0;
+    }
+
+    loadsOut[id - 1U] = static_cast<int16_t>(loadMag > 32767 ? 32767 : loadMag);
     ++availableCount;
   }
   return availableCount;
@@ -198,7 +223,11 @@ uint8_t ServoBusService::syncReadPresentLoad(int16_t *loadsOut, uint8_t maxSlots
 
   flushSerialRx(serial_);
 
-  if (driver.syncReadPacketTx(ids, knownCount, SMS_STS_PRESENT_LOAD_L, 2) != 2) {
+  constexpr uint8_t kLoadBlockLen =
+      static_cast<uint8_t>(SMS_STS_MOVING - SMS_STS_PRESENT_SPEED_L + 1U);
+
+  if (driver.syncReadPacketTx(ids, knownCount, SMS_STS_PRESENT_SPEED_L, kLoadBlockLen) !=
+      static_cast<int>(kLoadBlockLen)) {
     setSummary("load read tx fail");
     return 0U;
   }

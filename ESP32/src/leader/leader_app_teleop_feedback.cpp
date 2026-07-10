@@ -38,6 +38,14 @@ void LeaderApp::pollTeleopLoadFeedback(uint32_t nowMs) {
   bool received = false;
   while (presence->takeTeleopLoadFeedbackRx(loads, requestId)) {
     memcpy(teleopFeedbackLoads_, loads, sizeof(teleopFeedbackLoads_));
+    for (uint8_t i = 0U; i < 6U; ++i) {
+      const uint8_t previous = teleopFeedbackLoadsEwma_[i];
+      teleopFeedbackLoadsEwma_[i] =
+          previous == 0U ? loads[i]
+                         : static_cast<uint8_t>((static_cast<uint16_t>(previous) * 3U +
+                                                 static_cast<uint16_t>(loads[i]) + 2U) /
+                                              4U);
+    }
     received = true;
     (void)requestId;
   }

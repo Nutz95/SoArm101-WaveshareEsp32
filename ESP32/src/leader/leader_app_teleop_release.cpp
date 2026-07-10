@@ -28,6 +28,7 @@ void LeaderApp::releaseFollowerTeleopHold() {
   teleopContinuousServoIdFilter_.store(0U);
   lastTurboOledStatusMs_ = 0U;
   lastFeedbackOledRefreshMs_ = 0U;
+  resetTeleopHapticOverlay();
   servoDebugManual_ = false;
   servoBusService_.setDebugManual(false);
   servoBusService_.setTorqueEnabledForDetectedServos(false);

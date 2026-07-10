@@ -22,10 +22,14 @@ static_assert(sizeof(TeleopLoadFeedbackPacket) == kLoadFeedbackWireSize, "load f
 } // namespace
 
 uint8_t encodeLoadWire(int16_t rawLoad) {
-  if (rawLoad <= 0) {
+  int32_t magnitude = rawLoad;
+  if (magnitude < 0) {
+    magnitude = -magnitude;
+  }
+  if (magnitude < static_cast<int32_t>(kLoadScaleDivisor)) {
     return 0U;
   }
-  const uint32_t scaled = static_cast<uint32_t>(rawLoad) / kLoadScaleDivisor;
+  const uint32_t scaled = static_cast<uint32_t>(magnitude) / kLoadScaleDivisor;
   return scaled > kLoadWireMax ? kLoadWireMax : static_cast<uint8_t>(scaled);
 }
 
