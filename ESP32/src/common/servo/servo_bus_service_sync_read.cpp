@@ -59,7 +59,8 @@ uint8_t readLoadsSync(
     uint8_t knownCount,
     int16_t *loadsOut,
     uint8_t maxSlots,
-    int16_t *gripperPresentPosOut) {
+    int16_t *gripperPresentPosOut,
+    int16_t *gripperAbsSpeedOut) {
   constexpr uint8_t kLoadBlockLen =
       static_cast<uint8_t>(SMS_STS_MOVING - SMS_STS_PRESENT_POSITION_L + 1U);
 
@@ -110,6 +111,9 @@ uint8_t readLoadsSync(
     loadsOut[id - 1U] = static_cast<int16_t>(loadMag > 32767 ? 32767 : loadMag);
     if (isGripper && gripperPresentPosOut != nullptr) {
       *gripperPresentPosOut = static_cast<int16_t>(position);
+    }
+    if (isGripper && gripperAbsSpeedOut != nullptr) {
+      *gripperAbsSpeedOut = static_cast<int16_t>(absSpeed);
     }
     ++availableCount;
   }
@@ -211,7 +215,8 @@ uint8_t ServoBusService::refreshKnownTelemetrySync() {
 uint8_t ServoBusService::syncReadPresentLoad(
     int16_t *loadsOut,
     uint8_t maxSlots,
-    int16_t *gripperPresentPosOut) {
+    int16_t *gripperPresentPosOut,
+    int16_t *gripperAbsSpeedOut) {
   if (!started_ || serial_ == nullptr || loadsOut == nullptr || maxSlots == 0U) {
     setSummary("load read not ready");
     return 0U;
@@ -254,8 +259,8 @@ uint8_t ServoBusService::syncReadPresentLoad(
 
   serial_->flush();
 
-  const uint8_t availableCount =
-      readLoadsSync(driver, ids, knownCount, loadsOut, maxSlots, gripperPresentPosOut);
+  const uint8_t availableCount = readLoadsSync(
+      driver, ids, knownCount, loadsOut, maxSlots, gripperPresentPosOut, gripperAbsSpeedOut);
   if (availableCount == 0U) {
     setSummary("load read empty");
     return 0U;

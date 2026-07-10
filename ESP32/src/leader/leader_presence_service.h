@@ -63,6 +63,7 @@ public:
   void clearFollowerWifiDirectState();
   /// Clears turbo sparse session state; call when mirror teleop starts (Xbox A).
   void resetTurboTeleopSession();
+  /// Drains one pending follower load-feedback ESP-NOW frame (non-blocking).
   bool takeTeleopLoadFeedbackRx(uint8_t loads[6], uint16_t &requestId, uint16_t &gripperPresentPos);
   uint32_t teleopLoadFeedbackTimeoutCount() const;
 

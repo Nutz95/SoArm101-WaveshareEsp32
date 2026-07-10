@@ -21,7 +21,9 @@ constexpr uint32_t kTeleopLoadSamplerPhaseOffsetMs = 5U;
 constexpr uint16_t kTeleopLoadFeedbackSeqBase = 50000U;
 /// Present load is only trusted when |present speed| is below this (STS units, arm joints).
 constexpr int16_t kTeleopLoadSampleMaxAbsSpeed = 80;
-/// Gripper: ignore MOVING bit; only discard load during fast chase (higher threshold).
+/// Gripper load is only uplinked for haptic when |present speed| is below this (stall / contact).
+constexpr int16_t kTeleopLoadGripperContactMaxAbsSpeed = 32;
+/// Gripper: ignore MOVING bit; discard raw load spikes during fast chase (sync read filter).
 constexpr int16_t kTeleopLoadGripperMaxAbsSpeed = 220;
 constexpr uint32_t kTeleopApplyTaskPeriodMs = config::common::kTeleopControlPeriodMs;
 constexpr uint32_t kTeleopTurboApplyTaskPeriodMs = config::common::kTeleopTurboControlPeriodMs;

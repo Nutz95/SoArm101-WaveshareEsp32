@@ -24,10 +24,12 @@ void FollowerTeleopLoadSamplerTask::runLoop(FollowerApp &app) {
     auto *presence = static_cast<FollowerPresenceService *>(app.presenceService_.get());
     if (presence != nullptr && presence->isTeleopLoadFeedbackUplinkEnabled()) {
       int16_t gripperPresentPos = 0;
+      int16_t gripperAbsSpeed = 0;
       const uint8_t readCount = app.servoBusService_.syncReadPresentLoad(
           rawLoads,
           config::common::kTeleopBatchMaxServos,
-          &gripperPresentPos);
+          &gripperPresentPos,
+          &gripperAbsSpeed);
       if (readCount > 0U) {
         for (uint8_t i = 0U; i < config::common::kTeleopBatchMaxServos; ++i) {
           wireLoads[i] = teleop_load_feedback::encodeLoadWire(rawLoads[i]);
@@ -35,10 +37,10 @@ void FollowerTeleopLoadSamplerTask::runLoop(FollowerApp &app) {
         wireLoads[config::common::kTeleopGripperSlotIndex] = teleop_load_feedback::netGripperLoadWire(
             wireLoads[config::common::kTeleopGripperSlotIndex],
             app.gripperLoadBaselineWire_);
-        app.teleopLoadSnapshot_.publish(wireLoads, loopStartMs);
+        if (gripperAbsSpeed > config::follower::kTeleopLoadGripperContactMaxAbsSpeed) {
+          wireLoads[config::common::kTeleopGripperSlotIndex] = 0U;
+        }
         app.sendTeleopLoadFeedbackFromSampler(wireLoads, static_cast<uint16_t>(gripperPresentPos));
-      } else {
-        app.teleopLoadSnapshot_.noteSamplerSkip();
       }
     }
 
@@ -47,6 +49,7 @@ void FollowerTeleopLoadSamplerTask::runLoop(FollowerApp &app) {
     const uint32_t delayMs =
         elapsedMs >= periodMs ? config::follower::kTeleopApplyTaskIdleDelayMs : (periodMs - elapsedMs);
     vTaskDelay(pdMS_TO_TICKS(delayMs));
+    (void)loopStartMs;
   }
 }
 

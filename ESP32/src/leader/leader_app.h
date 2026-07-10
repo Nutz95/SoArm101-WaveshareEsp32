@@ -139,6 +139,7 @@ private:
   void nudgeFollowerLinkAfterCalibration();
   void releaseFollowerTeleopHold();
   void prepareEspNowTeleopMirrorStart();
+  /// Enables or disables autonomous follower load uplink for ESP-NOW feedback teleop.
   void notifyFollowerLoadFeedbackUplink(bool enable);
   void refreshEspNowRadioTransport();
   void clearDeferHomeStaReconnectIfDone();
@@ -175,8 +176,11 @@ private:
   void updateFollowerState();
   void renderStatusLeds();
   void updateTurboOledStatus(uint32_t nowMs);
+  /// Drains follower load-feedback ESP-NOW frames and updates OLED/haptic inputs.
   void pollTeleopLoadFeedback(uint32_t nowMs);
+  /// Applies gripper-only haptic torque/position overlay from the latest follower load uplink.
   void applyTeleopHapticOverlay(uint32_t nowMs);
+  /// Clears haptic state when teleop feedback mode stops.
   void resetTeleopHapticOverlay();
 
   // Telemetry / display extracted from tick()
@@ -286,15 +290,11 @@ private:
   LeaderXboxControllerService xboxControllerService_{};
   uint32_t            lastFeedbackOledRefreshMs_{0U};
   uint8_t             teleopFeedbackLoads_[6]{};
-  uint8_t             teleopFeedbackLoadsEwma_[6]{};
   int16_t             teleopFeedbackGripperPresentPos_{0};
   bool                teleopFeedbackGripperPresentPosValid_{false};
-  int16_t             teleopHapticLastPosition_[6]{};
-  bool                teleopHapticHasLastPosition_[6]{};
   bool                teleopHapticGripperEngaged_{false};
   bool                teleopHapticBusPrimed_{false};
-  uint8_t             teleopHapticGripperLoadEwma_{0U};
-  uint32_t            teleopHapticEngageCandidateMs_{0U};
+  uint8_t             teleopHapticEngageStreak_{0U};
   uint32_t            teleopHapticDisengageCandidateMs_{0U};
   uint32_t            lastTeleopHapticMs_{0U};
   std::atomic<uint8_t> teleopFeedbackHzEwma_{0U};

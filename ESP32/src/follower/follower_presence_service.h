@@ -63,6 +63,7 @@ public:
   void resetTeleopTransportState();
   bool isTeleopLoadFeedbackUplinkEnabled() const;
   void setTeleopLoadFeedbackUplinkEnabled(bool enabled);
+  /// Transmits autonomous load + gripper-position feedback to the paired leader.
   void sendTeleopLoadFeedback(uint16_t requestId, const uint8_t loads[6], uint16_t gripperPresentPos);
 
 private:

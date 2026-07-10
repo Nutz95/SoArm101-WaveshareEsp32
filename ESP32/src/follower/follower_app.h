@@ -11,7 +11,6 @@
 #include "../common/servo/servo_bus_service.h"
 #include "follower_teleop_wifi_bridge.h"
 #include "follower_wifi_direct_link.h"
-#include "follower_teleop_load_snapshot.h"
 
 #include <memory>
 
@@ -93,7 +92,6 @@ private:
   uint32_t            espNowResyncAfterWifiDirectStartedMs_{0U};
   TaskHandle_t        teleopApplyTaskHandle_{nullptr};
   TaskHandle_t        teleopLoadSamplerTaskHandle_{nullptr};
-  FollowerTeleopLoadSnapshot teleopLoadSnapshot_{};
   uint16_t teleopLoadFeedbackSeq_{config::follower::kTeleopLoadFeedbackSeqBase};
   uint8_t gripperLoadBaselineWire_{0U};
 };

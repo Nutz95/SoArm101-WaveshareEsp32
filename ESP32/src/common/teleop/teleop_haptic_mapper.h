@@ -14,6 +14,7 @@ constexpr uint8_t kWireLoadDeadband = 1U;
 constexpr uint8_t kGripperGainNumerator = 5U;
 constexpr uint8_t kGripperGainDenominator = 2U;
 
+/// Maps follower wire load (0..127) to an STS torque-limit setpoint for haptic hold.
 uint16_t mapWireLoadToTorqueLimit(uint8_t wireLoad, bool isGripper);
 
 } // namespace teleop_haptic

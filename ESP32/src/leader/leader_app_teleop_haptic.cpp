@@ -5,6 +5,7 @@
 #include "../common/calibration/calibration_profile_utils.h"
 #include "../common/controller/controller_operation_profile.h"
 #include "../common/servo/servo_position_snapshot.h"
+#include "../common/teleop/teleop_haptic_contact.h"
 #include "../common/teleop/teleop_haptic_mapper.h"
 #include "../common/types/operation_mode.h"
 
@@ -32,26 +33,15 @@ void releaseGripperTorque(ServoBusService &bus, int16_t position) {
   (void)bus.applyTeleopHapticFrame(&id, &position, &torqueLimit, &releaseTorque, 1U);
 }
 
-bool gripperLoadInEngageBand(uint8_t smoothedLoad) {
-  return smoothedLoad >= config::leader::kTeleopHapticGripperEngageMinWireLoad &&
-         smoothedLoad <= config::leader::kTeleopHapticGripperEngageMaxWireLoad;
-}
-
 } // namespace
 
 void LeaderApp::resetTeleopHapticOverlay() {
   lastTeleopHapticMs_ = 0U;
   teleopHapticGripperEngaged_ = false;
   teleopHapticBusPrimed_ = false;
-  teleopHapticGripperLoadEwma_ = 0U;
-  teleopHapticEngageCandidateMs_ = 0U;
+  teleopHapticEngageStreak_ = 0U;
   teleopHapticDisengageCandidateMs_ = 0U;
-  teleopHapticLastPosition_[kGripperSlot] = 0;
-  teleopHapticHasLastPosition_[kGripperSlot] = false;
   teleopFeedbackGripperPresentPosValid_ = false;
-  for (uint8_t i = 0U; i < config::common::kTeleopBatchMaxServos; ++i) {
-    teleopFeedbackLoadsEwma_[i] = 0U;
-  }
   servoBusService_.setTorqueEnabledForDetectedServos(false);
 }
 
@@ -75,15 +65,6 @@ void LeaderApp::applyTeleopHapticOverlay(uint32_t nowMs) {
   }
   lastTeleopHapticMs_ = nowMs;
 
-  const uint8_t sample = teleopFeedbackLoadsEwma_[kGripperSlot];
-  const uint8_t previousSmoothed = teleopHapticGripperLoadEwma_;
-  teleopHapticGripperLoadEwma_ =
-      previousSmoothed == 0U
-          ? sample
-          : static_cast<uint8_t>((static_cast<uint16_t>(previousSmoothed) * 7U +
-                                  static_cast<uint16_t>(sample) + 4U) /
-                                 8U);
-
   ServoPositionSnapshot snapshot{};
   if (!servoBusService_.copyPositionSnapshot(snapshot)) {
     return;
@@ -92,84 +73,69 @@ void LeaderApp::applyTeleopHapticOverlay(uint32_t nowMs) {
   int16_t leaderPresentPosition = 0;
   if (!findSnapshotPosition(snapshot, kGripperId, leaderPresentPosition)) {
     if (teleopHapticGripperEngaged_) {
-      releaseGripperTorque(servoBusService_, teleopHapticLastPosition_[kGripperSlot]);
+      releaseGripperTorque(servoBusService_, leaderPresentPosition);
       teleopHapticGripperEngaged_ = false;
-      teleopHapticEngageCandidateMs_ = 0U;
+      teleopHapticEngageStreak_ = 0U;
       teleopHapticDisengageCandidateMs_ = 0U;
     }
     return;
   }
 
-  int16_t hapticGoalPosition = leaderPresentPosition;
+  int16_t followerOnLeader = leaderPresentPosition;
   if (teleopFeedbackGripperPresentPosValid_) {
-    hapticGoalPosition = remapServoPositionWithCalibration(
+    followerOnLeader = remapServoPositionWithCalibration(
         kGripperId,
         teleopFeedbackGripperPresentPos_,
         followerCalibrationProfile_,
         leaderCalibrationProfile_);
   }
 
-  bool leaderGripperMoving = false;
-  if (teleopHapticHasLastPosition_[kGripperSlot]) {
-    const int32_t delta = static_cast<int32_t>(leaderPresentPosition) -
-                          static_cast<int32_t>(teleopHapticLastPosition_[kGripperSlot]);
-    const int32_t absDelta = delta < 0 ? -delta : delta;
-    leaderGripperMoving = absDelta >= config::leader::kTeleopHapticGripperMoveDelta;
-  }
-  teleopHapticLastPosition_[kGripperSlot] = leaderPresentPosition;
-  teleopHapticHasLastPosition_[kGripperSlot] = true;
+  const uint8_t gripperLoad = teleopFeedbackLoads_[kGripperSlot];
+  const int16_t hapticGoalPosition = teleop_haptic::selectGripperHapticGoal(
+      leaderPresentPosition, followerOnLeader, gripperLoad);
+  const int32_t absPositionGap =
+      teleop_haptic::gripperLeaderFollowerAbsGap(leaderPresentPosition, followerOnLeader);
 
-  if (leaderGripperMoving) {
-    teleopHapticEngageCandidateMs_ = 0U;
-    if (teleopHapticGripperEngaged_) {
-      releaseGripperTorque(servoBusService_, leaderPresentPosition);
-      teleopHapticGripperEngaged_ = false;
-      teleopHapticDisengageCandidateMs_ = 0U;
+  const bool contactCandidate =
+      teleop_haptic::shouldEngageGripperHaptic(gripperLoad, absPositionGap);
+  if (contactCandidate) {
+    if (teleopHapticEngageStreak_ < 255U) {
+      ++teleopHapticEngageStreak_;
     }
-    return;
-  }
-
-  const uint8_t smoothedLoad = teleopHapticGripperLoadEwma_;
-  uint8_t hapticLoad = smoothedLoad;
-  if (teleopHapticGripperEngaged_ &&
-      hapticLoad < config::leader::kTeleopHapticGripperEngageMinWireLoad) {
-    // Hold minimum feedback while engaged — avoids drop-out when follower load plateaus.
-    hapticLoad = config::leader::kTeleopHapticGripperEngageMinWireLoad;
+  } else {
+    teleopHapticEngageStreak_ = 0U;
   }
 
   if (!teleopHapticGripperEngaged_) {
-    if (!gripperLoadInEngageBand(smoothedLoad)) {
-      teleopHapticEngageCandidateMs_ = 0U;
+    if (!contactCandidate ||
+        teleopHapticEngageStreak_ < config::leader::kTeleopHapticEngageStreakRequired) {
       return;
     }
-    if (teleopHapticEngageCandidateMs_ == 0U) {
-      teleopHapticEngageCandidateMs_ = nowMs;
-      return;
-    }
-    if ((nowMs - teleopHapticEngageCandidateMs_) < config::leader::kTeleopHapticEngageHoldMs) {
-      return;
-    }
-    teleopHapticEngageCandidateMs_ = 0U;
     teleopHapticDisengageCandidateMs_ = 0U;
-  } else {
-    if (smoothedLoad > config::leader::kTeleopHapticGripperDisengageMaxWireLoad) {
-      teleopHapticDisengageCandidateMs_ = 0U;
-    } else {
-      if (teleopHapticDisengageCandidateMs_ == 0U) {
-        teleopHapticDisengageCandidateMs_ = nowMs;
-        return;
-      }
-      if ((nowMs - teleopHapticDisengageCandidateMs_) < config::leader::kTeleopHapticDisengageHoldMs) {
-        return;
-      }
-      releaseGripperTorque(servoBusService_, leaderPresentPosition);
-      teleopHapticGripperEngaged_ = false;
-      teleopHapticDisengageCandidateMs_ = 0U;
+  } else if (teleop_haptic::shouldDisengageMirrorCatchUp(gripperLoad, absPositionGap)) {
+    releaseGripperTorque(servoBusService_, leaderPresentPosition);
+    teleopHapticGripperEngaged_ = false;
+    teleopHapticEngageStreak_ = 0U;
+    teleopHapticDisengageCandidateMs_ = 0U;
+    return;
+  } else if (gripperLoad <= config::leader::kTeleopHapticGripperDisengageMaxWireLoad) {
+    if (teleopHapticDisengageCandidateMs_ == 0U) {
+      teleopHapticDisengageCandidateMs_ = nowMs;
       return;
     }
+    if ((nowMs - teleopHapticDisengageCandidateMs_) < config::leader::kTeleopHapticDisengageHoldMs) {
+      return;
+    }
+    releaseGripperTorque(servoBusService_, leaderPresentPosition);
+    teleopHapticGripperEngaged_ = false;
+    teleopHapticEngageStreak_ = 0U;
+    teleopHapticDisengageCandidateMs_ = 0U;
+    return;
+  } else {
+    teleopHapticDisengageCandidateMs_ = 0U;
   }
 
-  const uint16_t torqueLimit = teleop_haptic::mapWireLoadToTorqueLimit(hapticLoad, true);
+  const uint16_t torqueLimit = teleop_haptic::mapWireLoadToTorqueLimit(gripperLoad, true);
   const uint8_t id = kGripperId;
   const bool releaseTorque = false;
   if (servoBusService_.applyTeleopHapticFrame(&id, &hapticGoalPosition, &torqueLimit, &releaseTorque, 1U)) {

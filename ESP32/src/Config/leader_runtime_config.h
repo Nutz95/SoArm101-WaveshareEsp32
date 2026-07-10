@@ -49,16 +49,21 @@ constexpr uint32_t kTurboOledStatusPeriodMs = 1000U;
 // Leader haptic overlay — gripper only (phase 5.2 bench).
 constexpr uint8_t kTeleopHapticGripperServoId = 6U;
 constexpr uint8_t kTeleopHapticGripperSlotIndex = 5U;
-constexpr uint32_t kTeleopHapticPeriodMs = 32U;
-constexpr int16_t kTeleopHapticGripperMoveDelta = 6;
-/// Follower grip wire load must exceed this before leader gripper torque engages.
-constexpr uint8_t kTeleopHapticGripperEngageMinWireLoad = 12U;
+constexpr uint32_t kTeleopHapticPeriodMs = 12U;
+constexpr uint8_t kTeleopHapticGripperEngageMinWireLoad = 18U;
+/// Leader present vs follower-mapped gripper gap (STS counts) required to engage haptic.
+constexpr int16_t kTeleopHapticMinPositionGap = 40;
+/// Follower-mapped position is applied on the leader only above this load (firm contact).
+constexpr uint8_t kTeleopHapticPositionSyncMinWireLoad = 18U;
+/// Gap below this means mirror caught up — release haptic (avoids lag-induced position fights).
+constexpr int16_t kTeleopHapticMirrorCatchUpGap = 18;
+/// Consecutive haptic ticks with valid contact before torque engages (~24 ms at 12 ms/tick).
+constexpr uint8_t kTeleopHapticEngageStreakRequired = 2U;
 /// Release haptic when smoothed grip load falls below this (hysteresis).
 constexpr uint8_t kTeleopHapticGripperDisengageMaxWireLoad = 4U;
 /// Saturated wire values (127) are usually motion spikes — do not engage haptic on them.
 constexpr uint8_t kTeleopHapticGripperEngageMaxWireLoad = 110U;
-constexpr uint32_t kTeleopHapticEngageHoldMs = 64U;
-constexpr uint32_t kTeleopHapticDisengageHoldMs = 400U;
+constexpr uint32_t kTeleopHapticDisengageHoldMs = 120U;
 
 constexpr uint32_t kFollowerScanRetryIntervalMs = 1200U;
 constexpr uint8_t kFollowerCommandMaxRetries = 6U;
