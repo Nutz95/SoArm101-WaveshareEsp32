@@ -22,9 +22,19 @@ Additional guides:
 - [docs/calibration.md](docs/calibration.md) — joint min/max in NVS per arm
 - [docs/esp_now_pairing.md](docs/esp_now_pairing.md) — automatic pairing, reset without dashboard
 
-## PlatformIO Initialization
+## Host prerequisites
 
-No extra initialization command is required because `platformio.ini` is already present.
+See the root [README — Development setup](../README.md#development-setup-host-pc) for a full checklist.
+
+Short version:
+
+1. **Python 3.10+** and **PlatformIO Core** (`pio`) on `PATH`.
+2. **Host `gcc` / `g++`** for `pio test -e native` (on Windows: MSYS2 UCRT64 MinGW, with `C:\msys64\ucrt64\bin` on `PATH`).
+3. USB serial driver so the boards appear as COM ports.
+
+`platformio.ini` is already present — no extra PlatformIO project init step.
+
+Firmware builds use PlatformIO’s ESP32 toolchain (auto-downloaded). Native unit tests use the **host** compiler; without it, builds can succeed while `pio test -e native` fails.
 
 ---
 
@@ -196,11 +206,15 @@ Builds both `leader` and `follower` environments in one pass.
 
 ## Unit Tests (Host)
 
+Requires host `gcc`/`g++` on `PATH` (see [Host prerequisites](#host-prerequisites)).
+
 ```powershell
 pio test -e native
+# or full gate:
+.\build_and_test.ps1
 ```
 
-Validates pure shared logic (state machine) without hardware peripherals.
+Validates pure shared logic (codecs, policies, state machine, …) without hardware peripherals.
 
 ---
 

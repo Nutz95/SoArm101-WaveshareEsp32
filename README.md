@@ -100,6 +100,60 @@ Wi-Fi credentials are baked in at **build time** via `SOARM_WIFI_SSID` / `SOARM_
 
 Details: [ESP32/docs/architecture/README.md](ESP32/docs/architecture/README.md) · [message flow diagram](ESP32/docs/architecture/message-flow.svg)
 
+## Development setup (host PC)
+
+Required once on a new machine before build / flash / tests.
+
+| Tool | Why | Check |
+|------|-----|--------|
+| **Python 3.10+** | Structural checks, dashboard tooling | `python --version` |
+| **PlatformIO Core** (`pio`) | Build, upload, native tests | `pio --version` |
+| **Host `gcc` / `g++`** | `pio test -e native` compiles on the PC (not the ESP32) | `gcc --version` |
+| **USB serial driver** | Flash / monitor (often CP210x or CH340 on Waveshare boards) | Board appears as `COMx` |
+
+ESP32 cross-toolchains (`toolchain-xtensa-esp32`, …) are downloaded automatically by PlatformIO on first `pio run`.
+
+### Install PlatformIO
+
+```powershell
+pip install -U platformio
+# or: pipx install platformio
+pio --version
+```
+
+### Install host GCC (Windows — needed for native tests)
+
+Without `gcc`/`g++` in `PATH`, `pio test -e native` and `.\build_and_test.ps1` fail with `'gcc' is not recognized` even when firmware builds fine.
+
+```powershell
+winget install -e --id MSYS2.MSYS2
+```
+
+In an **MSYS2 UCRT64** shell:
+
+```bash
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc
+```
+
+Add `C:\msys64\ucrt64\bin` to your user `PATH`, open a **new** terminal, then verify `gcc --version` and `g++ --version`.
+
+**Linux / macOS:** install the system C++ toolchain (`build-essential`, Xcode CLT, etc.) so `g++` is on `PATH`.
+
+### Verify the toolchain
+
+```powershell
+cd ESP32
+.\build_and_test.ps1
+```
+
+Builds leader + follower-ota, runs structural checks and native tests. Firmware-only (skip host compiler):
+
+```powershell
+.\build_and_test.ps1 -SkipNativeTests
+```
+
+More detail: [ESP32/README.md](ESP32/README.md).
+
 ## Quick start
 
 ### 1. Wi-Fi credentials (optional, at build time)
@@ -153,6 +207,7 @@ Full firmware guide: [ESP32/README.md](ESP32/README.md)
 
 | Topic | Document |
 |-------|----------|
+| **Host install (Python, PlatformIO, MinGW)** | [Development setup](#development-setup-host-pc) above · [ESP32/README.md](ESP32/README.md) |
 | **Hardware & Xbox controller** | [ESP32/docs/hardware.md](ESP32/docs/hardware.md) |
 | **ESP-NOW pairing (no dashboard)** | [ESP32/docs/esp_now_pairing.md](ESP32/docs/esp_now_pairing.md) |
 | **Router optional, Wi-Fi env vars, OTA, dashboard teleop** | [ESP32/docs/networking.md](ESP32/docs/networking.md) |
@@ -168,6 +223,15 @@ Full firmware guide: [ESP32/README.md](ESP32/README.md)
 | Build, OTA, config | [ESP32/README.md](ESP32/README.md) |
 
 ## Tests & quality
+
+Needs host `gcc`/`g++` (see [Development setup](#development-setup-host-pc)).
+
+```powershell
+cd ESP32
+.\build_and_test.ps1
+```
+
+Or step by step from the repo root:
 
 ```powershell
 python ESP32/tools/check_structural_limits.py --project-root ESP32
