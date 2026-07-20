@@ -1,0 +1,14 @@
+# SoArm dual-OTA layout for 4 MB flash (Waveshare ESP32 boards).
+# Compared to Arduino default.csv: app slots grow 1280 KB -> 1920 KB;
+# SPIFFS shrinks 1408 KB -> 128 KB (unused by this firmware today).
+#
+# After changing this file, flash BOTH boards over USB once (do not OTA
+# across an old->new partition table). See ESP32/README.md.
+#
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x9000,  0x5000,
+otadata,  data, ota,     0xe000,  0x2000,
+app0,     app,  ota_0,   0x10000, 0x1E0000,
+app1,     app,  ota_1,   0x1F0000,0x1E0000,
+spiffs,   data, spiffs,  0x3D0000,0x20000,
+coredump, data, coredump,0x3F0000,0x10000,

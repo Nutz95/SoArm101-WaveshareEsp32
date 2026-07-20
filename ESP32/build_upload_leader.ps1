@@ -15,9 +15,12 @@
 
 .PARAMETER Port
     USB serial port for USB upload. Default: COM7.
+    Alias: -UploadPort (accepted for README / habit compatibility).
 
 .EXAMPLE
     .\build_upload_leader.ps1              # USB build + upload (BLE on)
+    .\build_upload_leader.ps1 -Port COM7
+    .\build_upload_leader.ps1 -UploadPort COM7
     .\build_upload_leader.ps1 -Ota         # OTA build + upload (BLE on)
     .\build_upload_leader.ps1 -NoBle       # USB without NimBLE / Xbox BLE
     .\build_upload_leader.ps1 -NoBuild     # USB upload only
@@ -27,6 +30,7 @@ param(
     [switch]$Ota,
     [switch]$NoBuild,
     [switch]$NoBle,
+    [Alias("UploadPort")]
     [string]$Port = "COM7",
     [string]$OtaIp = ""
 )
@@ -51,8 +55,8 @@ if (-not $Ota) { Write-Host "Port        : $Port" }
 if ($Ota -and $OtaIp -ne "") { Write-Host "OTA IP      : $OtaIp" }
 Write-Host ""
 
-# Override upload port for USB mode when user specifies a custom port.
-if (-not $Ota -and $Port -ne "COM7") {
+# Always force USB upload port in USB mode (overrides platformio.ini upload_port).
+if (-not $Ota) {
     $env:PLATFORMIO_UPLOAD_PORT = $Port
 }
 if ($Ota -and $OtaIp -ne "") {

@@ -175,6 +175,8 @@ cd ESP32
 .\build_upload_follower.ps1 -UploadPort COM8
 ```
 
+Partition layout (`ESP32/partitions.csv`): dual OTA with **1920 KB** app slots. After a partition-table change, flash **both** boards over USB once before using OTA again — see [ESP32/README.md](ESP32/README.md#flash-partitions-4-mb).
+
 ### 3. ESP-NOW pairing (no dashboard required)
 
 1. Power **leader** and **follower** within a few metres.

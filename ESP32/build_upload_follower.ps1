@@ -12,12 +12,15 @@
 
 .PARAMETER Port
     USB serial port for USB upload. Default: COM8.
+    Alias: -UploadPort (accepted for README / habit compatibility).
 
 .PARAMETER FactoryResetPairing
     USB-only recovery mode: erase flash before upload to reset NVS pairing state.
 
 .EXAMPLE
     .\build_upload_follower.ps1              # USB build + upload
+    .\build_upload_follower.ps1 -Port COM9
+    .\build_upload_follower.ps1 -UploadPort COM9
     .\build_upload_follower.ps1 -Ota         # OTA build + upload
     .\build_upload_follower.ps1 -NoBuild     # USB upload only
     .\build_upload_follower.ps1 -Ota -NoBuild  # OTA upload only
@@ -27,6 +30,7 @@ param(
     [switch]$Ota,
     [switch]$NoBuild,
     [switch]$FactoryResetPairing,
+    [Alias("UploadPort")]
     [string]$Port = "COM8",
     [string]$OtaIp = ""
 )

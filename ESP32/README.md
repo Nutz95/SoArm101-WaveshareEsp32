@@ -38,6 +38,29 @@ Firmware builds use PlatformIO’s ESP32 toolchain (auto-downloaded). Native uni
 
 ---
 
+## Flash partitions (4 MB)
+
+`partitions.csv` keeps **dual OTA** (`app0` + `app1`) but grows each app slot from **1280 KB → 1920 KB**. SPIFFS shrinks to **128 KB** (unused by this firmware; reserved for future file storage).
+
+| Partition | Size | Role |
+|-----------|------|------|
+| `app0` / `app1` | 1920 KB each | Firmware + OTA alternate slot |
+| `spiffs` | 128 KB | Unused today |
+| `nvs` / `otadata` / `coredump` | small | Pairing, cal, OTA metadata, crash dump |
+
+**First flash after this change (or any partition-table change):** use **USB**, not OTA. Flash **leader and follower** so both boards share the same layout. Optional full erase before upload if a board behaves oddly:
+
+```powershell
+pio run -e leader -t erase
+.\build_upload_leader.ps1 -UploadPort COM7
+pio run -e follower -t erase
+.\build_upload_follower.ps1 -UploadPort COM8
+```
+
+After both boards run the new table, OTA works again as usual. Do **not** OTA an image built for the new table onto a board still using the old default layout.
+
+---
+
 ## WiFi Credentials Setup
 
 WiFi credentials are **never stored in the repository**. They are injected from OS
